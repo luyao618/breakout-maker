@@ -1,0 +1,3405 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>Breakout Maker - Preview</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      width: 100%; height: 100%;
+      overflow: hidden;
+      background: #000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      touch-action: none;
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+    canvas {
+      display: block;
+      image-rendering: pixelated;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="gameCanvas"></canvas>
+  <script>
+// src/constants.js
+// Provides: C, Theme, _brickColor, LEVEL_DATA (via placeholder), _applyColors, getPresetLevel, getTotalLevels
+// Depends: (none)
+
+// ---------------------------------------------------------------------------
+// 1. Game Constants
+// ---------------------------------------------------------------------------
+const C = {
+  FIXED_DT: 1 / 60,           // Fixed timestep for physics (60 Hz)
+  MAX_STEPS: 3,                // Max physics steps per frame (prevents spiral of death)
+  MAX_ACCUMULATOR: 0.1,        // Cap accumulator to avoid huge catch-up
+
+  BALL_RADIUS: 4,
+  BALL_SPEED: 300,             // Default ball speed (px/s)
+  MIN_VY_RATIO: 0.3,          // Min vertical component ratio to prevent horizontal stalling
+  LAUNCH_ANGLE: Math.PI / 4,  // 45° default launch angle
+
+  PADDLE_HEIGHT: 10,
+  MAX_PADDLE_SPEED: 1200,     // Max paddle movement speed (px/s)
+  PADDLE_SMOOTHING: 1.0,      // Smoothing factor (1.0 = instant)
+  MAX_REFLECT_ANGLE: Math.PI / 3, // 60° max reflect off paddle
+
+  BRICK_GAP: 2,               // Gap between bricks (px)
+
+  INDESTRUCTIBLE_HP: 999,     // Sentinel value for indestructible bricks
+
+  DEFAULT_LIVES: 3,
+
+  COMBO_TIMEOUT: 2000,        // ms before combo resets
+  COMBO_MULT: 0.5,            // Multiplier increment per combo
+  BASE_SCORE: 10,             // Base score per brick
+
+  PLAY_TOP: 80,               // Top of play area (px from canvas top)
+  PLAY_BOTTOM_MARGIN: 60,     // Bottom margin for paddle area
+
+  SCREEN_W: 375,              // Reference screen width
+  SCREEN_H: 667,              // Reference screen height
+};
+
+// ---------------------------------------------------------------------------
+// 2. Theme Colors — Steampunk (蒸汽朋克)
+// ---------------------------------------------------------------------------
+const Theme = {
+  bg: '#1a1008',                // Dark walnut wood
+  panelBg: '#2a1a0e',           // Dark leather
+  accent: '#d4a24e',            // Polished brass
+  accent2: '#c45e3a',           // Copper/rust
+  accent3: '#8b6d2e',           // Aged bronze
+  textPrimary: '#f0e0c0',       // Warm parchment
+  textSecondary: '#a08860',      // Faded ink
+
+  paddleGrad: ['#c4973a', '#8b6914'],   // Brass gradient
+  ballGlow: '#d4a24e',
+
+  brick: {
+    hp1: ['#7a6840', '#5a4830'],            // Weathered bronze
+    hp2: ['#c45e3a', '#8a3a22'],            // Copper
+    hp3: ['#d4a24e', '#9a7a2e'],            // Brass
+    hp4: ['#8b4513', '#5c2e0e'],            // Dark mahogany
+    indestructible: ['#4a4a4a', '#2e2e2e'], // Cast iron
+  },
+
+  starfield: '#d4a24e',          // Floating gear particles instead of stars
+
+  powerUp: {
+    split: '#d4a24e',            // Brass
+    multiShot: '#c45e3a',        // Copper
+    fireball: '#ff6622',         // Furnace orange
+    widePaddle: '#8b6d2e',       // Bronze
+    extraLife: '#cc3333',        // Steam valve red
+  },
+
+  button: {
+    bg: '#3a2a18',               // Dark wood
+    hover: '#4a3a28',            // Highlighted wood
+    text: '#f0e0c0',             // Parchment
+    border: '#d4a24e',           // Brass trim
+  },
+};
+
+// ---------------------------------------------------------------------------
+// 3. Level Loading — Levels are defined in external JSON files
+// ---------------------------------------------------------------------------
+// The LEVEL_DATA array is injected at build time by the build script.
+// Each entry is a plain object: { name, gridWidth, gridHeight, ballSpeed,
+//   paddleWidth, lives, bricks: [{ row, col, hp }, ...] }
+//
+// At runtime, _brickColor(hp) maps hp values to Theme colors, and
+// getPresetLevel() returns a deep copy with colors applied.
+// ---------------------------------------------------------------------------
+
+/**
+ * Map hp value to Theme brick color pair.
+ * Applied at runtime when loading a level — NOT stored in level JSON.
+ */
+function _brickColor(hp) {
+  if (hp >= C.INDESTRUCTIBLE_HP) return Theme.brick.indestructible;
+  if (hp >= 4) return Theme.brick.hp4;
+  if (hp >= 3) return Theme.brick.hp3;
+  if (hp >= 2) return Theme.brick.hp2;
+  return Theme.brick.hp1;
+}
+
+/**
+ * LEVEL_DATA — injected at build time.
+ * In the assembled preview.html, this will be replaced with the actual
+ * array of level objects loaded from levels/*.json files.
+ *
+ * Format: const LEVEL_DATA = [ {level1}, {level2}, ... ];
+ */
+const LEVEL_DATA = [
+  {
+    name:"关卡1 - 初次见面",
+    gridWidth:16,gridHeight:8,
+    ballSpeed:300,paddleWidth:90,lives:4,
+    bricks:[{row:1,col:0,hp:1},{row:1,col:1,hp:1},{row:1,col:2,hp:1},{row:1,col:4,hp:1},{row:1,col:5,hp:1},{row:1,col:6,hp:1},{row:1,col:7,hp:1},{row:1,col:8,hp:1},{row:1,col:9,hp:1},{row:1,col:10,hp:1},{row:1,col:11,hp:1},{row:1,col:13,hp:1},{row:1,col:14,hp:1},{row:1,col:15,hp:1},{row:2,col:0,hp:1},{row:2,col:1,hp:1},{row:2,col:2,hp:1},{row:2,col:3,hp:1},{row:2,col:4,hp:1},{row:2,col:5,hp:1},{row:2,col:6,hp:1},{row:2,col:9,hp:1},{row:2,col:10,hp:1},{row:2,col:11,hp:1},{row:2,col:12,hp:1},{row:2,col:13,hp:1},{row:2,col:14,hp:1},{row:2,col:15,hp:1},{row:3,col:1,hp:1},{row:3,col:2,hp:1},{row:3,col:3,hp:1},{row:3,col:4,hp:1},{row:3,col:5,hp:1},{row:3,col:6,hp:1},{row:3,col:7,hp:1},{row:3,col:8,hp:1},{row:3,col:9,hp:1},{row:3,col:10,hp:1},{row:3,col:11,hp:1},{row:3,col:12,hp:1},{row:3,col:13,hp:1},{row:3,col:14,hp:1},{row:4,col:0,hp:1},{row:4,col:1,hp:1},{row:4,col:2,hp:1},{row:4,col:3,hp:1},{row:4,col:4,hp:1},{row:4,col:6,hp:1},{row:4,col:7,hp:1},{row:4,col:8,hp:1},{row:4,col:9,hp:1},{row:4,col:11,hp:1},{row:4,col:12,hp:1},{row:4,col:13,hp:1},{row:4,col:14,hp:1},{row:4,col:15,hp:1},{row:5,col:0,hp:1},{row:5,col:1,hp:1},{row:5,col:3,hp:1},{row:5,col:4,hp:1},{row:5,col:5,hp:1},{row:5,col:6,hp:1},{row:5,col:7,hp:1},{row:5,col:8,hp:1},{row:5,col:9,hp:1},{row:5,col:10,hp:1},{row:5,col:11,hp:1},{row:5,col:12,hp:1},{row:5,col:14,hp:1},{row:5,col:15,hp:1},{row:6,col:0,hp:1},{row:6,col:1,hp:1},{row:6,col:2,hp:1},{row:6,col:3,hp:1},{row:6,col:4,hp:1},{row:6,col:5,hp:1},{row:6,col:7,hp:1},{row:6,col:8,hp:1},{row:6,col:10,hp:1},{row:6,col:11,hp:1},{row:6,col:12,hp:1},{row:6,col:13,hp:1},{row:6,col:14,hp:1},{row:6,col:15,hp:1}]
+  },
+  {
+    name:"关卡2 - 彩虹桥",
+    gridWidth:18,gridHeight:8,
+    ballSpeed:310,paddleWidth:72,lives:4,
+    bricks:[{row:0,col:0,hp:1},{row:0,col:1,hp:1},{row:0,col:2,hp:1},{row:0,col:3,hp:1},{row:0,col:4,hp:1},{row:0,col:5,hp:1},{row:0,col:6,hp:1},{row:0,col:7,hp:1},{row:0,col:8,hp:1},{row:0,col:9,hp:1},{row:0,col:10,hp:1},{row:0,col:11,hp:1},{row:0,col:12,hp:1},{row:0,col:13,hp:1},{row:0,col:14,hp:1},{row:0,col:15,hp:1},{row:0,col:16,hp:1},{row:0,col:17,hp:1},{row:1,col:0,hp:1},{row:1,col:1,hp:1},{row:1,col:2,hp:1},{row:1,col:3,hp:1},{row:1,col:4,hp:1},{row:1,col:5,hp:1},{row:1,col:6,hp:1},{row:1,col:7,hp:1},{row:1,col:8,hp:1},{row:1,col:9,hp:1},{row:1,col:10,hp:1},{row:1,col:11,hp:1},{row:1,col:12,hp:1},{row:1,col:13,hp:1},{row:1,col:14,hp:1},{row:1,col:15,hp:1},{row:1,col:16,hp:1},{row:1,col:17,hp:1},{row:2,col:0,hp:1},{row:2,col:1,hp:1},{row:2,col:2,hp:1},{row:2,col:3,hp:1},{row:2,col:4,hp:1},{row:2,col:5,hp:1},{row:2,col:6,hp:1},{row:2,col:7,hp:1},{row:2,col:8,hp:1},{row:2,col:9,hp:1},{row:2,col:10,hp:1},{row:2,col:11,hp:1},{row:2,col:12,hp:1},{row:2,col:13,hp:1},{row:2,col:14,hp:1},{row:2,col:15,hp:1},{row:2,col:16,hp:1},{row:2,col:17,hp:1},{row:3,col:0,hp:1},{row:3,col:1,hp:1},{row:3,col:2,hp:1},{row:3,col:3,hp:1},{row:3,col:4,hp:1},{row:3,col:5,hp:1},{row:3,col:6,hp:1},{row:3,col:7,hp:1},{row:3,col:8,hp:1},{row:3,col:9,hp:1},{row:3,col:10,hp:1},{row:3,col:11,hp:1},{row:3,col:12,hp:1},{row:3,col:13,hp:1},{row:3,col:14,hp:1},{row:3,col:15,hp:1},{row:3,col:16,hp:1},{row:3,col:17,hp:1},{row:4,col:0,hp:1},{row:4,col:1,hp:1},{row:4,col:2,hp:1},{row:4,col:3,hp:1},{row:4,col:4,hp:1},{row:4,col:5,hp:1},{row:4,col:6,hp:1},{row:4,col:7,hp:1},{row:4,col:8,hp:1},{row:4,col:9,hp:1},{row:4,col:10,hp:1},{row:4,col:11,hp:1},{row:4,col:12,hp:1},{row:4,col:13,hp:1},{row:4,col:14,hp:1},{row:4,col:15,hp:1},{row:4,col:16,hp:1},{row:4,col:17,hp:1},{row:5,col:0,hp:1},{row:5,col:1,hp:1},{row:5,col:2,hp:1},{row:5,col:3,hp:1},{row:5,col:4,hp:1},{row:5,col:5,hp:1},{row:5,col:6,hp:1},{row:5,col:7,hp:1},{row:5,col:8,hp:1},{row:5,col:9,hp:1},{row:5,col:10,hp:1},{row:5,col:11,hp:1},{row:5,col:12,hp:1},{row:5,col:13,hp:1},{row:5,col:14,hp:1},{row:5,col:15,hp:1},{row:5,col:16,hp:1},{row:5,col:17,hp:1}]
+  },
+  {
+    name:"关卡3 - 城墙",
+    gridWidth:20,gridHeight:10,
+    ballSpeed:320,paddleWidth:72,lives:4,
+    bricks:[{row:0,col:0,hp:2},{row:0,col:1,hp:2},{row:0,col:2,hp:2},{row:0,col:3,hp:2},{row:0,col:4,hp:2},{row:0,col:5,hp:2},{row:0,col:6,hp:2},{row:0,col:7,hp:2},{row:0,col:8,hp:2},{row:0,col:9,hp:2},{row:0,col:10,hp:2},{row:0,col:11,hp:2},{row:0,col:12,hp:2},{row:0,col:13,hp:2},{row:0,col:14,hp:2},{row:0,col:15,hp:2},{row:0,col:16,hp:2},{row:0,col:17,hp:2},{row:0,col:18,hp:2},{row:0,col:19,hp:2},{row:1,col:0,hp:1},{row:1,col:1,hp:1},{row:1,col:2,hp:1},{row:1,col:3,hp:1},{row:1,col:4,hp:1},{row:1,col:5,hp:1},{row:1,col:6,hp:1},{row:1,col:7,hp:1},{row:1,col:8,hp:1},{row:1,col:9,hp:1},{row:1,col:10,hp:1},{row:1,col:11,hp:1},{row:1,col:12,hp:1},{row:1,col:13,hp:1},{row:1,col:14,hp:1},{row:1,col:15,hp:1},{row:1,col:16,hp:1},{row:1,col:17,hp:1},{row:1,col:18,hp:1},{row:1,col:19,hp:1},{row:2,col:0,hp:2},{row:2,col:1,hp:2},{row:2,col:2,hp:2},{row:2,col:3,hp:2},{row:2,col:4,hp:2},{row:2,col:5,hp:2},{row:2,col:6,hp:2},{row:2,col:7,hp:2},{row:2,col:8,hp:2},{row:2,col:9,hp:2},{row:2,col:10,hp:2},{row:2,col:11,hp:2},{row:2,col:12,hp:2},{row:2,col:13,hp:2},{row:2,col:14,hp:2},{row:2,col:15,hp:2},{row:2,col:16,hp:2},{row:2,col:17,hp:2},{row:2,col:18,hp:2},{row:2,col:19,hp:2},{row:3,col:0,hp:1},{row:3,col:1,hp:1},{row:3,col:2,hp:1},{row:3,col:3,hp:1},{row:3,col:4,hp:1},{row:3,col:5,hp:1},{row:3,col:6,hp:1},{row:3,col:7,hp:1},{row:3,col:8,hp:1},{row:3,col:9,hp:1},{row:3,col:10,hp:1},{row:3,col:11,hp:1},{row:3,col:12,hp:1},{row:3,col:13,hp:1},{row:3,col:14,hp:1},{row:3,col:15,hp:1},{row:3,col:16,hp:1},{row:3,col:17,hp:1},{row:3,col:18,hp:1},{row:3,col:19,hp:1},{row:4,col:0,hp:2},{row:4,col:1,hp:2},{row:4,col:2,hp:2},{row:4,col:3,hp:2},{row:4,col:4,hp:2},{row:4,col:5,hp:2},{row:4,col:6,hp:2},{row:4,col:7,hp:2},{row:4,col:8,hp:2},{row:4,col:9,hp:2},{row:4,col:10,hp:2},{row:4,col:11,hp:2},{row:4,col:12,hp:2},{row:4,col:13,hp:2},{row:4,col:14,hp:2},{row:4,col:15,hp:2},{row:4,col:16,hp:2},{row:4,col:17,hp:2},{row:4,col:18,hp:2},{row:4,col:19,hp:2},{row:5,col:0,hp:1},{row:5,col:1,hp:1},{row:5,col:2,hp:1},{row:5,col:3,hp:1},{row:5,col:4,hp:1},{row:5,col:5,hp:1},{row:5,col:6,hp:1},{row:5,col:7,hp:1},{row:5,col:8,hp:1},{row:5,col:9,hp:1},{row:5,col:10,hp:1},{row:5,col:11,hp:1},{row:5,col:12,hp:1},{row:5,col:13,hp:1},{row:5,col:14,hp:1},{row:5,col:15,hp:1},{row:5,col:16,hp:1},{row:5,col:17,hp:1},{row:5,col:18,hp:1},{row:5,col:19,hp:1},{row:6,col:0,hp:2},{row:6,col:1,hp:2},{row:6,col:2,hp:2},{row:6,col:3,hp:2},{row:6,col:4,hp:2},{row:6,col:5,hp:2},{row:6,col:6,hp:2},{row:6,col:7,hp:2},{row:6,col:8,hp:2},{row:6,col:9,hp:2},{row:6,col:10,hp:2},{row:6,col:11,hp:2},{row:6,col:12,hp:2},{row:6,col:13,hp:2},{row:6,col:14,hp:2},{row:6,col:15,hp:2},{row:6,col:16,hp:2},{row:6,col:17,hp:2},{row:6,col:18,hp:2},{row:6,col:19,hp:2},{row:7,col:0,hp:1},{row:7,col:1,hp:1},{row:7,col:2,hp:1},{row:7,col:3,hp:1},{row:7,col:4,hp:1},{row:7,col:5,hp:1},{row:7,col:6,hp:1},{row:7,col:7,hp:1},{row:7,col:8,hp:1},{row:7,col:9,hp:1},{row:7,col:10,hp:1},{row:7,col:11,hp:1},{row:7,col:12,hp:1},{row:7,col:13,hp:1},{row:7,col:14,hp:1},{row:7,col:15,hp:1},{row:7,col:16,hp:1},{row:7,col:17,hp:1},{row:7,col:18,hp:1},{row:7,col:19,hp:1},{row:8,col:0,hp:2},{row:8,col:1,hp:2},{row:8,col:2,hp:2},{row:8,col:3,hp:2},{row:8,col:4,hp:2},{row:8,col:5,hp:2},{row:8,col:6,hp:2},{row:8,col:7,hp:2},{row:8,col:8,hp:2},{row:8,col:9,hp:2},{row:8,col:10,hp:2},{row:8,col:11,hp:2},{row:8,col:12,hp:2},{row:8,col:13,hp:2},{row:8,col:14,hp:2},{row:8,col:15,hp:2},{row:8,col:16,hp:2},{row:8,col:17,hp:2},{row:8,col:18,hp:2},{row:8,col:19,hp:2}]
+  },
+  {
+    name:"关卡4 - 钻石",
+    gridWidth:20,gridHeight:12,
+    ballSpeed:320,paddleWidth:88,lives:4,
+    bricks:[{row:0,col:8,hp:1},{row:0,col:9,hp:1},{row:0,col:10,hp:1},{row:0,col:11,hp:1},{row:1,col:7,hp:1},{row:1,col:8,hp:1},{row:1,col:9,hp:1},{row:1,col:10,hp:1},{row:1,col:11,hp:1},{row:1,col:12,hp:1},{row:2,col:6,hp:1},{row:2,col:7,hp:1},{row:2,col:8,hp:1},{row:2,col:9,hp:2},{row:2,col:10,hp:2},{row:2,col:11,hp:1},{row:2,col:12,hp:1},{row:2,col:13,hp:1},{row:3,col:5,hp:1},{row:3,col:6,hp:1},{row:3,col:7,hp:1},{row:3,col:8,hp:2},{row:3,col:9,hp:2},{row:3,col:10,hp:2},{row:3,col:11,hp:2},{row:3,col:12,hp:1},{row:3,col:13,hp:1},{row:3,col:14,hp:1},{row:4,col:4,hp:1},{row:4,col:5,hp:1},{row:4,col:6,hp:1},{row:4,col:7,hp:2},{row:4,col:8,hp:2},{row:4,col:9,hp:2},{row:4,col:10,hp:2},{row:4,col:11,hp:2},{row:4,col:12,hp:2},{row:4,col:13,hp:1},{row:4,col:14,hp:1},{row:4,col:15,hp:1},{row:5,col:3,hp:1},{row:5,col:4,hp:1},{row:5,col:5,hp:1},{row:5,col:6,hp:2},{row:5,col:7,hp:2},{row:5,col:8,hp:2},{row:5,col:9,hp:2},{row:5,col:10,hp:2},{row:5,col:11,hp:2},{row:5,col:12,hp:2},{row:5,col:13,hp:2},{row:5,col:14,hp:1},{row:5,col:15,hp:1},{row:5,col:16,hp:1},{row:6,col:3,hp:1},{row:6,col:4,hp:1},{row:6,col:5,hp:1},{row:6,col:6,hp:2},{row:6,col:7,hp:2},{row:6,col:8,hp:2},{row:6,col:9,hp:2},{row:6,col:10,hp:2},{row:6,col:11,hp:2},{row:6,col:12,hp:2},{row:6,col:13,hp:2},{row:6,col:14,hp:1},{row:6,col:15,hp:1},{row:6,col:16,hp:1},{row:7,col:4,hp:1},{row:7,col:5,hp:1},{row:7,col:6,hp:1},{row:7,col:7,hp:2},{row:7,col:8,hp:2},{row:7,col:9,hp:2},{row:7,col:10,hp:2},{row:7,col:11,hp:2},{row:7,col:12,hp:2},{row:7,col:13,hp:1},{row:7,col:14,hp:1},{row:7,col:15,hp:1},{row:8,col:5,hp:1},{row:8,col:6,hp:1},{row:8,col:7,hp:1},{row:8,col:8,hp:2},{row:8,col:9,hp:2},{row:8,col:10,hp:2},{row:8,col:11,hp:2},{row:8,col:12,hp:1},{row:8,col:13,hp:1},{row:8,col:14,hp:1},{row:9,col:6,hp:1},{row:9,col:7,hp:1},{row:9,col:8,hp:1},{row:9,col:9,hp:2},{row:9,col:10,hp:2},{row:9,col:11,hp:1},{row:9,col:12,hp:1},{row:9,col:13,hp:1},{row:10,col:7,hp:1},{row:10,col:8,hp:1},{row:10,col:9,hp:1},{row:10,col:10,hp:1},{row:10,col:11,hp:1},{row:10,col:12,hp:1},{row:11,col:8,hp:1},{row:11,col:9,hp:1},{row:11,col:10,hp:1},{row:11,col:11,hp:1}]
+  },
+  {
+    name:"关卡5 - 迷宫",
+    gridWidth:22,gridHeight:12,
+    ballSpeed:330,paddleWidth:88,lives:4,
+    bricks:[{row:0,col:2,hp:2},{row:2,col:2,hp:1},{row:3,col:2,hp:2},{row:4,col:2,hp:1},{row:5,col:2,hp:1},{row:6,col:2,hp:2},{row:8,col:2,hp:1},{row:9,col:2,hp:2},{row:11,col:2,hp:1},{row:0,col:6,hp:2},{row:1,col:6,hp:1},{row:2,col:6,hp:1},{row:4,col:6,hp:1},{row:5,col:6,hp:1},{row:6,col:6,hp:2},{row:7,col:6,hp:1},{row:8,col:6,hp:1},{row:10,col:6,hp:1},{row:11,col:6,hp:1},{row:1,col:10,hp:1},{row:2,col:10,hp:1},{row:3,col:10,hp:2},{row:4,col:10,hp:1},{row:6,col:10,hp:2},{row:7,col:10,hp:1},{row:8,col:10,hp:1},{row:9,col:10,hp:2},{row:10,col:10,hp:1},{row:0,col:14,hp:2},{row:1,col:14,hp:1},{row:3,col:14,hp:2},{row:4,col:14,hp:1},{row:5,col:14,hp:1},{row:6,col:14,hp:2},{row:7,col:14,hp:1},{row:9,col:14,hp:2},{row:10,col:14,hp:1},{row:11,col:14,hp:1},{row:0,col:18,hp:2},{row:1,col:18,hp:1},{row:2,col:18,hp:1},{row:3,col:18,hp:2},{row:5,col:18,hp:1},{row:7,col:18,hp:1},{row:8,col:18,hp:1},{row:9,col:18,hp:2},{row:11,col:18,hp:1},{row:0,col:7,hp:1},{row:0,col:8,hp:2},{row:0,col:9,hp:1},{row:0,col:10,hp:1},{row:1,col:2,hp:1},{row:1,col:3,hp:1},{row:1,col:4,hp:2},{row:1,col:5,hp:1},{row:2,col:14,hp:1},{row:2,col:15,hp:1},{row:2,col:16,hp:2},{row:2,col:17,hp:1},{row:3,col:11,hp:1},{row:3,col:12,hp:2},{row:3,col:13,hp:1},{row:4,col:3,hp:1},{row:4,col:4,hp:2},{row:4,col:5,hp:1},{row:5,col:7,hp:1},{row:5,col:8,hp:2},{row:5,col:9,hp:1},{row:5,col:10,hp:1},{row:6,col:15,hp:1},{row:6,col:16,hp:2},{row:6,col:17,hp:1},{row:6,col:18,hp:1},{row:7,col:2,hp:1},{row:7,col:3,hp:1},{row:7,col:4,hp:2},{row:7,col:5,hp:1},{row:7,col:7,hp:1},{row:7,col:8,hp:2},{row:7,col:9,hp:1},{row:8,col:11,hp:1},{row:8,col:12,hp:2},{row:8,col:13,hp:1},{row:8,col:14,hp:1},{row:8,col:15,hp:1},{row:8,col:16,hp:2},{row:8,col:17,hp:1},{row:9,col:6,hp:1},{row:9,col:7,hp:1},{row:9,col:8,hp:2},{row:9,col:9,hp:1},{row:9,col:11,hp:1},{row:9,col:12,hp:2},{row:9,col:13,hp:1},{row:10,col:2,hp:1},{row:10,col:3,hp:1},{row:10,col:4,hp:2},{row:10,col:5,hp:1},{row:11,col:15,hp:1},{row:11,col:16,hp:2},{row:11,col:17,hp:1}]
+  },
+  {
+    name:"关卡6 - 棋盘",
+    gridWidth:22,gridHeight:12,
+    ballSpeed:340,paddleWidth:88,lives:3,
+    bricks:[{row:0,col:0,hp:2},{row:0,col:2,hp:1},{row:0,col:4,hp:2},{row:0,col:6,hp:1},{row:0,col:8,hp:2},{row:0,col:10,hp:1},{row:0,col:12,hp:2},{row:0,col:14,hp:1},{row:0,col:16,hp:2},{row:0,col:18,hp:1},{row:0,col:20,hp:2},{row:1,col:1,hp:1},{row:1,col:3,hp:2},{row:1,col:5,hp:1},{row:1,col:7,hp:2},{row:1,col:9,hp:1},{row:1,col:11,hp:2},{row:1,col:13,hp:1},{row:1,col:15,hp:2},{row:1,col:17,hp:1},{row:1,col:19,hp:2},{row:1,col:21,hp:1},{row:2,col:0,hp:1},{row:2,col:2,hp:2},{row:2,col:4,hp:1},{row:2,col:6,hp:2},{row:2,col:8,hp:1},{row:2,col:10,hp:2},{row:2,col:12,hp:1},{row:2,col:14,hp:2},{row:2,col:16,hp:1},{row:2,col:18,hp:2},{row:2,col:20,hp:1},{row:3,col:1,hp:2},{row:3,col:3,hp:1},{row:3,col:5,hp:2},{row:3,col:7,hp:1},{row:3,col:9,hp:2},{row:3,col:11,hp:1},{row:3,col:13,hp:2},{row:3,col:15,hp:1},{row:3,col:17,hp:2},{row:3,col:19,hp:1},{row:3,col:21,hp:2},{row:4,col:0,hp:2},{row:4,col:2,hp:1},{row:4,col:4,hp:2},{row:4,col:6,hp:1},{row:4,col:8,hp:2},{row:4,col:10,hp:1},{row:4,col:12,hp:2},{row:4,col:14,hp:1},{row:4,col:16,hp:2},{row:4,col:18,hp:1},{row:4,col:20,hp:2},{row:5,col:1,hp:1},{row:5,col:3,hp:2},{row:5,col:5,hp:1},{row:5,col:7,hp:2},{row:5,col:9,hp:1},{row:5,col:11,hp:2},{row:5,col:13,hp:1},{row:5,col:15,hp:2},{row:5,col:17,hp:1},{row:5,col:19,hp:2},{row:5,col:21,hp:1},{row:6,col:0,hp:1},{row:6,col:2,hp:2},{row:6,col:4,hp:1},{row:6,col:6,hp:2},{row:6,col:8,hp:1},{row:6,col:10,hp:2},{row:6,col:12,hp:1},{row:6,col:14,hp:2},{row:6,col:16,hp:1},{row:6,col:18,hp:2},{row:6,col:20,hp:1},{row:7,col:1,hp:2},{row:7,col:3,hp:1},{row:7,col:5,hp:2},{row:7,col:7,hp:1},{row:7,col:9,hp:2},{row:7,col:11,hp:1},{row:7,col:13,hp:2},{row:7,col:15,hp:1},{row:7,col:17,hp:2},{row:7,col:19,hp:1},{row:7,col:21,hp:2},{row:8,col:0,hp:2},{row:8,col:2,hp:1},{row:8,col:4,hp:2},{row:8,col:6,hp:1},{row:8,col:8,hp:2},{row:8,col:10,hp:1},{row:8,col:12,hp:2},{row:8,col:14,hp:1},{row:8,col:16,hp:2},{row:8,col:18,hp:1},{row:8,col:20,hp:2},{row:9,col:1,hp:1},{row:9,col:3,hp:2},{row:9,col:5,hp:1},{row:9,col:7,hp:2},{row:9,col:9,hp:1},{row:9,col:11,hp:2},{row:9,col:13,hp:1},{row:9,col:15,hp:2},{row:9,col:17,hp:1},{row:9,col:19,hp:2},{row:9,col:21,hp:1},{row:10,col:0,hp:1},{row:10,col:2,hp:2},{row:10,col:4,hp:1},{row:10,col:6,hp:2},{row:10,col:8,hp:1},{row:10,col:10,hp:2},{row:10,col:12,hp:1},{row:10,col:14,hp:2},{row:10,col:16,hp:1},{row:10,col:18,hp:2},{row:10,col:20,hp:1},{row:11,col:1,hp:2},{row:11,col:3,hp:1},{row:11,col:5,hp:2},{row:11,col:7,hp:1},{row:11,col:9,hp:2},{row:11,col:11,hp:1},{row:11,col:13,hp:2},{row:11,col:15,hp:1},{row:11,col:17,hp:2},{row:11,col:19,hp:1},{row:11,col:21,hp:2}]
+  },
+  {
+    name:"关卡7 - 堡垒",
+    gridWidth:24,gridHeight:12,
+    ballSpeed:340,paddleWidth:84,lives:3,
+    bricks:[{row:0,col:0,hp:999},{row:0,col:1,hp:999},{row:0,col:2,hp:999},{row:0,col:3,hp:999},{row:0,col:4,hp:999},{row:0,col:5,hp:999},{row:0,col:6,hp:999},{row:0,col:7,hp:999},{row:0,col:8,hp:999},{row:0,col:9,hp:999},{row:0,col:10,hp:999},{row:0,col:11,hp:999},{row:0,col:12,hp:999},{row:0,col:13,hp:999},{row:0,col:14,hp:999},{row:0,col:15,hp:999},{row:0,col:16,hp:999},{row:0,col:17,hp:999},{row:0,col:18,hp:999},{row:0,col:19,hp:999},{row:0,col:20,hp:999},{row:0,col:21,hp:999},{row:0,col:22,hp:999},{row:0,col:23,hp:999},{row:1,col:0,hp:999},{row:1,col:1,hp:1},{row:1,col:2,hp:2},{row:1,col:3,hp:1},{row:1,col:4,hp:1},{row:1,col:5,hp:2},{row:1,col:6,hp:1},{row:1,col:7,hp:1},{row:1,col:8,hp:2},{row:1,col:9,hp:1},{row:1,col:10,hp:1},{row:1,col:11,hp:2},{row:1,col:12,hp:1},{row:1,col:13,hp:1},{row:1,col:14,hp:2},{row:1,col:15,hp:1},{row:1,col:16,hp:1},{row:1,col:17,hp:2},{row:1,col:18,hp:1},{row:1,col:19,hp:1},{row:1,col:20,hp:2},{row:1,col:21,hp:1},{row:1,col:22,hp:1},{row:1,col:23,hp:999},{row:2,col:0,hp:999},{row:2,col:1,hp:2},{row:2,col:2,hp:1},{row:2,col:3,hp:1},{row:2,col:4,hp:2},{row:2,col:5,hp:1},{row:2,col:6,hp:1},{row:2,col:7,hp:2},{row:2,col:8,hp:1},{row:2,col:9,hp:1},{row:2,col:10,hp:2},{row:2,col:11,hp:1},{row:2,col:12,hp:1},{row:2,col:13,hp:2},{row:2,col:14,hp:1},{row:2,col:15,hp:1},{row:2,col:16,hp:2},{row:2,col:17,hp:1},{row:2,col:18,hp:1},{row:2,col:19,hp:2},{row:2,col:20,hp:1},{row:2,col:21,hp:1},{row:2,col:22,hp:2},{row:2,col:23,hp:999},{row:3,col:0,hp:999},{row:3,col:1,hp:1},{row:3,col:2,hp:1},{row:3,col:3,hp:2},{row:3,col:4,hp:1},{row:3,col:5,hp:1},{row:3,col:6,hp:2},{row:3,col:7,hp:1},{row:3,col:8,hp:1},{row:3,col:9,hp:2},{row:3,col:10,hp:1},{row:3,col:11,hp:1},{row:3,col:12,hp:2},{row:3,col:13,hp:1},{row:3,col:14,hp:1},{row:3,col:15,hp:2},{row:3,col:16,hp:1},{row:3,col:17,hp:1},{row:3,col:18,hp:2},{row:3,col:19,hp:1},{row:3,col:20,hp:1},{row:3,col:21,hp:2},{row:3,col:22,hp:1},{row:3,col:23,hp:999},{row:4,col:0,hp:999},{row:4,col:1,hp:1},{row:4,col:2,hp:2},{row:4,col:3,hp:1},{row:4,col:4,hp:1},{row:4,col:5,hp:2},{row:4,col:6,hp:1},{row:4,col:7,hp:1},{row:4,col:8,hp:2},{row:4,col:9,hp:1},{row:4,col:10,hp:1},{row:4,col:11,hp:2},{row:4,col:12,hp:1},{row:4,col:13,hp:1},{row:4,col:14,hp:2},{row:4,col:15,hp:1},{row:4,col:16,hp:1},{row:4,col:17,hp:2},{row:4,col:18,hp:1},{row:4,col:19,hp:1},{row:4,col:20,hp:2},{row:4,col:21,hp:1},{row:4,col:22,hp:1},{row:4,col:23,hp:999},{row:5,col:0,hp:999},{row:5,col:1,hp:2},{row:5,col:2,hp:1},{row:5,col:3,hp:1},{row:5,col:4,hp:2},{row:5,col:5,hp:1},{row:5,col:6,hp:1},{row:5,col:7,hp:2},{row:5,col:8,hp:1},{row:5,col:9,hp:1},{row:5,col:10,hp:2},{row:5,col:11,hp:1},{row:5,col:12,hp:1},{row:5,col:13,hp:2},{row:5,col:14,hp:1},{row:5,col:15,hp:1},{row:5,col:16,hp:2},{row:5,col:17,hp:1},{row:5,col:18,hp:1},{row:5,col:19,hp:2},{row:5,col:20,hp:1},{row:5,col:21,hp:1},{row:5,col:22,hp:2},{row:5,col:23,hp:999},{row:6,col:0,hp:999},{row:6,col:1,hp:1},{row:6,col:2,hp:1},{row:6,col:3,hp:2},{row:6,col:4,hp:1},{row:6,col:5,hp:1},{row:6,col:6,hp:2},{row:6,col:7,hp:1},{row:6,col:8,hp:1},{row:6,col:9,hp:2},{row:6,col:10,hp:1},{row:6,col:11,hp:1},{row:6,col:12,hp:2},{row:6,col:13,hp:1},{row:6,col:14,hp:1},{row:6,col:15,hp:2},{row:6,col:16,hp:1},{row:6,col:17,hp:1},{row:6,col:18,hp:2},{row:6,col:19,hp:1},{row:6,col:20,hp:1},{row:6,col:21,hp:2},{row:6,col:22,hp:1},{row:6,col:23,hp:999},{row:7,col:0,hp:999},{row:7,col:1,hp:1},{row:7,col:2,hp:2},{row:7,col:3,hp:1},{row:7,col:4,hp:1},{row:7,col:5,hp:2},{row:7,col:6,hp:1},{row:7,col:7,hp:1},{row:7,col:8,hp:2},{row:7,col:9,hp:1},{row:7,col:10,hp:1},{row:7,col:11,hp:2},{row:7,col:12,hp:1},{row:7,col:13,hp:1},{row:7,col:14,hp:2},{row:7,col:15,hp:1},{row:7,col:16,hp:1},{row:7,col:17,hp:2},{row:7,col:18,hp:1},{row:7,col:19,hp:1},{row:7,col:20,hp:2},{row:7,col:21,hp:1},{row:7,col:22,hp:1},{row:7,col:23,hp:999},{row:8,col:0,hp:999},{row:8,col:1,hp:2},{row:8,col:2,hp:1},{row:8,col:3,hp:1},{row:8,col:4,hp:2},{row:8,col:5,hp:1},{row:8,col:6,hp:1},{row:8,col:7,hp:2},{row:8,col:8,hp:1},{row:8,col:9,hp:1},{row:8,col:10,hp:2},{row:8,col:11,hp:1},{row:8,col:12,hp:1},{row:8,col:13,hp:2},{row:8,col:14,hp:1},{row:8,col:15,hp:1},{row:8,col:16,hp:2},{row:8,col:17,hp:1},{row:8,col:18,hp:1},{row:8,col:19,hp:2},{row:8,col:20,hp:1},{row:8,col:21,hp:1},{row:8,col:22,hp:2},{row:8,col:23,hp:999},{row:9,col:0,hp:999},{row:9,col:1,hp:1},{row:9,col:2,hp:1},{row:9,col:3,hp:2},{row:9,col:4,hp:1},{row:9,col:5,hp:1},{row:9,col:6,hp:2},{row:9,col:7,hp:1},{row:9,col:8,hp:1},{row:9,col:9,hp:2},{row:9,col:10,hp:1},{row:9,col:11,hp:1},{row:9,col:12,hp:2},{row:9,col:13,hp:1},{row:9,col:14,hp:1},{row:9,col:15,hp:2},{row:9,col:16,hp:1},{row:9,col:17,hp:1},{row:9,col:18,hp:2},{row:9,col:19,hp:1},{row:9,col:20,hp:1},{row:9,col:21,hp:2},{row:9,col:22,hp:1},{row:9,col:23,hp:999},{row:10,col:0,hp:999},{row:10,col:1,hp:1},{row:10,col:2,hp:2},{row:10,col:3,hp:1},{row:10,col:4,hp:1},{row:10,col:5,hp:2},{row:10,col:6,hp:1},{row:10,col:7,hp:1},{row:10,col:8,hp:2},{row:10,col:9,hp:1},{row:10,col:10,hp:1},{row:10,col:11,hp:2},{row:10,col:12,hp:1},{row:10,col:13,hp:1},{row:10,col:14,hp:2},{row:10,col:15,hp:1},{row:10,col:16,hp:1},{row:10,col:17,hp:2},{row:10,col:18,hp:1},{row:10,col:19,hp:1},{row:10,col:20,hp:2},{row:10,col:21,hp:1},{row:10,col:22,hp:1},{row:10,col:23,hp:999},{row:11,col:0,hp:999},{row:11,col:1,hp:999},{row:11,col:2,hp:999},{row:11,col:3,hp:999},{row:11,col:4,hp:999},{row:11,col:5,hp:999},{row:11,col:6,hp:999},{row:11,col:7,hp:999},{row:11,col:8,hp:999},{row:11,col:9,hp:999},{row:11,col:10,hp:999},{row:11,col:11,hp:999},{row:11,col:12,hp:999},{row:11,col:13,hp:999},{row:11,col:14,hp:999},{row:11,col:15,hp:999},{row:11,col:16,hp:999},{row:11,col:17,hp:999},{row:11,col:18,hp:999},{row:11,col:19,hp:999},{row:11,col:20,hp:999},{row:11,col:21,hp:999},{row:11,col:22,hp:999},{row:11,col:23,hp:999}]
+  },
+  {
+    name:"关卡8 - 心",
+    gridWidth:24,gridHeight:14,
+    ballSpeed:350,paddleWidth:84,lives:3,
+    bricks:[{row:0,col:5,hp:2},{row:0,col:6,hp:2},{row:0,col:7,hp:2},{row:0,col:8,hp:2},{row:0,col:15,hp:2},{row:0,col:16,hp:2},{row:0,col:17,hp:2},{row:0,col:18,hp:2},{row:1,col:4,hp:2},{row:1,col:5,hp:1},{row:1,col:6,hp:1},{row:1,col:7,hp:1},{row:1,col:8,hp:1},{row:1,col:9,hp:2},{row:1,col:14,hp:2},{row:1,col:15,hp:1},{row:1,col:16,hp:1},{row:1,col:17,hp:1},{row:1,col:18,hp:1},{row:1,col:19,hp:2},{row:2,col:3,hp:2},{row:2,col:4,hp:1},{row:2,col:5,hp:1},{row:2,col:6,hp:1},{row:2,col:7,hp:1},{row:2,col:8,hp:1},{row:2,col:9,hp:1},{row:2,col:10,hp:2},{row:2,col:13,hp:2},{row:2,col:14,hp:1},{row:2,col:15,hp:1},{row:2,col:16,hp:1},{row:2,col:17,hp:1},{row:2,col:18,hp:1},{row:2,col:19,hp:1},{row:2,col:20,hp:2},{row:3,col:2,hp:2},{row:3,col:3,hp:1},{row:3,col:4,hp:1},{row:3,col:5,hp:1},{row:3,col:6,hp:1},{row:3,col:7,hp:1},{row:3,col:8,hp:1},{row:3,col:9,hp:1},{row:3,col:10,hp:1},{row:3,col:11,hp:2},{row:3,col:12,hp:2},{row:3,col:13,hp:1},{row:3,col:14,hp:1},{row:3,col:15,hp:1},{row:3,col:16,hp:1},{row:3,col:17,hp:1},{row:3,col:18,hp:1},{row:3,col:19,hp:1},{row:3,col:20,hp:1},{row:3,col:21,hp:2},{row:4,col:2,hp:2},{row:4,col:3,hp:1},{row:4,col:4,hp:1},{row:4,col:5,hp:1},{row:4,col:6,hp:1},{row:4,col:7,hp:1},{row:4,col:8,hp:1},{row:4,col:9,hp:1},{row:4,col:10,hp:1},{row:4,col:11,hp:1},{row:4,col:12,hp:1},{row:4,col:13,hp:1},{row:4,col:14,hp:1},{row:4,col:15,hp:1},{row:4,col:16,hp:1},{row:4,col:17,hp:1},{row:4,col:18,hp:1},{row:4,col:19,hp:1},{row:4,col:20,hp:1},{row:4,col:21,hp:2},{row:5,col:2,hp:2},{row:5,col:3,hp:1},{row:5,col:4,hp:1},{row:5,col:5,hp:1},{row:5,col:6,hp:1},{row:5,col:7,hp:1},{row:5,col:8,hp:1},{row:5,col:9,hp:1},{row:5,col:10,hp:1},{row:5,col:11,hp:1},{row:5,col:12,hp:1},{row:5,col:13,hp:1},{row:5,col:14,hp:1},{row:5,col:15,hp:1},{row:5,col:16,hp:1},{row:5,col:17,hp:1},{row:5,col:18,hp:1},{row:5,col:19,hp:1},{row:5,col:20,hp:1},{row:5,col:21,hp:2},{row:6,col:3,hp:2},{row:6,col:4,hp:1},{row:6,col:5,hp:1},{row:6,col:6,hp:1},{row:6,col:7,hp:1},{row:6,col:8,hp:1},{row:6,col:9,hp:1},{row:6,col:10,hp:1},{row:6,col:11,hp:1},{row:6,col:12,hp:1},{row:6,col:13,hp:1},{row:6,col:14,hp:1},{row:6,col:15,hp:1},{row:6,col:16,hp:1},{row:6,col:17,hp:1},{row:6,col:18,hp:1},{row:6,col:19,hp:1},{row:6,col:20,hp:2},{row:7,col:4,hp:2},{row:7,col:5,hp:1},{row:7,col:6,hp:1},{row:7,col:7,hp:1},{row:7,col:8,hp:1},{row:7,col:9,hp:1},{row:7,col:10,hp:1},{row:7,col:11,hp:1},{row:7,col:12,hp:1},{row:7,col:13,hp:1},{row:7,col:14,hp:1},{row:7,col:15,hp:1},{row:7,col:16,hp:1},{row:7,col:17,hp:1},{row:7,col:18,hp:1},{row:7,col:19,hp:2},{row:8,col:5,hp:2},{row:8,col:6,hp:1},{row:8,col:7,hp:1},{row:8,col:8,hp:1},{row:8,col:9,hp:1},{row:8,col:10,hp:1},{row:8,col:11,hp:1},{row:8,col:12,hp:1},{row:8,col:13,hp:1},{row:8,col:14,hp:1},{row:8,col:15,hp:1},{row:8,col:16,hp:1},{row:8,col:17,hp:1},{row:8,col:18,hp:2},{row:9,col:6,hp:2},{row:9,col:7,hp:1},{row:9,col:8,hp:1},{row:9,col:9,hp:1},{row:9,col:10,hp:1},{row:9,col:11,hp:1},{row:9,col:12,hp:1},{row:9,col:13,hp:1},{row:9,col:14,hp:1},{row:9,col:15,hp:1},{row:9,col:16,hp:1},{row:9,col:17,hp:2},{row:10,col:7,hp:2},{row:10,col:8,hp:1},{row:10,col:9,hp:1},{row:10,col:10,hp:1},{row:10,col:11,hp:1},{row:10,col:12,hp:1},{row:10,col:13,hp:1},{row:10,col:14,hp:1},{row:10,col:15,hp:1},{row:10,col:16,hp:2},{row:11,col:8,hp:2},{row:11,col:9,hp:1},{row:11,col:10,hp:1},{row:11,col:11,hp:1},{row:11,col:12,hp:1},{row:11,col:13,hp:1},{row:11,col:14,hp:1},{row:11,col:15,hp:2},{row:12,col:9,hp:2},{row:12,col:10,hp:1},{row:12,col:11,hp:1},{row:12,col:12,hp:1},{row:12,col:13,hp:1},{row:12,col:14,hp:2},{row:13,col:10,hp:2},{row:13,col:11,hp:2},{row:13,col:12,hp:2},{row:13,col:13,hp:2}]
+  },
+  {
+    name:"关卡9 - 螺旋",
+    gridWidth:26,gridHeight:14,
+    ballSpeed:350,paddleWidth:80,lives:3,
+    bricks:[{row:0,col:0,hp:1},{row:0,col:2,hp:1},{row:0,col:4,hp:1},{row:0,col:5,hp:1},{row:0,col:6,hp:1},{row:0,col:8,hp:1},{row:0,col:10,hp:1},{row:0,col:11,hp:1},{row:0,col:12,hp:1},{row:0,col:14,hp:1},{row:0,col:16,hp:1},{row:0,col:17,hp:1},{row:0,col:18,hp:1},{row:0,col:20,hp:1},{row:0,col:22,hp:1},{row:0,col:23,hp:1},{row:0,col:24,hp:1},{row:1,col:1,hp:1},{row:1,col:2,hp:1},{row:1,col:3,hp:1},{row:1,col:5,hp:1},{row:1,col:7,hp:1},{row:1,col:8,hp:1},{row:1,col:9,hp:1},{row:1,col:11,hp:1},{row:1,col:13,hp:1},{row:1,col:14,hp:1},{row:1,col:15,hp:1},{row:1,col:17,hp:1},{row:1,col:19,hp:1},{row:1,col:20,hp:1},{row:1,col:21,hp:1},{row:1,col:23,hp:1},{row:1,col:25,hp:1},{row:2,col:0,hp:1},{row:2,col:1,hp:1},{row:2,col:2,hp:1},{row:2,col:4,hp:2},{row:2,col:6,hp:2},{row:2,col:7,hp:2},{row:2,col:8,hp:2},{row:2,col:10,hp:2},{row:2,col:12,hp:2},{row:2,col:13,hp:2},{row:2,col:14,hp:2},{row:2,col:16,hp:2},{row:2,col:18,hp:2},{row:2,col:19,hp:2},{row:2,col:20,hp:2},{row:2,col:22,hp:2},{row:2,col:24,hp:1},{row:3,col:1,hp:1},{row:3,col:2,hp:2},{row:3,col:3,hp:2},{row:3,col:5,hp:2},{row:3,col:7,hp:2},{row:3,col:8,hp:2},{row:3,col:9,hp:2},{row:3,col:11,hp:2},{row:3,col:13,hp:2},{row:3,col:14,hp:2},{row:3,col:15,hp:2},{row:3,col:17,hp:2},{row:3,col:19,hp:2},{row:3,col:20,hp:2},{row:3,col:21,hp:2},{row:3,col:23,hp:2},{row:3,col:24,hp:1},{row:3,col:25,hp:1},{row:4,col:0,hp:1},{row:4,col:2,hp:2},{row:4,col:4,hp:2},{row:4,col:5,hp:2},{row:4,col:6,hp:2},{row:4,col:8,hp:2},{row:4,col:10,hp:2},{row:4,col:11,hp:2},{row:4,col:12,hp:2},{row:4,col:14,hp:2},{row:4,col:16,hp:2},{row:4,col:17,hp:2},{row:4,col:18,hp:2},{row:4,col:20,hp:2},{row:4,col:22,hp:2},{row:4,col:23,hp:2},{row:4,col:24,hp:1},{row:4,col:25,hp:1},{row:5,col:0,hp:1},{row:5,col:1,hp:1},{row:5,col:3,hp:2},{row:5,col:4,hp:2},{row:5,col:5,hp:2},{row:5,col:7,hp:2},{row:5,col:9,hp:2},{row:5,col:10,hp:2},{row:5,col:11,hp:2},{row:5,col:13,hp:2},{row:5,col:15,hp:2},{row:5,col:16,hp:2},{row:5,col:17,hp:2},{row:5,col:19,hp:2},{row:5,col:21,hp:2},{row:5,col:23,hp:2},{row:5,col:25,hp:1},{row:6,col:0,hp:1},{row:6,col:2,hp:2},{row:6,col:4,hp:2},{row:6,col:5,hp:2},{row:6,col:6,hp:2},{row:6,col:8,hp:2},{row:6,col:10,hp:2},{row:6,col:11,hp:2},{row:6,col:12,hp:2},{row:6,col:14,hp:2},{row:6,col:16,hp:2},{row:6,col:17,hp:2},{row:6,col:18,hp:2},{row:6,col:20,hp:2},{row:6,col:21,hp:2},{row:6,col:22,hp:2},{row:6,col:24,hp:1},{row:7,col:1,hp:1},{row:7,col:3,hp:2},{row:7,col:5,hp:2},{row:7,col:7,hp:2},{row:7,col:9,hp:2},{row:7,col:10,hp:2},{row:7,col:11,hp:2},{row:7,col:13,hp:2},{row:7,col:15,hp:2},{row:7,col:16,hp:2},{row:7,col:17,hp:2},{row:7,col:19,hp:2},{row:7,col:20,hp:2},{row:7,col:21,hp:2},{row:7,col:22,hp:2},{row:7,col:23,hp:2},{row:7,col:25,hp:1},{row:8,col:0,hp:1},{row:8,col:1,hp:1},{row:8,col:2,hp:2},{row:8,col:3,hp:2},{row:8,col:4,hp:2},{row:8,col:6,hp:2},{row:8,col:8,hp:2},{row:8,col:9,hp:2},{row:8,col:10,hp:2},{row:8,col:12,hp:2},{row:8,col:14,hp:2},{row:8,col:15,hp:2},{row:8,col:16,hp:2},{row:8,col:18,hp:2},{row:8,col:20,hp:2},{row:8,col:22,hp:2},{row:8,col:24,hp:1},{row:9,col:1,hp:1},{row:9,col:2,hp:2},{row:9,col:3,hp:2},{row:9,col:5,hp:2},{row:9,col:6,hp:2},{row:9,col:7,hp:2},{row:9,col:9,hp:2},{row:9,col:11,hp:2},{row:9,col:12,hp:2},{row:9,col:13,hp:2},{row:9,col:15,hp:2},{row:9,col:17,hp:2},{row:9,col:18,hp:2},{row:9,col:19,hp:2},{row:9,col:21,hp:2},{row:9,col:23,hp:2},{row:9,col:24,hp:1},{row:9,col:25,hp:1},{row:10,col:0,hp:1},{row:10,col:2,hp:2},{row:10,col:4,hp:2},{row:10,col:6,hp:2},{row:10,col:7,hp:2},{row:10,col:8,hp:2},{row:10,col:10,hp:2},{row:10,col:12,hp:2},{row:10,col:13,hp:2},{row:10,col:14,hp:2},{row:10,col:16,hp:2},{row:10,col:18,hp:2},{row:10,col:19,hp:2},{row:10,col:20,hp:2},{row:10,col:22,hp:2},{row:10,col:23,hp:2},{row:10,col:24,hp:1},{row:10,col:25,hp:1},{row:11,col:0,hp:1},{row:11,col:1,hp:1},{row:11,col:3,hp:2},{row:11,col:5,hp:2},{row:11,col:6,hp:2},{row:11,col:7,hp:2},{row:11,col:9,hp:2},{row:11,col:11,hp:2},{row:11,col:12,hp:2},{row:11,col:13,hp:2},{row:11,col:15,hp:2},{row:11,col:17,hp:2},{row:11,col:18,hp:2},{row:11,col:19,hp:2},{row:11,col:21,hp:2},{row:11,col:23,hp:2},{row:11,col:25,hp:1},{row:12,col:0,hp:1},{row:12,col:2,hp:1},{row:12,col:3,hp:1},{row:12,col:4,hp:1},{row:12,col:6,hp:1},{row:12,col:8,hp:1},{row:12,col:9,hp:1},{row:12,col:10,hp:1},{row:12,col:12,hp:1},{row:12,col:14,hp:1},{row:12,col:15,hp:1},{row:12,col:16,hp:1},{row:12,col:18,hp:1},{row:12,col:20,hp:1},{row:12,col:21,hp:1},{row:12,col:22,hp:1},{row:12,col:24,hp:1},{row:13,col:1,hp:1},{row:13,col:3,hp:1},{row:13,col:4,hp:1},{row:13,col:5,hp:1},{row:13,col:7,hp:1},{row:13,col:9,hp:1},{row:13,col:10,hp:1},{row:13,col:11,hp:1},{row:13,col:13,hp:1},{row:13,col:15,hp:1},{row:13,col:16,hp:1},{row:13,col:17,hp:1},{row:13,col:19,hp:1},{row:13,col:21,hp:1},{row:13,col:22,hp:1},{row:13,col:23,hp:1},{row:13,col:25,hp:1}]
+  },
+  {
+    name:"关卡10 - 像素侵略者",
+    gridWidth:28,gridHeight:16,
+    ballSpeed:360,paddleWidth:80,lives:3,
+    bricks:[{row:1,col:9,hp:2},{row:1,col:18,hp:2},{row:2,col:10,hp:2},{row:2,col:17,hp:2},{row:3,col:9,hp:3},{row:3,col:10,hp:3},{row:3,col:11,hp:3},{row:3,col:12,hp:3},{row:3,col:13,hp:3},{row:3,col:14,hp:3},{row:3,col:15,hp:3},{row:3,col:16,hp:3},{row:3,col:17,hp:3},{row:3,col:18,hp:3},{row:4,col:8,hp:3},{row:4,col:9,hp:3},{row:4,col:10,hp:3},{row:4,col:11,hp:3},{row:4,col:12,hp:3},{row:4,col:13,hp:3},{row:4,col:14,hp:3},{row:4,col:15,hp:3},{row:4,col:16,hp:3},{row:4,col:17,hp:3},{row:4,col:18,hp:3},{row:4,col:19,hp:3},{row:5,col:7,hp:2},{row:5,col:8,hp:3},{row:5,col:9,hp:3},{row:5,col:10,hp:999},{row:5,col:11,hp:3},{row:5,col:12,hp:3},{row:5,col:13,hp:3},{row:5,col:14,hp:3},{row:5,col:15,hp:3},{row:5,col:16,hp:3},{row:5,col:17,hp:999},{row:5,col:18,hp:3},{row:5,col:19,hp:3},{row:5,col:20,hp:2},{row:6,col:6,hp:2},{row:6,col:7,hp:2},{row:6,col:8,hp:3},{row:6,col:9,hp:3},{row:6,col:10,hp:3},{row:6,col:11,hp:3},{row:6,col:12,hp:3},{row:6,col:13,hp:3},{row:6,col:14,hp:3},{row:6,col:15,hp:3},{row:6,col:16,hp:3},{row:6,col:17,hp:3},{row:6,col:18,hp:3},{row:6,col:19,hp:3},{row:6,col:20,hp:2},{row:6,col:21,hp:2},{row:7,col:6,hp:2},{row:7,col:7,hp:2},{row:7,col:8,hp:3},{row:7,col:9,hp:3},{row:7,col:10,hp:3},{row:7,col:11,hp:3},{row:7,col:12,hp:3},{row:7,col:13,hp:3},{row:7,col:14,hp:3},{row:7,col:15,hp:3},{row:7,col:16,hp:3},{row:7,col:17,hp:3},{row:7,col:18,hp:3},{row:7,col:19,hp:3},{row:7,col:20,hp:2},{row:7,col:21,hp:2},{row:8,col:6,hp:2},{row:8,col:8,hp:3},{row:8,col:9,hp:3},{row:8,col:10,hp:3},{row:8,col:11,hp:3},{row:8,col:12,hp:3},{row:8,col:13,hp:3},{row:8,col:14,hp:3},{row:8,col:15,hp:3},{row:8,col:16,hp:3},{row:8,col:17,hp:3},{row:8,col:18,hp:3},{row:8,col:19,hp:3},{row:8,col:21,hp:2},{row:9,col:6,hp:2},{row:9,col:8,hp:2},{row:9,col:18,hp:2},{row:9,col:20,hp:2},{row:10,col:6,hp:2},{row:10,col:8,hp:2},{row:10,col:18,hp:2},{row:10,col:20,hp:2},{row:11,col:9,hp:2},{row:11,col:10,hp:2},{row:11,col:17,hp:2},{row:11,col:18,hp:2},{row:12,col:8,hp:2},{row:12,col:9,hp:2},{row:12,col:18,hp:2},{row:12,col:19,hp:2},{row:13,col:2,hp:2},{row:13,col:3,hp:2},{row:13,col:4,hp:2},{row:13,col:5,hp:2},{row:13,col:6,hp:2},{row:14,col:2,hp:2},{row:14,col:3,hp:2},{row:14,col:4,hp:2},{row:14,col:5,hp:2},{row:14,col:6,hp:2},{row:15,col:2,hp:2},{row:15,col:6,hp:2},{row:13,col:9,hp:2},{row:13,col:10,hp:2},{row:13,col:11,hp:2},{row:13,col:12,hp:2},{row:13,col:13,hp:2},{row:14,col:9,hp:2},{row:14,col:10,hp:2},{row:14,col:11,hp:2},{row:14,col:12,hp:2},{row:14,col:13,hp:2},{row:15,col:9,hp:2},{row:15,col:13,hp:2},{row:13,col:16,hp:2},{row:13,col:17,hp:2},{row:13,col:18,hp:2},{row:13,col:19,hp:2},{row:13,col:20,hp:2},{row:14,col:16,hp:2},{row:14,col:17,hp:2},{row:14,col:18,hp:2},{row:14,col:19,hp:2},{row:14,col:20,hp:2},{row:15,col:16,hp:2},{row:15,col:20,hp:2},{row:13,col:23,hp:2},{row:13,col:24,hp:2},{row:13,col:25,hp:2},{row:13,col:26,hp:2},{row:13,col:27,hp:2},{row:14,col:23,hp:2},{row:14,col:24,hp:2},{row:14,col:25,hp:2},{row:14,col:26,hp:2},{row:14,col:27,hp:2},{row:15,col:23,hp:2},{row:15,col:27,hp:2},{row:0,col:0,hp:1},{row:0,col:1,hp:1},{row:0,col:14,hp:1},{row:0,col:27,hp:1},{row:1,col:0,hp:1},{row:1,col:27,hp:1},{row:2,col:1,hp:1},{row:2,col:26,hp:1},{row:5,col:0,hp:1},{row:5,col:1,hp:1},{row:5,col:26,hp:1},{row:5,col:27,hp:1},{row:7,col:0,hp:1},{row:8,col:27,hp:1},{row:9,col:0,hp:1},{row:10,col:26,hp:1},{row:11,col:1,hp:1},{row:11,col:14,hp:1},{row:11,col:27,hp:1},{row:12,col:0,hp:1},{row:12,col:27,hp:1},{row:0,col:26,hp:1},{row:0,col:2,hp:1},{row:3,col:0,hp:1},{row:3,col:27,hp:1}]
+  },
+  {
+    name:"关卡11 - 终极挑战",
+    gridWidth:28,gridHeight:16,
+    ballSpeed:370,paddleWidth:76,lives:3,
+    bricks:[{row:0,col:1,hp:2},{row:0,col:2,hp:2},{row:0,col:3,hp:2},{row:0,col:4,hp:2},{row:0,col:5,hp:2},{row:0,col:6,hp:2},{row:0,col:8,hp:2},{row:0,col:9,hp:2},{row:0,col:10,hp:2},{row:0,col:11,hp:2},{row:0,col:12,hp:2},{row:0,col:13,hp:2},{row:0,col:15,hp:2},{row:0,col:16,hp:2},{row:0,col:17,hp:2},{row:0,col:18,hp:2},{row:0,col:19,hp:2},{row:0,col:20,hp:2},{row:0,col:22,hp:2},{row:0,col:23,hp:2},{row:0,col:24,hp:2},{row:0,col:25,hp:2},{row:0,col:26,hp:2},{row:0,col:27,hp:2},{row:1,col:0,hp:1},{row:1,col:1,hp:1},{row:1,col:2,hp:999},{row:1,col:3,hp:1},{row:1,col:4,hp:1},{row:1,col:5,hp:1},{row:1,col:6,hp:1},{row:1,col:7,hp:999},{row:1,col:8,hp:2},{row:1,col:9,hp:2},{row:1,col:10,hp:2},{row:1,col:11,hp:2},{row:1,col:12,hp:999},{row:1,col:13,hp:2},{row:1,col:14,hp:2},{row:1,col:15,hp:2},{row:1,col:16,hp:2},{row:1,col:17,hp:999},{row:1,col:18,hp:2},{row:1,col:19,hp:2},{row:1,col:20,hp:2},{row:1,col:21,hp:1},{row:1,col:22,hp:999},{row:1,col:23,hp:1},{row:1,col:24,hp:1},{row:1,col:25,hp:1},{row:1,col:26,hp:1},{row:1,col:27,hp:999},{row:2,col:0,hp:2},{row:2,col:1,hp:2},{row:2,col:2,hp:2},{row:2,col:3,hp:2},{row:2,col:4,hp:2},{row:2,col:5,hp:2},{row:2,col:6,hp:2},{row:2,col:7,hp:2},{row:2,col:8,hp:2},{row:2,col:9,hp:2},{row:2,col:10,hp:2},{row:2,col:11,hp:2},{row:2,col:12,hp:2},{row:2,col:13,hp:2},{row:2,col:14,hp:2},{row:2,col:15,hp:2},{row:2,col:16,hp:2},{row:2,col:17,hp:2},{row:2,col:18,hp:2},{row:2,col:19,hp:2},{row:2,col:20,hp:2},{row:2,col:21,hp:2},{row:2,col:22,hp:2},{row:2,col:23,hp:2},{row:2,col:24,hp:2},{row:2,col:25,hp:2},{row:2,col:26,hp:2},{row:2,col:27,hp:2},{row:3,col:0,hp:1},{row:3,col:1,hp:1},{row:3,col:2,hp:1},{row:3,col:3,hp:1},{row:3,col:5,hp:1},{row:3,col:6,hp:2},{row:3,col:7,hp:2},{row:3,col:8,hp:2},{row:3,col:9,hp:2},{row:3,col:10,hp:2},{row:3,col:12,hp:2},{row:3,col:13,hp:2},{row:3,col:14,hp:2},{row:3,col:15,hp:2},{row:3,col:16,hp:2},{row:3,col:17,hp:2},{row:3,col:18,hp:2},{row:3,col:19,hp:2},{row:3,col:20,hp:2},{row:3,col:21,hp:2},{row:3,col:22,hp:2},{row:3,col:23,hp:1},{row:3,col:24,hp:1},{row:3,col:25,hp:1},{row:3,col:26,hp:1},{row:3,col:27,hp:1},{row:4,col:0,hp:2},{row:4,col:1,hp:2},{row:4,col:2,hp:2},{row:4,col:4,hp:2},{row:4,col:5,hp:2},{row:4,col:6,hp:2},{row:4,col:7,hp:2},{row:4,col:8,hp:2},{row:4,col:9,hp:2},{row:4,col:10,hp:2},{row:4,col:11,hp:2},{row:4,col:12,hp:2},{row:4,col:13,hp:2},{row:4,col:14,hp:2},{row:4,col:15,hp:2},{row:4,col:16,hp:2},{row:4,col:17,hp:2},{row:4,col:18,hp:2},{row:4,col:19,hp:2},{row:4,col:20,hp:2},{row:4,col:21,hp:2},{row:4,col:22,hp:2},{row:4,col:23,hp:2},{row:4,col:24,hp:2},{row:4,col:25,hp:2},{row:4,col:26,hp:2},{row:4,col:27,hp:2},{row:5,col:0,hp:1},{row:5,col:1,hp:1},{row:5,col:2,hp:999},{row:5,col:3,hp:1},{row:5,col:4,hp:2},{row:5,col:5,hp:2},{row:5,col:6,hp:2},{row:5,col:7,hp:999},{row:5,col:8,hp:2},{row:5,col:10,hp:2},{row:5,col:11,hp:2},{row:5,col:12,hp:999},{row:5,col:13,hp:2},{row:5,col:14,hp:2},{row:5,col:15,hp:2},{row:5,col:16,hp:2},{row:5,col:17,hp:999},{row:5,col:18,hp:2},{row:5,col:19,hp:2},{row:5,col:20,hp:2},{row:5,col:21,hp:2},{row:5,col:22,hp:999},{row:5,col:23,hp:2},{row:5,col:24,hp:2},{row:5,col:25,hp:1},{row:5,col:26,hp:1},{row:5,col:27,hp:999},{row:6,col:0,hp:2},{row:6,col:1,hp:2},{row:6,col:2,hp:2},{row:6,col:3,hp:2},{row:6,col:4,hp:2},{row:6,col:5,hp:2},{row:6,col:6,hp:2},{row:6,col:7,hp:2},{row:6,col:8,hp:2},{row:6,col:9,hp:2},{row:6,col:10,hp:2},{row:6,col:11,hp:2},{row:6,col:12,hp:2},{row:6,col:13,hp:2},{row:6,col:14,hp:2},{row:6,col:15,hp:2},{row:6,col:16,hp:2},{row:6,col:17,hp:2},{row:6,col:18,hp:2},{row:6,col:19,hp:2},{row:6,col:20,hp:2},{row:6,col:21,hp:2},{row:6,col:23,hp:2},{row:6,col:24,hp:2},{row:6,col:25,hp:2},{row:6,col:26,hp:2},{row:6,col:27,hp:2},{row:7,col:1,hp:1},{row:7,col:2,hp:2},{row:7,col:3,hp:2},{row:7,col:4,hp:2},{row:7,col:5,hp:2},{row:7,col:6,hp:2},{row:7,col:7,hp:2},{row:7,col:8,hp:2},{row:7,col:9,hp:2},{row:7,col:10,hp:2},{row:7,col:11,hp:2},{row:7,col:12,hp:2},{row:7,col:13,hp:2},{row:7,col:14,hp:2},{row:7,col:15,hp:2},{row:7,col:16,hp:2},{row:7,col:17,hp:2},{row:7,col:18,hp:2},{row:7,col:19,hp:2},{row:7,col:20,hp:2},{row:7,col:21,hp:2},{row:7,col:22,hp:2},{row:7,col:23,hp:2},{row:7,col:24,hp:2},{row:7,col:25,hp:2},{row:7,col:26,hp:2},{row:7,col:27,hp:1},{row:8,col:0,hp:2},{row:8,col:1,hp:2},{row:8,col:2,hp:2},{row:8,col:3,hp:2},{row:8,col:4,hp:2},{row:8,col:5,hp:2},{row:8,col:6,hp:2},{row:8,col:7,hp:2},{row:8,col:8,hp:2},{row:8,col:9,hp:2},{row:8,col:10,hp:2},{row:8,col:11,hp:2},{row:8,col:12,hp:2},{row:8,col:13,hp:2},{row:8,col:14,hp:2},{row:8,col:15,hp:2},{row:8,col:16,hp:2},{row:8,col:17,hp:2},{row:8,col:18,hp:2},{row:8,col:19,hp:2},{row:8,col:20,hp:2},{row:8,col:21,hp:2},{row:8,col:22,hp:2},{row:8,col:23,hp:2},{row:8,col:24,hp:2},{row:8,col:25,hp:2},{row:8,col:26,hp:2},{row:8,col:27,hp:2},{row:9,col:0,hp:1},{row:9,col:1,hp:1},{row:9,col:2,hp:999},{row:9,col:3,hp:2},{row:9,col:4,hp:2},{row:9,col:6,hp:2},{row:9,col:7,hp:999},{row:9,col:8,hp:2},{row:9,col:9,hp:2},{row:9,col:10,hp:2},{row:9,col:11,hp:2},{row:9,col:12,hp:999},{row:9,col:13,hp:2},{row:9,col:14,hp:2},{row:9,col:15,hp:2},{row:9,col:16,hp:2},{row:9,col:17,hp:999},{row:9,col:18,hp:2},{row:9,col:19,hp:2},{row:9,col:20,hp:2},{row:9,col:21,hp:2},{row:9,col:22,hp:999},{row:9,col:23,hp:2},{row:9,col:24,hp:2},{row:9,col:25,hp:2},{row:9,col:26,hp:2},{row:9,col:27,hp:999},{row:10,col:0,hp:2},{row:10,col:1,hp:2},{row:10,col:2,hp:2},{row:10,col:3,hp:2},{row:10,col:4,hp:2},{row:10,col:5,hp:2},{row:10,col:6,hp:2},{row:10,col:7,hp:2},{row:10,col:8,hp:2},{row:10,col:9,hp:2},{row:10,col:10,hp:2},{row:10,col:12,hp:2},{row:10,col:13,hp:2},{row:10,col:14,hp:2},{row:10,col:15,hp:2},{row:10,col:16,hp:2},{row:10,col:17,hp:2},{row:10,col:18,hp:2},{row:10,col:19,hp:2},{row:10,col:20,hp:2},{row:10,col:21,hp:2},{row:10,col:22,hp:2},{row:10,col:23,hp:2},{row:10,col:24,hp:2},{row:10,col:25,hp:2},{row:10,col:26,hp:2},{row:10,col:27,hp:2},{row:11,col:0,hp:1},{row:11,col:1,hp:1},{row:11,col:2,hp:1},{row:11,col:4,hp:2},{row:11,col:5,hp:2},{row:11,col:6,hp:2},{row:11,col:7,hp:2},{row:11,col:8,hp:2},{row:11,col:9,hp:2},{row:11,col:11,hp:2},{row:11,col:12,hp:2},{row:11,col:13,hp:2},{row:11,col:14,hp:2},{row:11,col:15,hp:2},{row:11,col:16,hp:2},{row:11,col:18,hp:2},{row:11,col:19,hp:2},{row:11,col:20,hp:2},{row:11,col:21,hp:2},{row:11,col:22,hp:2},{row:11,col:23,hp:2},{row:11,col:25,hp:1},{row:11,col:26,hp:1},{row:11,col:27,hp:1},{row:12,col:0,hp:2},{row:12,col:1,hp:2},{row:12,col:2,hp:2},{row:12,col:3,hp:2},{row:12,col:4,hp:2},{row:12,col:5,hp:2},{row:12,col:6,hp:2},{row:12,col:7,hp:2},{row:12,col:8,hp:2},{row:12,col:9,hp:2},{row:12,col:10,hp:2},{row:12,col:11,hp:2},{row:12,col:12,hp:2},{row:12,col:13,hp:2},{row:12,col:14,hp:2},{row:12,col:15,hp:2},{row:12,col:16,hp:2},{row:12,col:17,hp:2},{row:12,col:18,hp:2},{row:12,col:19,hp:2},{row:12,col:20,hp:2},{row:12,col:21,hp:2},{row:12,col:22,hp:2},{row:12,col:24,hp:2},{row:12,col:25,hp:2},{row:12,col:26,hp:2},{row:12,col:27,hp:2},{row:13,col:0,hp:1},{row:13,col:1,hp:1},{row:13,col:2,hp:999},{row:13,col:3,hp:1},{row:13,col:4,hp:1},{row:13,col:5,hp:1},{row:13,col:6,hp:2},{row:13,col:7,hp:999},{row:13,col:8,hp:2},{row:13,col:9,hp:2},{row:13,col:10,hp:2},{row:13,col:11,hp:2},{row:13,col:12,hp:999},{row:13,col:13,hp:2},{row:13,col:14,hp:2},{row:13,col:15,hp:2},{row:13,col:16,hp:2},{row:13,col:17,hp:999},{row:13,col:18,hp:2},{row:13,col:19,hp:2},{row:13,col:20,hp:2},{row:13,col:21,hp:2},{row:13,col:22,hp:999},{row:13,col:23,hp:1},{row:13,col:24,hp:1},{row:13,col:25,hp:1},{row:13,col:26,hp:1},{row:13,col:27,hp:999},{row:14,col:1,hp:2},{row:14,col:2,hp:2},{row:14,col:3,hp:2},{row:14,col:4,hp:2},{row:14,col:5,hp:2},{row:14,col:6,hp:2},{row:14,col:7,hp:2},{row:14,col:8,hp:2},{row:14,col:9,hp:2},{row:14,col:10,hp:2},{row:14,col:11,hp:2},{row:14,col:12,hp:2},{row:14,col:13,hp:2},{row:14,col:14,hp:2},{row:14,col:15,hp:2},{row:14,col:16,hp:2},{row:14,col:17,hp:2},{row:14,col:18,hp:2},{row:14,col:19,hp:2},{row:14,col:20,hp:2},{row:14,col:21,hp:2},{row:14,col:22,hp:2},{row:14,col:23,hp:2},{row:14,col:24,hp:2},{row:14,col:25,hp:2},{row:14,col:26,hp:2},{row:14,col:27,hp:2},{row:15,col:0,hp:1},{row:15,col:1,hp:1},{row:15,col:2,hp:1},{row:15,col:3,hp:1},{row:15,col:4,hp:1},{row:15,col:5,hp:1},{row:15,col:6,hp:1},{row:15,col:7,hp:1},{row:15,col:8,hp:2},{row:15,col:9,hp:2},{row:15,col:10,hp:2},{row:15,col:11,hp:2},{row:15,col:12,hp:2},{row:15,col:13,hp:2},{row:15,col:14,hp:2},{row:15,col:15,hp:2},{row:15,col:16,hp:2},{row:15,col:17,hp:2},{row:15,col:18,hp:2},{row:15,col:19,hp:2},{row:15,col:20,hp:2},{row:15,col:21,hp:1},{row:15,col:22,hp:1},{row:15,col:23,hp:1},{row:15,col:24,hp:1},{row:15,col:25,hp:1},{row:15,col:26,hp:1},{row:15,col:27,hp:1}]
+  },
+  {
+    name:"关卡12 - 最终BOSS",
+    gridWidth:30,gridHeight:18,
+    ballSpeed:380,paddleWidth:72,lives:3,
+    bricks:[{row:0,col:0,hp:999},{row:0,col:1,hp:999},{row:0,col:2,hp:999},{row:0,col:3,hp:999},{row:0,col:4,hp:999},{row:0,col:5,hp:999},{row:0,col:6,hp:999},{row:0,col:7,hp:999},{row:0,col:8,hp:999},{row:0,col:9,hp:999},{row:0,col:10,hp:999},{row:0,col:11,hp:999},{row:0,col:12,hp:999},{row:0,col:13,hp:999},{row:0,col:14,hp:999},{row:0,col:15,hp:999},{row:0,col:16,hp:999},{row:0,col:17,hp:999},{row:0,col:18,hp:999},{row:0,col:19,hp:999},{row:0,col:20,hp:999},{row:0,col:21,hp:999},{row:0,col:22,hp:999},{row:0,col:23,hp:999},{row:0,col:24,hp:999},{row:0,col:25,hp:999},{row:0,col:26,hp:999},{row:0,col:27,hp:999},{row:0,col:28,hp:999},{row:0,col:29,hp:999},{row:1,col:0,hp:999},{row:1,col:1,hp:2},{row:1,col:2,hp:1},{row:1,col:3,hp:2},{row:1,col:4,hp:1},{row:1,col:5,hp:2},{row:1,col:6,hp:1},{row:1,col:7,hp:2},{row:1,col:8,hp:1},{row:1,col:9,hp:2},{row:1,col:10,hp:2},{row:1,col:11,hp:2},{row:1,col:12,hp:2},{row:1,col:13,hp:2},{row:1,col:14,hp:2},{row:1,col:15,hp:999},{row:1,col:16,hp:2},{row:1,col:17,hp:2},{row:1,col:18,hp:2},{row:1,col:19,hp:2},{row:1,col:20,hp:2},{row:1,col:21,hp:2},{row:1,col:22,hp:1},{row:1,col:23,hp:2},{row:1,col:24,hp:1},{row:1,col:25,hp:2},{row:1,col:26,hp:1},{row:1,col:27,hp:2},{row:1,col:28,hp:1},{row:1,col:29,hp:999},{row:2,col:0,hp:999},{row:2,col:1,hp:1},{row:2,col:2,hp:2},{row:2,col:3,hp:1},{row:2,col:4,hp:2},{row:2,col:5,hp:1},{row:2,col:6,hp:2},{row:2,col:7,hp:1},{row:2,col:8,hp:2},{row:2,col:9,hp:2},{row:2,col:10,hp:2},{row:2,col:11,hp:2},{row:2,col:12,hp:2},{row:2,col:13,hp:2},{row:2,col:14,hp:2},{row:2,col:15,hp:999},{row:2,col:16,hp:2},{row:2,col:17,hp:2},{row:2,col:18,hp:2},{row:2,col:19,hp:2},{row:2,col:20,hp:2},{row:2,col:21,hp:2},{row:2,col:22,hp:2},{row:2,col:23,hp:1},{row:2,col:24,hp:2},{row:2,col:25,hp:1},{row:2,col:26,hp:2},{row:2,col:27,hp:1},{row:2,col:28,hp:2},{row:2,col:29,hp:999},{row:3,col:0,hp:999},{row:3,col:1,hp:2},{row:3,col:2,hp:1},{row:3,col:3,hp:2},{row:3,col:4,hp:1},{row:3,col:5,hp:2},{row:3,col:6,hp:1},{row:3,col:7,hp:2},{row:3,col:8,hp:2},{row:3,col:9,hp:2},{row:3,col:10,hp:2},{row:3,col:11,hp:2},{row:3,col:12,hp:2},{row:3,col:13,hp:2},{row:3,col:14,hp:2},{row:3,col:15,hp:999},{row:3,col:16,hp:2},{row:3,col:17,hp:2},{row:3,col:18,hp:2},{row:3,col:19,hp:2},{row:3,col:20,hp:2},{row:3,col:21,hp:2},{row:3,col:22,hp:2},{row:3,col:23,hp:2},{row:3,col:24,hp:1},{row:3,col:25,hp:2},{row:3,col:26,hp:1},{row:3,col:27,hp:2},{row:3,col:28,hp:1},{row:3,col:29,hp:999},{row:4,col:0,hp:999},{row:4,col:1,hp:1},{row:4,col:2,hp:2},{row:4,col:3,hp:1},{row:4,col:4,hp:2},{row:4,col:5,hp:1},{row:4,col:6,hp:2},{row:4,col:7,hp:2},{row:4,col:8,hp:2},{row:4,col:9,hp:2},{row:4,col:10,hp:2},{row:4,col:11,hp:2},{row:4,col:12,hp:2},{row:4,col:13,hp:2},{row:4,col:14,hp:2},{row:4,col:15,hp:999},{row:4,col:16,hp:2},{row:4,col:17,hp:2},{row:4,col:18,hp:2},{row:4,col:19,hp:2},{row:4,col:20,hp:2},{row:4,col:21,hp:2},{row:4,col:22,hp:2},{row:4,col:23,hp:2},{row:4,col:24,hp:2},{row:4,col:25,hp:1},{row:4,col:26,hp:2},{row:4,col:27,hp:1},{row:4,col:28,hp:2},{row:4,col:29,hp:999},{row:5,col:0,hp:999},{row:5,col:1,hp:2},{row:5,col:2,hp:1},{row:5,col:3,hp:2},{row:5,col:4,hp:1},{row:5,col:5,hp:2},{row:5,col:6,hp:2},{row:5,col:7,hp:2},{row:5,col:8,hp:2},{row:5,col:9,hp:2},{row:5,col:10,hp:2},{row:5,col:11,hp:2},{row:5,col:12,hp:2},{row:5,col:13,hp:2},{row:5,col:14,hp:2},{row:5,col:15,hp:999},{row:5,col:16,hp:2},{row:5,col:17,hp:2},{row:5,col:18,hp:2},{row:5,col:19,hp:2},{row:5,col:20,hp:2},{row:5,col:21,hp:2},{row:5,col:22,hp:2},{row:5,col:23,hp:2},{row:5,col:24,hp:2},{row:5,col:25,hp:2},{row:5,col:26,hp:1},{row:5,col:27,hp:2},{row:5,col:28,hp:1},{row:5,col:29,hp:999},{row:6,col:0,hp:999},{row:6,col:1,hp:1},{row:6,col:2,hp:2},{row:6,col:3,hp:1},{row:6,col:4,hp:2},{row:6,col:5,hp:2},{row:6,col:6,hp:2},{row:6,col:7,hp:2},{row:6,col:8,hp:2},{row:6,col:9,hp:2},{row:6,col:10,hp:2},{row:6,col:11,hp:2},{row:6,col:12,hp:2},{row:6,col:13,hp:2},{row:6,col:14,hp:2},{row:6,col:15,hp:999},{row:6,col:16,hp:2},{row:6,col:17,hp:2},{row:6,col:18,hp:2},{row:6,col:19,hp:2},{row:6,col:20,hp:2},{row:6,col:21,hp:2},{row:6,col:22,hp:2},{row:6,col:23,hp:2},{row:6,col:24,hp:2},{row:6,col:25,hp:2},{row:6,col:26,hp:2},{row:6,col:27,hp:1},{row:6,col:28,hp:2},{row:6,col:29,hp:999},{row:7,col:0,hp:999},{row:7,col:1,hp:2},{row:7,col:2,hp:1},{row:7,col:3,hp:2},{row:7,col:4,hp:2},{row:7,col:5,hp:2},{row:7,col:6,hp:2},{row:7,col:7,hp:2},{row:7,col:8,hp:2},{row:7,col:9,hp:2},{row:7,col:10,hp:2},{row:7,col:11,hp:2},{row:7,col:12,hp:2},{row:7,col:13,hp:2},{row:7,col:14,hp:2},{row:7,col:15,hp:999},{row:7,col:16,hp:2},{row:7,col:17,hp:2},{row:7,col:18,hp:2},{row:7,col:19,hp:2},{row:7,col:20,hp:2},{row:7,col:21,hp:2},{row:7,col:22,hp:2},{row:7,col:23,hp:2},{row:7,col:24,hp:2},{row:7,col:25,hp:2},{row:7,col:26,hp:2},{row:7,col:27,hp:2},{row:7,col:28,hp:1},{row:7,col:29,hp:999},{row:8,col:0,hp:999},{row:8,col:1,hp:1},{row:8,col:2,hp:2},{row:8,col:3,hp:2},{row:8,col:4,hp:2},{row:8,col:5,hp:2},{row:8,col:6,hp:2},{row:8,col:7,hp:2},{row:8,col:8,hp:2},{row:8,col:9,hp:2},{row:8,col:10,hp:2},{row:8,col:11,hp:2},{row:8,col:12,hp:2},{row:8,col:13,hp:2},{row:8,col:14,hp:2},{row:8,col:15,hp:999},{row:8,col:16,hp:2},{row:8,col:17,hp:2},{row:8,col:18,hp:2},{row:8,col:19,hp:2},{row:8,col:20,hp:2},{row:8,col:21,hp:2},{row:8,col:22,hp:2},{row:8,col:23,hp:2},{row:8,col:24,hp:2},{row:8,col:25,hp:2},{row:8,col:26,hp:2},{row:8,col:27,hp:2},{row:8,col:28,hp:2},{row:8,col:29,hp:999},{row:9,col:0,hp:999},{row:9,col:1,hp:999},{row:9,col:2,hp:999},{row:9,col:3,hp:999},{row:9,col:4,hp:999},{row:9,col:5,hp:999},{row:9,col:6,hp:999},{row:9,col:7,hp:999},{row:9,col:8,hp:999},{row:9,col:9,hp:999},{row:9,col:10,hp:999},{row:9,col:11,hp:999},{row:9,col:12,hp:999},{row:9,col:13,hp:999},{row:9,col:14,hp:999},{row:9,col:15,hp:999},{row:9,col:16,hp:999},{row:9,col:17,hp:999},{row:9,col:18,hp:999},{row:9,col:19,hp:999},{row:9,col:20,hp:999},{row:9,col:21,hp:999},{row:9,col:22,hp:999},{row:9,col:23,hp:999},{row:9,col:24,hp:999},{row:9,col:25,hp:999},{row:9,col:26,hp:999},{row:9,col:27,hp:999},{row:9,col:28,hp:999},{row:9,col:29,hp:999},{row:10,col:0,hp:999},{row:10,col:1,hp:1},{row:10,col:2,hp:2},{row:10,col:3,hp:2},{row:10,col:4,hp:2},{row:10,col:5,hp:2},{row:10,col:6,hp:2},{row:10,col:7,hp:2},{row:10,col:8,hp:2},{row:10,col:9,hp:2},{row:10,col:10,hp:2},{row:10,col:11,hp:2},{row:10,col:12,hp:2},{row:10,col:13,hp:2},{row:10,col:14,hp:2},{row:10,col:15,hp:999},{row:10,col:16,hp:2},{row:10,col:17,hp:2},{row:10,col:18,hp:2},{row:10,col:19,hp:2},{row:10,col:20,hp:2},{row:10,col:21,hp:2},{row:10,col:22,hp:2},{row:10,col:23,hp:2},{row:10,col:24,hp:2},{row:10,col:25,hp:2},{row:10,col:26,hp:2},{row:10,col:27,hp:2},{row:10,col:28,hp:2},{row:10,col:29,hp:999},{row:11,col:0,hp:999},{row:11,col:1,hp:2},{row:11,col:2,hp:1},{row:11,col:3,hp:2},{row:11,col:4,hp:2},{row:11,col:5,hp:2},{row:11,col:6,hp:2},{row:11,col:7,hp:2},{row:11,col:8,hp:2},{row:11,col:9,hp:2},{row:11,col:10,hp:2},{row:11,col:11,hp:2},{row:11,col:12,hp:2},{row:11,col:13,hp:2},{row:11,col:14,hp:2},{row:11,col:15,hp:999},{row:11,col:16,hp:2},{row:11,col:17,hp:2},{row:11,col:18,hp:2},{row:11,col:19,hp:2},{row:11,col:20,hp:2},{row:11,col:21,hp:2},{row:11,col:22,hp:2},{row:11,col:23,hp:2},{row:11,col:24,hp:2},{row:11,col:25,hp:2},{row:11,col:26,hp:2},{row:11,col:27,hp:2},{row:11,col:28,hp:1},{row:11,col:29,hp:999},{row:12,col:0,hp:999},{row:12,col:1,hp:1},{row:12,col:2,hp:2},{row:12,col:3,hp:1},{row:12,col:4,hp:2},{row:12,col:5,hp:2},{row:12,col:6,hp:2},{row:12,col:7,hp:2},{row:12,col:8,hp:2},{row:12,col:9,hp:2},{row:12,col:10,hp:2},{row:12,col:11,hp:2},{row:12,col:12,hp:2},{row:12,col:13,hp:2},{row:12,col:14,hp:2},{row:12,col:15,hp:999},{row:12,col:16,hp:2},{row:12,col:17,hp:2},{row:12,col:18,hp:2},{row:12,col:19,hp:2},{row:12,col:20,hp:2},{row:12,col:21,hp:2},{row:12,col:22,hp:2},{row:12,col:23,hp:2},{row:12,col:24,hp:2},{row:12,col:25,hp:2},{row:12,col:26,hp:2},{row:12,col:27,hp:1},{row:12,col:28,hp:2},{row:12,col:29,hp:999},{row:13,col:0,hp:999},{row:13,col:1,hp:2},{row:13,col:2,hp:1},{row:13,col:3,hp:2},{row:13,col:4,hp:1},{row:13,col:5,hp:2},{row:13,col:6,hp:2},{row:13,col:7,hp:2},{row:13,col:8,hp:2},{row:13,col:9,hp:2},{row:13,col:10,hp:2},{row:13,col:11,hp:2},{row:13,col:12,hp:2},{row:13,col:13,hp:2},{row:13,col:14,hp:2},{row:13,col:15,hp:999},{row:13,col:16,hp:2},{row:13,col:17,hp:2},{row:13,col:18,hp:2},{row:13,col:19,hp:2},{row:13,col:20,hp:2},{row:13,col:21,hp:2},{row:13,col:22,hp:2},{row:13,col:23,hp:2},{row:13,col:24,hp:2},{row:13,col:25,hp:2},{row:13,col:26,hp:1},{row:13,col:27,hp:2},{row:13,col:28,hp:1},{row:13,col:29,hp:999},{row:14,col:0,hp:999},{row:14,col:1,hp:1},{row:14,col:2,hp:2},{row:14,col:3,hp:1},{row:14,col:4,hp:2},{row:14,col:5,hp:1},{row:14,col:6,hp:2},{row:14,col:7,hp:2},{row:14,col:8,hp:2},{row:14,col:9,hp:2},{row:14,col:10,hp:2},{row:14,col:11,hp:2},{row:14,col:12,hp:2},{row:14,col:13,hp:2},{row:14,col:14,hp:2},{row:14,col:15,hp:999},{row:14,col:16,hp:2},{row:14,col:17,hp:2},{row:14,col:18,hp:2},{row:14,col:19,hp:2},{row:14,col:20,hp:2},{row:14,col:21,hp:2},{row:14,col:22,hp:2},{row:14,col:23,hp:2},{row:14,col:24,hp:2},{row:14,col:25,hp:1},{row:14,col:26,hp:2},{row:14,col:27,hp:1},{row:14,col:28,hp:2},{row:14,col:29,hp:999},{row:15,col:0,hp:999},{row:15,col:1,hp:2},{row:15,col:2,hp:1},{row:15,col:3,hp:2},{row:15,col:4,hp:1},{row:15,col:5,hp:2},{row:15,col:6,hp:1},{row:15,col:7,hp:2},{row:15,col:8,hp:2},{row:15,col:9,hp:2},{row:15,col:10,hp:2},{row:15,col:11,hp:2},{row:15,col:12,hp:2},{row:15,col:13,hp:2},{row:15,col:14,hp:2},{row:15,col:15,hp:999},{row:15,col:16,hp:2},{row:15,col:17,hp:2},{row:15,col:18,hp:2},{row:15,col:19,hp:2},{row:15,col:20,hp:2},{row:15,col:21,hp:2},{row:15,col:22,hp:2},{row:15,col:23,hp:2},{row:15,col:24,hp:1},{row:15,col:25,hp:2},{row:15,col:26,hp:1},{row:15,col:27,hp:2},{row:15,col:28,hp:1},{row:15,col:29,hp:999},{row:16,col:0,hp:999},{row:16,col:1,hp:1},{row:16,col:2,hp:2},{row:16,col:3,hp:1},{row:16,col:4,hp:2},{row:16,col:5,hp:1},{row:16,col:6,hp:2},{row:16,col:7,hp:1},{row:16,col:8,hp:2},{row:16,col:9,hp:2},{row:16,col:10,hp:2},{row:16,col:11,hp:2},{row:16,col:12,hp:2},{row:16,col:13,hp:2},{row:16,col:14,hp:2},{row:16,col:15,hp:999},{row:16,col:16,hp:2},{row:16,col:17,hp:2},{row:16,col:18,hp:2},{row:16,col:19,hp:2},{row:16,col:20,hp:2},{row:16,col:21,hp:2},{row:16,col:22,hp:2},{row:16,col:23,hp:1},{row:16,col:24,hp:2},{row:16,col:25,hp:1},{row:16,col:26,hp:2},{row:16,col:27,hp:1},{row:16,col:28,hp:2},{row:16,col:29,hp:999},{row:17,col:0,hp:999},{row:17,col:1,hp:999},{row:17,col:2,hp:999},{row:17,col:3,hp:999},{row:17,col:4,hp:999},{row:17,col:5,hp:999},{row:17,col:6,hp:999},{row:17,col:7,hp:999},{row:17,col:8,hp:999},{row:17,col:9,hp:999},{row:17,col:10,hp:999},{row:17,col:11,hp:999},{row:17,col:12,hp:999},{row:17,col:13,hp:999},{row:17,col:14,hp:999},{row:17,col:15,hp:999},{row:17,col:16,hp:999},{row:17,col:17,hp:999},{row:17,col:18,hp:999},{row:17,col:19,hp:999},{row:17,col:20,hp:999},{row:17,col:21,hp:999},{row:17,col:22,hp:999},{row:17,col:23,hp:999},{row:17,col:24,hp:999},{row:17,col:25,hp:999},{row:17,col:26,hp:999},{row:17,col:27,hp:999},{row:17,col:28,hp:999},{row:17,col:29,hp:999}]
+  }
+];
+
+/**
+ * Apply runtime color to a raw level descriptor.
+ * Takes a level from LEVEL_DATA and adds color to each brick based on hp.
+ */
+function _applyColors(level) {
+  const copy = JSON.parse(JSON.stringify(level));
+  for (const brick of copy.bricks) {
+    brick.color = _brickColor(brick.hp);
+  }
+  return copy;
+}
+
+/** Get a deep copy of a preset level by index (0-based), with colors applied. */
+function getPresetLevel(index) {
+  if (index < 0 || index >= LEVEL_DATA.length) return null;
+  return _applyColors(LEVEL_DATA[index]);
+}
+
+/** Total number of preset levels. */
+function getTotalLevels() {
+  return LEVEL_DATA.length;
+}
+
+
+// src/power-ups.js
+// Provides: PowerUpType, POWER_UP_WEIGHTS, POWER_UP_DROP_CHANCE
+// Depends: (none)
+
+const PowerUpType = {
+  SPLIT: 'split',             // 1 ball → 3
+  MULTI_SHOT: 'multiShot',   // Paddle fires 3 new balls
+  FIREBALL: 'fireball',      // Ball burns through bricks for 8 seconds
+  WIDE_PADDLE: 'widePaddle', // Paddle 1.5× wider for 10 seconds
+  EXTRA_LIFE: 'extraLife',   // +1 life
+};
+
+/** Weighted probability table for power-up drops. */
+const POWER_UP_WEIGHTS = [
+  { type: PowerUpType.SPLIT,       weight: 25 },
+  { type: PowerUpType.MULTI_SHOT,  weight: 20 },
+  { type: PowerUpType.FIREBALL,    weight: 15 },
+  { type: PowerUpType.WIDE_PADDLE, weight: 25 },
+  { type: PowerUpType.EXTRA_LIFE,  weight: 15 },
+];
+
+/** Chance (0–1) that a destroyed brick drops a power-up. */
+const POWER_UP_DROP_CHANCE = 0.15;
+
+
+// src/event-bus.js
+// Provides: EventBus
+// Depends: (none)
+
+class EventBus {
+  constructor() {
+    this._listeners = {};
+  }
+
+  /** Subscribe to an event. */
+  on(evt, fn) {
+    (this._listeners[evt] ||= []).push(fn);
+  }
+
+  /** Unsubscribe from an event. */
+  off(evt, fn) {
+    const a = this._listeners[evt];
+    if (a) this._listeners[evt] = a.filter(f => f !== fn);
+  }
+
+  /** Emit an event with optional arguments. */
+  emit(evt, ...args) {
+    (this._listeners[evt] || []).forEach(fn => fn(...args));
+  }
+}
+
+
+// src/entities/ball.js
+// Provides: Ball
+// Depends: C
+
+class Ball {
+  /**
+   * @param {number} x  - centre x
+   * @param {number} y  - centre y
+   * @param {number} radius
+   */
+  constructor(x, y, radius = C.BALL_RADIUS) {
+    this.x = x;
+    this.y = y;
+    this.radius = radius;
+
+    this.vx = 0;
+    this.vy = 0;
+    this.speed = C.BALL_SPEED;
+
+    this.isFireball = false;   // fireball mode — destroys any brick in one hit
+    this.fireballTimer = 0;    // seconds remaining for fireball
+    this.trail = [];           // last 5 positions for rendering a trail
+  }
+
+  /** Launch the ball at a given angle (radians, 0 = straight up). */
+  launch(angle = C.LAUNCH_ANGLE) {
+    this.vx = this.speed * Math.sin(angle);
+    this.vy = -this.speed * Math.cos(angle);
+  }
+
+  /** Re-normalise velocity so its magnitude equals this.speed. */
+  normalizeSpeed() {
+    const mag = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
+    if (mag < 1) {
+      // Near-zero velocity — default to straight up
+      this.vx = 0;
+      this.vy = -this.speed;
+      return;
+    }
+    this.vx = (this.vx / mag) * this.speed;
+    this.vy = (this.vy / mag) * this.speed;
+  }
+
+  /** Advance the ball by dt seconds. */
+  update(dt) {
+    // Store previous position for trail effect
+    this.trail.push({ x: this.x, y: this.y });
+    if (this.trail.length > 5) this.trail.shift();
+
+    // Tick fireball timer
+    if (this.isFireball) {
+      this.fireballTimer -= dt;
+      if (this.fireballTimer <= 0) {
+        this.isFireball = false;
+      }
+    }
+
+    this.x += this.vx * dt;
+    this.y += this.vy * dt;
+  }
+}
+
+
+// src/entities/paddle.js
+// Provides: Paddle
+// Depends: C
+
+class Paddle {
+  /**
+   * @param {number} x      - centre x
+   * @param {number} y      - centre y
+   * @param {number} width   - initial width
+   * @param {number} height
+   */
+  constructor(x, y, width, height = C.PADDLE_HEIGHT) {
+    this.x = x;
+    this.y = y;
+    this.baseWidth = width;
+    this.width = width;
+    this.height = height;
+
+    this._targetX = x;  // smoothed movement target
+
+    this.isWide = false;
+    this.wideTimer = 0;
+  }
+
+  /** Activate the "wide paddle" power-up for a given duration (seconds). */
+  setWide(duration) {
+    this.isWide = true;
+    this.wideTimer = duration;
+    this.width = this.baseWidth * 1.5;
+  }
+
+  /** Advance paddle state by dt seconds. */
+  update(dt) {
+    // Wide paddle timer
+    if (this.isWide) {
+      this.wideTimer -= dt;
+      if (this.wideTimer <= 0) {
+        this.isWide = false;
+        this.width = this.baseWidth;
+      }
+    }
+
+    // Smooth interpolation toward target position
+    const diff = this._targetX - this.x;
+    this.x += diff * Math.min(1, C.PADDLE_SMOOTHING * dt * 60);
+  }
+
+  /**
+   * Set the desired paddle position (clamped to screen bounds).
+   * @param {number} x        - desired centre x
+   * @param {number} screenW  - canvas / screen width
+   */
+  moveTo(x, screenW) {
+    if (isNaN(x)) return;
+    const half = this.width / 2;
+    this._targetX = Math.max(half, Math.min(screenW - half, x));
+  }
+
+  /** Return an axis-aligned bounding box for the paddle. */
+  getBounds() {
+    return {
+      left:   this.x - this.width / 2,
+      right:  this.x + this.width / 2,
+      top:    this.y - this.height / 2,
+      bottom: this.y + this.height / 2,
+    };
+  }
+}
+
+
+// src/entities/brick.js
+// Provides: Brick
+// Depends: C
+
+class Brick {
+  /**
+   * @param {number} row
+   * @param {number} col
+   * @param {number} hp     - hit points (>= INDESTRUCTIBLE_HP = unbreakable)
+   * @param {string|null} color - override colour, or null for hp-based
+   */
+  constructor(row, col, hp = 1, color = null) {
+    this.row = row;
+    this.col = col;
+    this.hp = hp;
+    this.maxHp = hp;
+    this.color = color;     // explicit colour override
+    this.alive = true;
+    this.shakeTimer = 0;    // visual feedback on hit
+  }
+
+  /**
+   * Register a hit on this brick.
+   * @param {boolean} isFireball - if true, brick is destroyed instantly
+   * @returns {boolean} true if the brick was destroyed by this hit
+   */
+  hit(isFireball = false) {
+    // Indestructible bricks only shake
+    if (this.hp >= C.INDESTRUCTIBLE_HP) {
+      this.shakeTimer = 0.15;
+      return false;
+    }
+
+    if (isFireball) {
+      this.hp = 0;
+    } else {
+      this.hp--;
+    }
+
+    if (this.hp <= 0) {
+      this.alive = false;
+      return true; // destroyed
+    }
+
+    this.shakeTimer = 0.1;
+    return false; // damaged but not destroyed
+  }
+
+  /** Tick per-frame timers. */
+  update(dt) {
+    if (this.shakeTimer > 0) this.shakeTimer -= dt;
+  }
+}
+
+
+// src/entities/brick-field.js
+// Provides: BrickField
+// Depends: C, Brick
+
+class BrickField {
+  /**
+   * @param {object} level    - level descriptor { gridWidth, gridHeight, bricks[] }
+   * @param {number} screenW  - canvas width
+   */
+  constructor(level, screenW) {
+    this.gridW = level.gridWidth;
+    this.gridH = level.gridHeight;
+    this.bricks = [];           // 2-D array [row][col], null = empty slot
+    this.totalDestructible = 0; // how many bricks can be destroyed
+    this.destroyed = 0;         // how many have been destroyed so far
+
+    // ---------- Calculate brick dimensions ----------
+    const playW = screenW - 20; // 10 px padding each side
+    this.brickW = (playW - (this.gridW - 1) * C.BRICK_GAP) / this.gridW;
+    this.brickH = this.brickW;  // Square bricks!
+    this.offsetX = 10;
+    this.offsetY = C.PLAY_TOP + 10;
+
+    // ---------- Initialise empty grid ----------
+    for (let r = 0; r < this.gridH; r++) {
+      this.bricks[r] = new Array(this.gridW).fill(null);
+    }
+
+    // ---------- Place bricks from level data ----------
+    for (const b of level.bricks) {
+      const brick = new Brick(b.row, b.col, b.hp, b.color || null);
+      this.bricks[b.row][b.col] = brick;
+      if (b.hp < C.INDESTRUCTIBLE_HP) this.totalDestructible++;
+    }
+  }
+
+  /**
+   * Return the pixel rectangle for a brick at (row, col).
+   * @returns {{ x: number, y: number, w: number, h: number }}
+   */
+  getBrickRect(row, col) {
+    return {
+      x: this.offsetX + col * (this.brickW + C.BRICK_GAP),
+      y: this.offsetY + row * (this.brickH + C.BRICK_GAP),
+      w: this.brickW,
+      h: this.brickH,
+    };
+  }
+
+  /** True when every destructible brick has been destroyed. */
+  isCleared() {
+    return this.destroyed >= this.totalDestructible;
+  }
+
+  /** Tick all bricks (shake timers, etc.). */
+  update(dt) {
+    for (let r = 0; r < this.gridH; r++) {
+      for (let c = 0; c < this.gridW; c++) {
+        if (this.bricks[r][c]) this.bricks[r][c].update(dt);
+      }
+    }
+  }
+}
+
+
+// src/entities/power-up-drop.js
+// Provides: PowerUpDrop, rollPowerUpDrop
+// Depends: C, PowerUpType, POWER_UP_WEIGHTS, POWER_UP_DROP_CHANCE
+
+class PowerUpDrop {
+  /**
+   * @param {number} x
+   * @param {number} y
+   * @param {string} type - one of PowerUpType.*
+   */
+  constructor(x, y, type) {
+    this.x = x;
+    this.y = y;
+    this.type = type;
+    this.radius = 10;
+    this.vy = 100;          // constant fall speed (px/s)
+    this.alive = true;
+    this.rotation = 0;      // visual spin angle
+  }
+
+  /** Advance the drop by dt seconds. */
+  update(dt) {
+    this.y += this.vy * dt;
+    this.rotation += dt * 3;
+    // Remove if it falls off-screen
+    if (this.y > C.SCREEN_H + 20) this.alive = false;
+  }
+}
+
+/**
+ * Possibly spawn a PowerUpDrop at (x, y) using weighted random selection.
+ * @param {number} x
+ * @param {number} y
+ * @returns {PowerUpDrop|null}
+ */
+function rollPowerUpDrop(x, y) {
+  if (Math.random() > POWER_UP_DROP_CHANCE) return null;
+
+  // Weighted random selection from POWER_UP_WEIGHTS
+  const totalWeight = POWER_UP_WEIGHTS.reduce((s, w) => s + w.weight, 0);
+  let roll = Math.random() * totalWeight;
+  for (const pw of POWER_UP_WEIGHTS) {
+    roll -= pw.weight;
+    if (roll <= 0) return new PowerUpDrop(x, y, pw.type);
+  }
+
+  // Fallback (should not normally be reached)
+  return new PowerUpDrop(x, y, PowerUpType.SPLIT);
+}
+
+
+// src/entities/particle.js
+// Provides: Particle
+// Depends: (none)
+
+class Particle {
+  /**
+   * @param {number} x
+   * @param {number} y
+   * @param {string} color - CSS colour
+   */
+  constructor(x, y, color) {
+    this.x = x;
+    this.y = y;
+    this.vx = (Math.random() - 0.5) * 200;
+    this.vy = (Math.random() - 0.5) * 200 - 50; // biased upward
+    this.life = 0.5 + Math.random() * 0.3;
+    this.maxLife = this.life;
+    this.color = color;
+    this.size = 2 + Math.random() * 3;
+  }
+
+  /** Advance the particle (with gravity). */
+  update(dt) {
+    this.x += this.vx * dt;
+    this.y += this.vy * dt;
+    this.vy += 200 * dt; // gravity
+    this.life -= dt;
+  }
+
+  /** Current opacity (fades as life drains). */
+  get alpha() {
+    return Math.max(0, this.life / this.maxLife);
+  }
+
+  /** True when the particle should be removed. */
+  get dead() {
+    return this.life <= 0;
+  }
+}
+
+
+// src/physics/collision.js
+// Provides: CollisionDetector
+// Depends: (none)
+
+class CollisionDetector {
+  /**
+   * Swept collision test: ball centre ray vs Minkowski-expanded brick rect.
+   * @param {Ball}   ball
+   * @param {object} rect  - { x, y, w, h }
+   * @param {number} dt    - timestep
+   * @returns {{ t: number, nx: number, ny: number } | null}
+   */
+  static sweepBallVsRect(ball, rect, dt) {
+    // Expand rect by ball radius on every side
+    const expanded = {
+      x: rect.x - ball.radius,
+      y: rect.y - ball.radius,
+      w: rect.w + ball.radius * 2,
+      h: rect.h + ball.radius * 2,
+    };
+
+    const dx = ball.vx * dt;
+    const dy = ball.vy * dt;
+
+    let tMin = 0, tMax = 1;
+    let normalX = 0, normalY = 0;
+
+    // ---- X slab ----
+    if (Math.abs(dx) < 1e-8) {
+      // Ray is parallel to Y axis — must already be within X range
+      if (ball.x < expanded.x || ball.x > expanded.x + expanded.w) return null;
+    } else {
+      let t1 = (expanded.x - ball.x) / dx;
+      let t2 = (expanded.x + expanded.w - ball.x) / dx;
+      let n = -1;
+      if (t1 > t2) { [t1, t2] = [t2, t1]; n = 1; }
+      if (t1 > tMin) { tMin = t1; normalX = n * Math.sign(dx) * -1; normalY = 0; }
+      if (t2 < tMax) tMax = t2;
+      if (tMin > tMax) return null;
+    }
+
+    // ---- Y slab ----
+    if (Math.abs(dy) < 1e-8) {
+      if (ball.y < expanded.y || ball.y > expanded.y + expanded.h) return null;
+    } else {
+      let t1 = (expanded.y - ball.y) / dy;
+      let t2 = (expanded.y + expanded.h - ball.y) / dy;
+      let n = -1;
+      if (t1 > t2) { [t1, t2] = [t2, t1]; n = 1; }
+      if (t1 > tMin) { tMin = t1; normalX = 0; normalY = n * Math.sign(dy) * -1; }
+      if (t2 < tMax) tMax = t2;
+      if (tMin > tMax) return null;
+    }
+
+    if (tMin < 0 || tMin > 1) return null;
+    return { t: tMin, nx: normalX, ny: normalY };
+  }
+}
+
+
+// src/physics/physics-world.js
+// Provides: PhysicsWorld
+// Depends: C, CollisionDetector
+
+class PhysicsWorld {
+  /**
+   * @param {BrickField} brickField
+   * @param {Paddle}     paddle
+   * @param {number}     screenW
+   * @param {number}     screenH
+   */
+  constructor(brickField, paddle, screenW, screenH) {
+    this.bf = brickField;
+    this.paddle = paddle;
+    this.screenW = screenW;
+    this.screenH = screenH;
+
+    // External callbacks
+    this.onBrickHit  = null; // (row, col, destroyed, brick)
+    this.onBallLost  = null; // (ball)
+    this.onPaddleHit = null; // (ball)
+  }
+
+  /**
+   * Step the simulation for all balls.
+   * @param {Ball[]} balls
+   * @param {number} dt - seconds
+   */
+  tick(balls, dt) {
+    for (const ball of balls) {
+      ball.update(dt);
+      this._wallCollision(ball);
+      this._paddleCollision(ball, dt);
+      this._brickCollisions(ball, dt);
+      this._enforceMinVy(ball);
+
+      // Check if ball fell off the bottom edge
+      if (ball.y - ball.radius > this.screenH) {
+        if (this.onBallLost) this.onBallLost(ball);
+      }
+    }
+  }
+
+  // ---- Wall bounces (left, right, top) ----
+  _wallCollision(ball) {
+    // Left wall
+    if (ball.x - ball.radius < 0) {
+      ball.x = ball.radius;
+      ball.vx = Math.abs(ball.vx);
+    }
+    // Right wall
+    if (ball.x + ball.radius > this.screenW) {
+      ball.x = this.screenW - ball.radius;
+      ball.vx = -Math.abs(ball.vx);
+    }
+    // Top wall (below HUD area)
+    if (ball.y - ball.radius < C.PLAY_TOP) {
+      ball.y = C.PLAY_TOP + ball.radius;
+      ball.vy = Math.abs(ball.vy);
+    }
+  }
+
+  // ---- Paddle reflection ----
+  _paddleCollision(ball, dt) {
+    const pb = this.paddle.getBounds();
+
+    // Quick x-range check (with ball radius margin)
+    const withinX = ball.x >= pb.left - ball.radius && ball.x <= pb.right + ball.radius;
+    if (!withinX || ball.vy <= 0) return; // only collide when ball is moving downward
+
+    const ballBottom = ball.y + ball.radius;
+    const prevBottom = ballBottom - ball.vy * dt;
+
+    const overlap = ballBottom >= pb.top && ball.y - ball.radius < pb.bottom;
+    const swept   = prevBottom <= pb.top && ballBottom >= pb.top;
+
+    if (overlap || swept) {
+      // Place ball on top of paddle
+      ball.y = pb.top - ball.radius;
+
+      // Reflect based on where the ball hit the paddle (-1 = left edge, +1 = right edge)
+      const hitPos = (ball.x - this.paddle.x) / (this.paddle.width / 2);
+      const angle  = hitPos * C.MAX_REFLECT_ANGLE;
+      ball.vx =  ball.speed * Math.sin(angle);
+      ball.vy = -ball.speed * Math.cos(angle);
+
+      if (this.onPaddleHit) this.onPaddleHit(ball);
+    }
+  }
+
+  // ---- Brick collisions (find nearest swept hit) ----
+  _brickCollisions(ball, dt) {
+    let nearest  = null;
+    let nearestT = Infinity;
+    let nearestR = -1;
+    let nearestC = -1;
+
+    for (let r = 0; r < this.bf.gridH; r++) {
+      for (let c = 0; c < this.bf.gridW; c++) {
+        const brick = this.bf.bricks[r][c];
+        if (!brick || !brick.alive) continue;
+
+        const rect = this.bf.getBrickRect(r, c);
+        const hit  = CollisionDetector.sweepBallVsRect(ball, rect, dt);
+        if (hit && hit.t < nearestT) {
+          nearest  = hit;
+          nearestT = hit.t;
+          nearestR = r;
+          nearestC = c;
+        }
+      }
+    }
+
+    if (nearest) {
+      // Move ball to the collision point
+      ball.x += ball.vx * dt * nearest.t;
+      ball.y += ball.vy * dt * nearest.t;
+      // Remove the remaining movement (already applied in ball.update)
+      ball.x -= ball.vx * dt;
+      ball.y -= ball.vy * dt;
+
+      const brick = this.bf.bricks[nearestR][nearestC];
+      const destroyed = brick.hit(ball.isFireball);
+      if (destroyed) this.bf.destroyed++;
+
+      // Reflect velocity (fireball punches through without reflecting)
+      if (!ball.isFireball) {
+        if (nearest.nx !== 0) ball.vx *= -1;
+        if (nearest.ny !== 0) ball.vy *= -1;
+      }
+
+      if (this.onBrickHit) this.onBrickHit(nearestR, nearestC, destroyed, brick);
+    }
+  }
+
+  // ---- Prevent near-horizontal ball (enforce minimum vy) ----
+  _enforceMinVy(ball) {
+    const minVy = ball.speed * C.MIN_VY_RATIO;
+    if (Math.abs(ball.vy) < minVy) {
+      ball.vy = (ball.vy < 0 ? -1 : ball.vy > 0 ? 1 : -1) * minVy;
+      // Adjust vx to keep overall speed consistent
+      const vxSq = ball.speed * ball.speed - ball.vy * ball.vy;
+      if (vxSq > 0) {
+        ball.vx = Math.sign(ball.vx || 1) * Math.sqrt(vxSq);
+      }
+    }
+  }
+}
+
+
+// src/systems/score-system.js
+// Provides: ScoreSystem
+// Depends: C
+
+class ScoreSystem {
+  constructor() {
+    this.score = 0;
+    this._combo = 0;
+    this._lastHit = -Infinity;
+    this.comboTexts = [];  // floating combo text entries
+  }
+
+  /**
+   * Called when a brick is hit.
+   * @param {boolean} destroyed - true if the brick was destroyed
+   */
+  onBrickHit(destroyed) {
+    if (!destroyed) return;
+
+    const now = performance.now();
+
+    // Combo: consecutive hits within the timeout window
+    if (now - this._lastHit < C.COMBO_TIMEOUT) {
+      this._combo++;
+    } else {
+      this._combo = 1;
+    }
+    this._lastHit = now;
+
+    // Score with combo multiplier
+    const mult = 1 + (this._combo - 1) * C.COMBO_MULT;
+    const pts  = Math.round(C.BASE_SCORE * mult);
+    this.score += pts;
+
+    // Show floating combo text for combos >= 2
+    if (this._combo >= 2) {
+      this.comboTexts.push({
+        text: `${this._combo}x Combo! +${pts}`,
+        timer: 1.0,
+      });
+    }
+  }
+
+  /** Tick combo text timers and prune expired entries. */
+  update(dt) {
+    this.comboTexts = this.comboTexts.filter(t => {
+      t.timer -= dt;
+      return t.timer > 0;
+    });
+  }
+}
+
+
+// src/audio/audio-manager.js
+// Provides: AudioManager, audio (global instance)
+// Depends: (none)
+
+class AudioManager {
+  constructor() {
+    this.ctx = null;              // AudioContext, created on first user interaction
+    this.musicGain = null;        // GainNode for background music volume
+    this.sfxGain = null;          // GainNode for sound effects volume
+    this.musicEnabled = true;
+    this.sfxEnabled = true;
+    this._musicOscillators = [];  // Track active music oscillators for cleanup
+    this._musicTimer = null;      // setInterval ID for music scheduling loop
+    this._initialized = false;
+  }
+
+  // --------------------------------------------------------------------------
+  // Initialization — must be called from a user gesture (click/tap/keypress)
+  // to satisfy browser autoplay policies and unlock the AudioContext.
+  // --------------------------------------------------------------------------
+  init() {
+    if (this._initialized) return;
+
+    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+
+    // Master gain for background music — kept low so it doesn't overpower SFX
+    this.musicGain = this.ctx.createGain();
+    this.musicGain.gain.value = 0.15;
+    this.musicGain.connect(this.ctx.destination);
+
+    // Master gain for sound effects
+    this.sfxGain = this.ctx.createGain();
+    this.sfxGain.gain.value = 0.3;
+    this.sfxGain.connect(this.ctx.destination);
+
+    this._initialized = true;
+  }
+
+  // --------------------------------------------------------------------------
+  // Toggle helpers — flip on/off and update gain immediately
+  // --------------------------------------------------------------------------
+  toggleMusic() {
+    this.musicEnabled = !this.musicEnabled;
+    if (this.musicGain) {
+      this.musicGain.gain.value = this.musicEnabled ? 0.15 : 0;
+    }
+  }
+
+  toggleSfx() {
+    this.sfxEnabled = !this.sfxEnabled;
+    if (this.sfxGain) {
+      this.sfxGain.gain.value = this.sfxEnabled ? 0.3 : 0;
+    }
+  }
+
+  // ==========================================================================
+  //  SOUND EFFECTS — short procedural sounds for game events
+  // ==========================================================================
+
+  // --------------------------------------------------------------------------
+  // Paddle hit — short metallic ping, triangle wave sweeping 800 → 400 Hz
+  // --------------------------------------------------------------------------
+  playPaddleHit() {
+    if (!this._initialized || !this.sfxEnabled) return;
+
+    const t = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(800, t);
+    osc.frequency.exponentialRampToValueAtTime(400, t + 0.1);
+
+    gain.gain.setValueAtTime(0.3, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
+
+    osc.connect(gain);
+    gain.connect(this.sfxGain);
+    osc.start(t);
+    osc.stop(t + 0.15);
+  }
+
+  // --------------------------------------------------------------------------
+  // Brick hit (not destroyed) — low thud, square wave 200 → 100 Hz
+  // --------------------------------------------------------------------------
+  playBrickHit() {
+    if (!this._initialized || !this.sfxEnabled) return;
+
+    const t = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(200, t);
+    osc.frequency.exponentialRampToValueAtTime(100, t + 0.08);
+
+    gain.gain.setValueAtTime(0.2, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
+
+    osc.connect(gain);
+    gain.connect(this.sfxGain);
+    osc.start(t);
+    osc.stop(t + 0.1);
+  }
+
+  // --------------------------------------------------------------------------
+  // Brick destroyed — satisfying crunch/pop: white noise burst + descending tone
+  // --------------------------------------------------------------------------
+  playBrickDestroy() {
+    if (!this._initialized || !this.sfxEnabled) return;
+
+    const t = this.ctx.currentTime;
+
+    // --- White noise burst with amplitude decay envelope ---
+    const bufferSize = this.ctx.sampleRate * 0.1; // 100ms of noise
+    const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) {
+      // Random noise shaped by a quadratic decay curve
+      data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / bufferSize, 2);
+    }
+    const noise = this.ctx.createBufferSource();
+    noise.buffer = buffer;
+    const noiseGain = this.ctx.createGain();
+    noiseGain.gain.value = 0.15;
+    noise.connect(noiseGain);
+    noiseGain.connect(this.sfxGain);
+    noise.start(t);
+
+    // --- Descending sine tone 600 → 200 Hz ---
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(600, t);
+    osc.frequency.exponentialRampToValueAtTime(200, t + 0.15);
+
+    gain.gain.setValueAtTime(0.2, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
+
+    osc.connect(gain);
+    gain.connect(this.sfxGain);
+    osc.start(t);
+    osc.stop(t + 0.2);
+  }
+
+  // --------------------------------------------------------------------------
+  // Power-up collected — rising major chord arpeggio (C5 → E5 → G5)
+  // --------------------------------------------------------------------------
+  playPowerUp() {
+    if (!this._initialized || !this.sfxEnabled) return;
+
+    const t = this.ctx.currentTime;
+    const notes = [523, 659, 784]; // C5, E5, G5
+
+    notes.forEach((freq, i) => {
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      const noteStart = t + i * 0.08;
+
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+
+      // Quick attack, then decay
+      gain.gain.setValueAtTime(0, noteStart);
+      gain.gain.linearRampToValueAtTime(0.2, noteStart + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, noteStart + 0.15);
+
+      osc.connect(gain);
+      gain.connect(this.sfxGain);
+      osc.start(noteStart);
+      osc.stop(noteStart + 0.15);
+    });
+  }
+
+  // --------------------------------------------------------------------------
+  // Life lost — sawtooth wave descending 400 → 100 Hz over half a second
+  // --------------------------------------------------------------------------
+  playLifeLost() {
+    if (!this._initialized || !this.sfxEnabled) return;
+
+    const t = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(400, t);
+    osc.frequency.exponentialRampToValueAtTime(100, t + 0.5);
+
+    gain.gain.setValueAtTime(0.2, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
+
+    osc.connect(gain);
+    gain.connect(this.sfxGain);
+    osc.start(t);
+    osc.stop(t + 0.5);
+  }
+
+  // --------------------------------------------------------------------------
+  // Win level — triumphant ascending fanfare (C5 → E5 → G5 → C6)
+  // --------------------------------------------------------------------------
+  playWin() {
+    if (!this._initialized || !this.sfxEnabled) return;
+
+    const t = this.ctx.currentTime;
+    const melody = [523, 659, 784, 1047]; // C5, E5, G5, C6
+
+    melody.forEach((freq, i) => {
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      const noteStart = t + i * 0.12;
+
+      osc.type = 'triangle';
+      osc.frequency.value = freq;
+
+      gain.gain.setValueAtTime(0, noteStart);
+      gain.gain.linearRampToValueAtTime(0.25, noteStart + 0.03);
+      gain.gain.exponentialRampToValueAtTime(0.001, noteStart + 0.3);
+
+      osc.connect(gain);
+      gain.connect(this.sfxGain);
+      osc.start(noteStart);
+      osc.stop(noteStart + 0.3);
+    });
+  }
+
+  // --------------------------------------------------------------------------
+  // Game over — sad descending sequence (G4 → F4 → E4 → C4)
+  // --------------------------------------------------------------------------
+  playGameOver() {
+    if (!this._initialized || !this.sfxEnabled) return;
+
+    const t = this.ctx.currentTime;
+    const melody = [392, 349, 330, 262]; // G4, F4, E4, C4
+
+    melody.forEach((freq, i) => {
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      const noteStart = t + i * 0.2;
+
+      osc.type = 'triangle';
+      osc.frequency.value = freq;
+
+      gain.gain.setValueAtTime(0, noteStart);
+      gain.gain.linearRampToValueAtTime(0.2, noteStart + 0.03);
+      gain.gain.exponentialRampToValueAtTime(0.001, noteStart + 0.4);
+
+      osc.connect(gain);
+      gain.connect(this.sfxGain);
+      osc.start(noteStart);
+      osc.stop(noteStart + 0.4);
+    });
+  }
+
+  // --------------------------------------------------------------------------
+  // Button click — short high-frequency tick
+  // --------------------------------------------------------------------------
+  playClick() {
+    if (!this._initialized || !this.sfxEnabled) return;
+
+    const t = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+
+    osc.type = 'sine';
+    osc.frequency.value = 1000;
+
+    gain.gain.setValueAtTime(0.15, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.05);
+
+    osc.connect(gain);
+    gain.connect(this.sfxGain);
+    osc.start(t);
+    osc.stop(t + 0.05);
+  }
+
+  // ==========================================================================
+  //  BACKGROUND MUSIC — Procedural steampunk-mechanical loop
+  // ==========================================================================
+  //
+  //  Structure: A repeating 2-bar pattern at 100 BPM consisting of:
+  //    - Bass line:  sawtooth oscillators through a lowpass filter for a
+  //                  warm, mechanical rumble (A2–D3–C3 progression)
+  //    - Melody:     triangle-wave pentatonic phrases for a mysterious,
+  //                  atmospheric feel
+  //
+  //  The scheduler pre-schedules notes in batches and uses setInterval
+  //  to continuously feed the Web Audio timeline ahead of real time.
+  // ==========================================================================
+
+  startMusic() {
+    // Background music removed by user preference — only SFX used
+  }
+
+  stopMusic() {
+    // No-op — no background music
+  }
+}
+
+// ============================================================================
+// Global audio manager instance — referenced by Game class and scene code
+// ============================================================================
+const audio = new AudioManager();
+
+
+// src/rendering/renderer.js
+// Provides: Starfield, Renderer
+// Depends: C, Theme, PowerUpType
+
+// ---- Background (clean, no animated elements) ----
+class Starfield {
+  constructor() {}
+  render() {}
+}
+
+// ---- Renderer --------------------------------------------
+// The main rendering engine. Every visual element in the game
+// — background, HUD, paddle, balls, bricks, power-ups,
+//   particles, combo text, UI overlays — is drawn here.
+// -----------------------------------------------------------
+class Renderer {
+  /**
+   * @param {CanvasRenderingContext2D} ctx
+   * @param {number} screenW
+   * @param {number} screenH
+   */
+  constructor(ctx, screenW, screenH) {
+    this.ctx = ctx;
+    this.w = screenW;
+    this.h = screenH;
+    this.starfield = new Starfield();
+    this._brickCache = null;       // OffscreenCanvas for brick field
+    this._brickCacheDirty = true;  // flag to rebuild cache
+    this._time = 0;                // accumulated time (seconds)
+  }
+
+  /** Mark the brick cache as needing a redraw (e.g. after a brick breaks). */
+  invalidateBrickCache() {
+    this._brickCacheDirty = true;
+  }
+
+  /**
+   * Called every frame to advance internal timers (used for
+   * twinkle / glow animations).
+   * @param {number} dt – delta time in seconds
+   */
+  update(dt) {
+    this._time += dt;
+  }
+
+  // ==========================================================
+  //  Background
+  // ==========================================================
+
+  /** Draw a clean dark background. */
+  drawBackground() {
+    const ctx = this.ctx;
+    const grad = ctx.createLinearGradient(0, 0, 0, this.h);
+    grad.addColorStop(0, '#12100e');
+    grad.addColorStop(1, '#1e1a16');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, this.w, this.h);
+  }
+
+  // ==========================================================
+  //  HUD  (score · lives · level name · active power-ups)
+  // ==========================================================
+
+  /**
+   * Draw the heads-up display bar at the top of the screen.
+   * @param {number}   score
+   * @param {number}   lives
+   * @param {string}   levelName
+   * @param {Array}    activePowerUps – [{type, timer}, ...]
+   */
+  drawHUD(score, lives, levelName, activePowerUps) {
+    const ctx = this.ctx;
+
+    // Semi-transparent backdrop for the HUD strip
+    ctx.fillStyle = 'rgba(20, 12, 6, 0.7)';  // warm dark overlay
+    ctx.fillRect(0, 0, this.w, C.PLAY_TOP);
+
+    // ---- Score (left-aligned) ----
+    ctx.font = 'bold 18px "Courier New", monospace';
+    ctx.fillStyle = Theme.accent;
+    ctx.textAlign = 'left';
+    ctx.fillText(`⚡ ${score}`, 10, 30);
+
+    // ---- Lives as hearts (right-aligned) ----
+    ctx.textAlign = 'right';
+    ctx.fillStyle = Theme.accent2;
+    ctx.font = '16px sans-serif';
+    let heartsStr = '';
+    for (let i = 0; i < lives; i++) heartsStr += '❤️ ';
+    ctx.fillText(heartsStr.trim(), this.w - 10, 30);
+
+    // ---- Level name (centered) ----
+    ctx.textAlign = 'center';
+    ctx.font = '13px sans-serif';
+    ctx.fillStyle = Theme.textSecondary;
+    ctx.fillText(levelName || '', this.w / 2, 30);
+
+    // ---- Pause hint ----
+    ctx.font = '10px sans-serif';
+    ctx.fillStyle = 'rgba(255,255,255,0.3)';
+    ctx.fillText('⏸ 点击此处暂停', this.w / 2, 55);
+
+    // ---- Active power-up indicators (bottom of HUD) ----
+    if (activePowerUps && activePowerUps.length > 0) {
+      let px = 10;
+      ctx.font = '11px sans-serif';
+      ctx.textAlign = 'left';
+      for (const pu of activePowerUps) {
+        const color = Theme.powerUp[pu.type] || '#fff';
+        ctx.fillStyle = color;
+        const label = this._powerUpLabel(pu.type);
+        ctx.fillText(`${label} ${Math.ceil(pu.timer)}s`, px, 70);
+        px += 80;
+      }
+    }
+  }
+
+  /**
+   * Map a power-up type string to its emoji label.
+   * @param {string} type
+   * @returns {string}
+   */
+  _powerUpLabel(type) {
+    switch (type) {
+      case 'fireball':    return '🔥';
+      case 'widePaddle':  return '📏';
+      case 'split':       return '✦';
+      case 'multiShot':   return '🎯';
+      default:            return '⭐';
+    }
+  }
+
+  // ==========================================================
+  //  Paddle
+  // ==========================================================
+
+  /**
+   * Draw the paddle with a gradient, glow, and shine highlight.
+   * @param {Paddle} paddle
+   */
+  drawPaddle(paddle) {
+    const ctx = this.ctx;
+    const b = paddle.getBounds();
+
+    // Horizontal gradient across the paddle
+    const grad = ctx.createLinearGradient(b.left, b.top, b.right, b.top);
+    grad.addColorStop(0, Theme.paddleGrad[0]);
+    grad.addColorStop(1, Theme.paddleGrad[1]);
+
+    // Neon glow (wider when power-up "wide" is active)
+    ctx.shadowColor = Theme.accent;
+    ctx.shadowBlur = paddle.isWide ? 15 : 8;
+
+    // Rounded rectangle body
+    const r = paddle.height / 2;
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.roundRect(b.left, b.top, paddle.width, paddle.height, r);
+    ctx.fill();
+
+    // Reset shadow so it doesn't bleed onto other elements
+    ctx.shadowBlur = 0;
+
+    // Thin white shine line along the top edge
+    ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(b.left + r, b.top + 2);
+    ctx.lineTo(b.right - r, b.top + 2);
+    ctx.stroke();
+
+    // Rivets
+    ctx.fillStyle = '#8b6914';
+    const rivetR = 2;
+    ctx.beginPath(); ctx.arc(b.left + 8, b.top + paddle.height/2, rivetR, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(b.right - 8, b.top + paddle.height/2, rivetR, 0, Math.PI*2); ctx.fill();
+  }
+
+  // ==========================================================
+  //  Balls
+  // ==========================================================
+
+  /**
+   * Draw every ball, including its trail and fireball effects.
+   * @param {Ball[]} balls
+   */
+  drawBalls(balls) {
+    const ctx = this.ctx;
+
+    for (const ball of balls) {
+      // ---- Fading trail ----
+      if (ball.trail.length > 1) {
+        for (let i = 0; i < ball.trail.length; i++) {
+          const t = ball.trail[i];
+          const alpha = (i / ball.trail.length) * 0.3;
+          ctx.globalAlpha = alpha;
+          ctx.fillStyle = ball.isFireball
+            ? Theme.powerUp.fireball
+            : Theme.ballGlow;
+          ctx.beginPath();
+          ctx.arc(
+            t.x,
+            t.y,
+            ball.radius * (0.3 + 0.7 * (i / ball.trail.length)),
+            0,
+            Math.PI * 2
+          );
+          ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+      }
+
+      // ---- Main ball body ----
+      ctx.shadowColor = ball.isFireball ? '#ff4400' : Theme.ballGlow;
+      ctx.shadowBlur = ball.isFireball ? 20 : 10;
+
+      if (ball.isFireball) {
+        // Fireball: radial gradient white → orange → red → transparent
+        const grad = ctx.createRadialGradient(
+          ball.x, ball.y, 0,
+          ball.x, ball.y, ball.radius * 2
+        );
+        grad.addColorStop(0,   '#ffffff');
+        grad.addColorStop(0.3, '#ffaa00');
+        grad.addColorStop(0.7, '#ff4400');
+        grad.addColorStop(1,   'rgba(255,0,0,0)');
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(ball.x, ball.y, ball.radius * 2, 0, Math.PI * 2);
+        ctx.fill();
+      } else {
+        // Normal ball: warm brass glow
+        const grad = ctx.createRadialGradient(
+          ball.x, ball.y, 0,
+          ball.x, ball.y, ball.radius
+        );
+        grad.addColorStop(0, '#ffe0a0');    // warm center
+        grad.addColorStop(1, Theme.ballGlow);
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      ctx.shadowBlur = 0;
+    }
+  }
+
+  // ==========================================================
+  //  Bricks
+  // ==========================================================
+
+  /**
+   * Draw the entire brick field. Each brick gets a gradient,
+   * shine highlight, optional HP label, and shake animation.
+   * @param {BrickField} brickField
+   */
+  drawBricks(brickField) {
+    const ctx = this.ctx;
+
+    for (let r = 0; r < brickField.gridH; r++) {
+      for (let c = 0; c < brickField.gridW; c++) {
+        const brick = brickField.bricks[r][c];
+        if (!brick || !brick.alive) continue;
+
+        const rect = brickField.getBrickRect(r, c);
+
+        // Shake offset when the brick was recently hit
+        let shakeX = 0;
+        let shakeY = 0;
+        if (brick.shakeTimer > 0) {
+          shakeX = (Math.random() - 0.5) * 4;
+          shakeY = (Math.random() - 0.5) * 4;
+        }
+
+        const x = rect.x + shakeX;
+        const y = rect.y + shakeY;
+
+        // Determine the two-colour gradient pair for this brick
+        let colors;
+        if (brick.color) {
+          // color can be a [light, dark] array (from Theme) or a hex string (from image upload)
+          if (Array.isArray(brick.color)) {
+            colors = brick.color;
+          } else {
+            colors = [brick.color, this._darken(brick.color, 30)];
+          }
+        } else if (brick.hp >= C.INDESTRUCTIBLE_HP) {
+          colors = Theme.brick.indestructible;
+        } else {
+          const hpKey = `hp${Math.min(brick.hp, 4)}`;
+          colors = Theme.brick[hpKey] || Theme.brick.hp1;
+        }
+
+        // Top-to-bottom gradient fill
+        const grad = ctx.createLinearGradient(x, y, x, y + rect.h);
+        grad.addColorStop(0, colors[0]);
+        grad.addColorStop(1, colors[1]);
+
+        // Rounded brick body
+        const br = Math.min(3, rect.h / 3);
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.roundRect(x, y, rect.w, rect.h, br);
+        ctx.fill();
+
+        // Gloss / shine strip along the top 35 %
+        ctx.fillStyle = 'rgba(255,255,255,0.15)';
+        ctx.fillRect(x + 1, y + 1, rect.w - 2, rect.h * 0.35);
+
+        // Bottom shadow (bevel effect)
+        ctx.fillStyle = 'rgba(0,0,0,0.2)';
+        ctx.fillRect(x + 1, y + rect.h * 0.7, rect.w - 2, rect.h * 0.3);
+
+        // Indestructible indicator: industrial bolts in corners
+        if (brick.hp >= C.INDESTRUCTIBLE_HP) {
+          ctx.fillStyle = 'rgba(200,180,140,0.4)';
+          const boltR = 1.5;
+          const margin = 3;
+          ctx.beginPath(); ctx.arc(x + margin, y + margin, boltR, 0, Math.PI*2); ctx.fill();
+          ctx.beginPath(); ctx.arc(x + rect.w - margin, y + margin, boltR, 0, Math.PI*2); ctx.fill();
+          ctx.beginPath(); ctx.arc(x + margin, y + rect.h - margin, boltR, 0, Math.PI*2); ctx.fill();
+          ctx.beginPath(); ctx.arc(x + rect.w - margin, y + rect.h - margin, boltR, 0, Math.PI*2); ctx.fill();
+        }
+
+        // HP numbers removed — visual style alone indicates brick type
+      }
+    }
+  }
+
+  /**
+   * Darken a hex colour by subtracting `amount` from each channel.
+   * Returns an rgb() string.
+   * @param {string} hex – e.g. "#ff8800"
+   * @param {number} amount
+   * @returns {string}
+   */
+  _darken(hex, amount) {
+    const num = parseInt(hex.replace('#', ''), 16);
+    const r = Math.max(0, (num >> 16) - amount);
+    const g = Math.max(0, ((num >> 8) & 0xff) - amount);
+    const b = Math.max(0, (num & 0xff) - amount);
+    return `rgb(${r},${g},${b})`;
+  }
+
+  // ==========================================================
+  //  Power-Up Drops
+  // ==========================================================
+
+  /**
+   * Draw falling power-up capsules with glow and icon.
+   * @param {PowerUpDrop[]} drops
+   */
+  drawPowerUps(drops) {
+    const ctx = this.ctx;
+
+    for (const drop of drops) {
+      if (!drop.alive) continue;
+
+      ctx.save();
+      ctx.translate(drop.x, drop.y);
+      ctx.rotate(drop.rotation);
+
+      const color = Theme.powerUp[drop.type] || '#fff';
+
+      // Outer glow circle
+      ctx.shadowColor = color;
+      ctx.shadowBlur = 10;
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(0, 0, drop.radius, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Inner icon
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = '#000';
+      ctx.font = 'bold 12px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      const icon = this._powerUpIcon(drop.type);
+      ctx.fillText(icon, 0, 1);
+
+      ctx.restore();
+    }
+  }
+
+  /**
+   * Map a power-up type to a single-character icon.
+   * @param {string} type
+   * @returns {string}
+   */
+  _powerUpIcon(type) {
+    switch (type) {
+      case 'split':       return '÷';
+      case 'multiShot':   return '⇑';
+      case 'fireball':    return '★';
+      case 'widePaddle':  return '↔';
+      case 'extraLife':   return '+';
+      default:            return '?';
+    }
+  }
+
+  // ==========================================================
+  //  Particles
+  // ==========================================================
+
+  /**
+   * Draw all active particles (small coloured squares that
+   * fade out over their lifetime).
+   * @param {Particle[]} particles
+   */
+  drawParticles(particles) {
+    const ctx = this.ctx;
+
+    for (const p of particles) {
+      ctx.globalAlpha = p.alpha;
+      ctx.fillStyle = p.color;
+      ctx.fillRect(
+        p.x - p.size / 2,
+        p.y - p.size / 2,
+        p.size,
+        p.size
+      );
+    }
+
+    ctx.globalAlpha = 1;
+  }
+
+  // ==========================================================
+  //  Combo Text
+  // ==========================================================
+
+  /**
+   * Draw floating combo / streak text that drifts upward and
+   * fades out.
+   * @param {Array} texts – [{text, timer}, ...]
+   */
+  drawComboTexts(texts) {
+    const ctx = this.ctx;
+    ctx.textAlign = 'center';
+
+    for (let i = 0; i < texts.length; i++) {
+      const t = texts[i];
+      const alpha = Math.min(1, t.timer * 2);
+      const yOffset = (1 - t.timer) * 30;
+
+      ctx.globalAlpha = alpha;
+      ctx.font = 'bold 16px "Courier New", monospace';
+      ctx.fillStyle = Theme.accent;
+      ctx.fillText(
+        t.text,
+        this.w / 2,
+        this.h / 2 - 40 - yOffset - i * 25
+      );
+    }
+
+    ctx.globalAlpha = 1;
+  }
+
+  // ==========================================================
+  //  UI Helpers
+  // ==========================================================
+
+  /**
+   * Draw a rounded, gradient-filled button and return its
+   * bounding rectangle (for pointer hit-testing).
+   *
+   * @param {number}  x
+   * @param {number}  y
+   * @param {number}  w
+   * @param {number}  h
+   * @param {string}  text
+   * @param {Object}  options
+   * @param {boolean} options.highlighted – hover / active state
+   * @param {string}  options.color       – base background colour
+   * @param {string}  options.textColor   – label colour
+   * @returns {{x:number, y:number, w:number, h:number}}
+   */
+  drawButton(x, y, w, h, text, options = {}) {
+    const ctx = this.ctx;
+    const {
+      highlighted = false,
+      color = Theme.button.bg,
+      textColor = Theme.button.text,
+    } = options;
+
+    // Vertical gradient (lighter → darker)
+    const baseColor = highlighted ? Theme.button.hover : color;
+    const grad = ctx.createLinearGradient(x, y, x, y + h);
+    grad.addColorStop(0, baseColor);
+    grad.addColorStop(1, this._darken(baseColor, 20));
+
+    // Rounded body
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.roundRect(x, y, w, h, 8);
+    ctx.fill();
+
+    // Thin border
+    ctx.strokeStyle = Theme.button.border;
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // Inner glow line (top)
+    ctx.strokeStyle = 'rgba(240,224,192,0.15)';
+    ctx.lineWidth = 0.5;
+    ctx.beginPath();
+    ctx.roundRect(x + 2, y + 2, w - 4, h - 4, 6);
+    ctx.stroke();
+
+    // Centred label
+    ctx.fillStyle = textColor;
+    ctx.font = 'bold 16px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text, x + w / 2, y + h / 2);
+
+    return { x, y, w, h };
+  }
+
+  /**
+   * Draw a large glowing title string.
+   * @param {string} text
+   * @param {number} y    – vertical position
+   * @param {number} size – font size in px
+   */
+  drawTitle(text, y, size = 36) {
+    const ctx = this.ctx;
+    ctx.textAlign = 'center';
+    ctx.font = `bold ${size}px "Courier New", monospace`;
+
+    // Neon glow behind the text
+    ctx.shadowColor = Theme.accent;
+    ctx.shadowBlur = 20;
+    ctx.fillStyle = Theme.accent;
+    ctx.fillText(text, this.w / 2, y);
+
+    ctx.shadowBlur = 0;
+  }
+
+  /**
+   * Draw a smaller, muted subtitle string.
+   * @param {string} text
+   * @param {number} y
+   * @param {number} size
+   */
+  drawSubtitle(text, y, size = 14) {
+    const ctx = this.ctx;
+    ctx.textAlign = 'center';
+    ctx.font = `${size}px sans-serif`;
+    ctx.fillStyle = Theme.textSecondary;
+    ctx.fillText(text, this.w / 2, y);
+  }
+
+  /**
+   * Fill the entire screen with a semi-transparent dark overlay
+   * (used for pause / game-over / menu screens).
+   * @param {number} alpha – opacity 0-1
+   */
+  drawOverlay(alpha = 0.7) {
+    const ctx = this.ctx;
+    ctx.fillStyle = `rgba(14, 8, 4, ${alpha})`;
+    ctx.fillRect(0, 0, this.w, this.h);
+  }
+}
+
+
+// src/scenes/state-machine.js
+// Provides: STATES, TRANSITIONS, StateMachine
+// Depends: (none)
+
+const STATES = {
+  MENU: 'MENU',
+  LEVEL_SELECT: 'LEVEL_SELECT',
+  PLAYING: 'PLAYING',
+  PAUSED: 'PAUSED',
+  WIN: 'WIN',
+  LOSE: 'LOSE',
+  IMAGE_UPLOAD: 'IMAGE_UPLOAD',
+};
+
+/** Allowed transitions from each state. */
+const TRANSITIONS = {
+  MENU:         ['LEVEL_SELECT'],
+  LEVEL_SELECT: ['MENU', 'PLAYING', 'IMAGE_UPLOAD'],
+  IMAGE_UPLOAD: ['LEVEL_SELECT', 'PLAYING'],
+  PLAYING:      ['PAUSED', 'WIN', 'LOSE'],
+  PAUSED:       ['PLAYING', 'MENU', 'LEVEL_SELECT'],
+  WIN:          ['LEVEL_SELECT', 'MENU', 'PLAYING'],
+  LOSE:         ['LEVEL_SELECT', 'MENU', 'PLAYING'],
+};
+
+/**
+ * Finite-state machine that governs scene transitions.
+ * Only transitions listed in TRANSITIONS are permitted.
+ */
+class StateMachine {
+  constructor() {
+    this._state = STATES.MENU;
+    this._scenes = {};
+  }
+
+  get state() { return this._state; }
+
+  /** Register a scene handler for a given state. */
+  registerScene(state, scene) {
+    this._scenes[state] = scene;
+  }
+
+  /**
+   * Attempt to transition to `newState`, optionally passing `data`
+   * to the entering scene. Silently warns on invalid transitions.
+   */
+  transition(newState, data) {
+    const allowed = TRANSITIONS[this._state];
+    if (!allowed || !allowed.includes(newState)) {
+      console.warn(`Invalid transition: ${this._state} → ${newState}`);
+      return;
+    }
+
+    const oldState  = this._state;
+    const oldScene  = this._scenes[oldState];
+    const newScene  = this._scenes[newState];
+    const isPause   = newState === STATES.PAUSED;
+    const isResume  = oldState === STATES.PAUSED && newState === STATES.PLAYING;
+
+    // Exit old scene (tell it whether we're just pausing)
+    if (oldScene && typeof oldScene.exit === 'function') {
+      oldScene.exit(isPause);
+    }
+
+    this._state = newState;
+
+    // Enter new scene — skip re-enter when resuming from pause
+    if (!isResume && newScene && typeof newScene.enter === 'function') {
+      newScene.enter(data);
+    }
+  }
+
+  /** Return the scene object for the current state. */
+  getActiveScene() {
+    return this._scenes[this._state] || null;
+  }
+}
+
+
+// src/scenes/menu-scene.js
+// Provides: MenuScene
+// Depends: C, Theme, audio
+
+class MenuScene {
+  constructor(game) {
+    this._game = game;
+    this._buttons = [];
+    this._floatingBalls = []; // decorative animated balls
+  }
+
+  enter() {
+    // Buttons
+    this._buttons = [
+      {
+        x: C.SCREEN_W / 2 - 100, y: 380,
+        w: 200, h: 50,
+        text: '开始游戏',
+        action: 'start',
+      },
+    ];
+    // Sound toggle icon (top-right corner)
+    this._sfxOn = (typeof audio !== 'undefined') ? audio.sfxEnabled : true;
+
+    // Spawn decorative floating balls for the background
+    this._floatingBalls = [];
+    for (let i = 0; i < 5; i++) {
+      this._floatingBalls.push({
+        x: Math.random() * C.SCREEN_W,
+        y: 150 + Math.random() * 150,
+        vx: (Math.random() - 0.5) * 60,
+        vy: (Math.random() - 0.5) * 60,
+        radius: 3 + Math.random() * 4,
+      });
+    }
+  }
+
+  exit() {}
+
+  update(dt) {
+    // Animate floating balls — simple bounce off invisible edges
+    for (const b of this._floatingBalls) {
+      b.x += b.vx * dt;
+      b.y += b.vy * dt;
+      if (b.x < 0 || b.x > C.SCREEN_W) b.vx *= -1;
+      if (b.y < 100 || b.y > 320) b.vy *= -1;
+    }
+  }
+
+  render() {
+    const r   = this._game.renderer;
+    const ctx = r.ctx;
+
+    r.drawBackground();
+
+    // --- Title ---
+    r.drawTitle('BREAKOUT', 200, 40);
+    r.drawTitle('MAKER', 250, 40);
+    r.drawSubtitle('打砖块创造者', 290, 16);
+
+    // --- Buttons ---
+    for (const btn of this._buttons) {
+      r.drawButton(btn.x, btn.y, btn.w, btn.h, btn.text);
+    }
+
+    // --- Sound toggle icon (top-right corner) ---
+    ctx.font = '22px sans-serif';
+    ctx.textAlign = 'right';
+    ctx.fillStyle = Theme.textSecondary;
+    ctx.fillText(this._sfxOn ? '🔊' : '🔇', C.SCREEN_W - 15, 30);
+
+  }
+
+  onTap(x, y) {
+    // Check sound icon (top-right corner, ~40x40 area)
+    if (x >= C.SCREEN_W - 50 && y <= 45) {
+      if (typeof audio !== 'undefined') {
+        audio.init();
+        audio.toggleSfx();
+        this._sfxOn = audio.sfxEnabled;
+      }
+      return;
+    }
+
+    for (const btn of this._buttons) {
+      if (x >= btn.x && x <= btn.x + btn.w &&
+          y >= btn.y && y <= btn.y + btn.h) {
+        if (btn.action === 'start') {
+          if (typeof audio !== 'undefined') { audio.init(); }
+          if (typeof audio !== 'undefined') audio.playClick();
+          this._game.stateMachine.transition('LEVEL_SELECT');
+        }
+      }
+    }
+  }
+
+  onMove() {}
+}
+
+
+// src/scenes/level-select.js
+// Provides: LevelSelectScene
+// Depends: C, Theme, getPresetLevel, getTotalLevels
+
+class LevelSelectScene {
+  constructor(game) {
+    this._game = game;
+    this._page = 0;
+    this._buttons = [];
+    this._levelCards = [];
+    this._pageText = '';
+    this._unlockedLevels = 1; // level 1 unlocked by default
+  }
+
+  enter() {
+    this._unlockedLevels = this._game.unlockedLevels || 1;
+    this._buildPage();
+  }
+
+  exit() {}
+
+  /** Rebuild card list & navigation for the current page. */
+  _buildPage() {
+    const perPage    = 6;
+    const total      = getTotalLevels();
+    const totalPages = Math.ceil(total / perPage);
+    const start      = this._page * perPage;
+
+    this._levelCards = [];
+    this._buttons    = [];
+
+    // --- Level cards in a 3-column × 2-row grid ---
+    const cardW = 105, cardH = 120, gapX = 15, gapY = 15;
+    const gridStartX = (C.SCREEN_W - 3 * cardW - 2 * gapX) / 2;
+    const gridStartY = 100;
+
+    for (let i = 0; i < perPage; i++) {
+      const levelIdx = start + i;
+      if (levelIdx >= total) break;
+
+      const col = i % 3;
+      const row = Math.floor(i / 3);
+      const x   = gridStartX + col * (cardW + gapX);
+      const y   = gridStartY + row * (cardH + gapY);
+      const level    = getPresetLevel(levelIdx);
+      const unlocked = true;  // All levels accessible
+
+      this._levelCards.push({ x, y, w: cardW, h: cardH, levelIdx, level, unlocked });
+    }
+
+    // --- Pagination buttons ---
+    const btnY = 380;
+    if (this._page > 0) {
+      this._buttons.push({
+        x: 20, y: btnY, w: 80, h: 40,
+        text: '上一页', action: 'prevPage',
+      });
+    }
+    if (this._page < totalPages - 1) {
+      this._buttons.push({
+        x: C.SCREEN_W - 100, y: btnY, w: 80, h: 40,
+        text: '下一页', action: 'nextPage',
+      });
+    }
+
+    // Page indicator text
+    this._pageText = `${this._page + 1} / ${totalPages}`;
+
+    // --- Bottom action buttons ---
+    this._buttons.push({
+      x: 30, y: 520, w: 140, h: 45,
+      text: '上传图片', action: 'upload',
+    });
+    this._buttons.push({
+      x: C.SCREEN_W - 170, y: 520, w: 140, h: 45,
+      text: '返回', action: 'back',
+    });
+  }
+
+  update(dt) {}
+
+  render() {
+    const r   = this._game.renderer;
+    const ctx = r.ctx;
+
+    r.drawBackground();
+    r.drawTitle('选择关卡', 60, 28);
+
+    // --- Level cards ---
+    for (const card of this._levelCards) {
+      const isLocked = !card.unlocked;
+
+      // Card background
+      ctx.fillStyle   = isLocked ? 'rgba(30,30,60,0.5)' : 'rgba(20,20,50,0.8)';
+      ctx.strokeStyle = isLocked ? '#333355' : Theme.button.border;
+      ctx.lineWidth   = 1.5;
+      ctx.beginPath();
+      ctx.roundRect(card.x, card.y, card.w, card.h, 8);
+      ctx.fill();
+      ctx.stroke();
+
+      // Level number
+      ctx.font      = 'bold 22px "Courier New", monospace';
+      ctx.fillStyle = isLocked ? '#555577' : Theme.accent;
+      ctx.textAlign = 'center';
+      ctx.fillText(card.levelIdx + 1, card.x + card.w / 2, card.y + 30);
+
+      // Level name (part after the dash, if any)
+      ctx.font      = '10px sans-serif';
+      ctx.fillStyle = isLocked ? '#555577' : Theme.textSecondary;
+      ctx.fillText(
+        card.level.name.split(' - ')[1] || '',
+        card.x + card.w / 2,
+        card.y + 50,
+      );
+
+      if (!isLocked) {
+        // Mini brick preview — tiny colored dots
+        const previewW = card.w - 20;
+        const previewH = 40;
+        const previewX = card.x + 10;
+        const previewY = card.y + 60;
+        const dotW = previewW / card.level.gridWidth;
+        const dotH = previewH / card.level.gridHeight;
+
+        const hpColors = ['#44dd88', '#ffaa00', '#ff3366', '#aa44ff'];
+        for (const b of card.level.bricks) {
+          const bx = previewX + b.col * dotW;
+          const by = previewY + b.row * dotH;
+          ctx.fillStyle = (b.hp >= C.INDESTRUCTIBLE_HP)
+            ? '#667788'
+            : (hpColors[Math.min(b.hp - 1, 3)] || '#44dd88');
+          ctx.fillRect(bx, by, Math.max(1, dotW - 0.5), Math.max(1, dotH - 0.5));
+        }
+      } else {
+        // Lock icon for locked levels
+        ctx.font      = '30px sans-serif';
+        ctx.fillStyle = '#555577';
+        ctx.fillText('🔒', card.x + card.w / 2, card.y + 85);
+      }
+    }
+
+    // Page indicator
+    r.drawSubtitle(this._pageText, 420, 14);
+
+    // Navigation & action buttons
+    for (const btn of this._buttons) {
+      r.drawButton(btn.x, btn.y, btn.w, btn.h, btn.text);
+    }
+  }
+
+  onTap(x, y) {
+    // Check level cards first
+    for (const card of this._levelCards) {
+      if (card.unlocked &&
+          x >= card.x && x <= card.x + card.w &&
+          y >= card.y && y <= card.y + card.h) {
+        this._game.stateMachine.transition('PLAYING', {
+          level: card.level,
+          levelIndex: card.levelIdx,
+        });
+        return;
+      }
+    }
+
+    // Then check buttons
+    for (const btn of this._buttons) {
+      if (x >= btn.x && x <= btn.x + btn.w &&
+          y >= btn.y && y <= btn.y + btn.h) {
+        switch (btn.action) {
+          case 'prevPage':
+            this._page--;
+            this._buildPage();
+            break;
+          case 'nextPage':
+            this._page++;
+            this._buildPage();
+            break;
+          case 'upload':
+            this._game.stateMachine.transition('IMAGE_UPLOAD');
+            break;
+          case 'back':
+            this._game.stateMachine.transition('MENU');
+            break;
+        }
+      }
+    }
+  }
+
+  onMove() {}
+}
+
+
+// src/scenes/game-scene.js
+// Provides: GameScene
+// Depends: C, Theme, PowerUpType, Ball, Paddle, BrickField, PhysicsWorld,
+//          ScoreSystem, Particle, rollPowerUpDrop, audio, Renderer
+
+/**
+ * Core gameplay scene managing multi-ball, power-ups, particles,
+ * physics, scoring, and deferred state transitions.
+ */
+class GameScene {
+  constructor(game) {
+    this._game = game;
+
+    // Runtime game objects
+    this.balls        = [];
+    this.paddle       = null;
+    this.brickField   = null;
+    this.physics      = null;
+    this.scoreSystem  = null;
+    this.powerUpDrops = [];
+    this.activePowerUps = [];
+    this.particles    = [];
+
+    // Level metadata
+    this.level      = null;
+    this.levelIndex = 0;
+    this.lives      = C.DEFAULT_LIVES;
+
+    // Internal flags
+    this._pendingTransition = null;
+    this._launched = false;
+  }
+
+  // ---- Lifecycle ----
+
+  enter(data) {
+    if (!data || !data.level) return;
+
+    this.level      = data.level;
+    this.levelIndex = data.levelIndex || 0;
+    this.lives      = data.level.lives || C.DEFAULT_LIVES;
+
+    this._pendingTransition = null;
+    this._launched          = false;
+    this.powerUpDrops       = [];
+    this.activePowerUps     = [];
+    this.particles          = [];
+
+    // Paddle
+    const pw   = data.level.paddleWidth || 120;
+    this.paddle = new Paddle(
+      C.SCREEN_W / 2,
+      C.SCREEN_H - C.PLAY_BOTTOM_MARGIN,
+      pw,
+    );
+
+    // Brick field
+    this.brickField = new BrickField(data.level, C.SCREEN_W);
+
+    // Initial ball sitting on the paddle
+    this.balls = [];
+    this._spawnBallOnPaddle();
+
+    // Score tracking
+    this.scoreSystem = new ScoreSystem();
+
+    // Physics engine
+    this.physics = new PhysicsWorld(
+      this.brickField, this.paddle,
+      C.SCREEN_W, C.SCREEN_H,
+    );
+
+    // --- Physics callbacks ---
+
+    this.physics.onBrickHit = (row, col, destroyed, brick) => {
+      this.scoreSystem.onBrickHit(destroyed);
+
+      // Sound effects
+      if (typeof audio !== 'undefined') {
+        if (destroyed) audio.playBrickDestroy();
+        else audio.playBrickHit();
+      }
+
+      if (destroyed) {
+        // Burst particles at the brick center
+        const rect  = this.brickField.getBrickRect(row, col);
+        const rawColor = brick.color
+          || Theme.brick[`hp${Math.min(brick.maxHp, 4)}`]
+          || ['#fff', '#ccc'];
+        const color = Array.isArray(rawColor) ? rawColor[0] : rawColor;
+        for (let i = 0; i < 8; i++) {
+          this.particles.push(
+            new Particle(rect.x + rect.w / 2, rect.y + rect.h / 2, color),
+          );
+        }
+
+        // Maybe drop a power-up
+        const drop = rollPowerUpDrop(rect.x + rect.w / 2, rect.y + rect.h / 2);
+        if (drop) this.powerUpDrops.push(drop);
+      }
+
+      // Invalidate the cached brick layer so Renderer redraws
+      this._game.renderer.invalidateBrickCache();
+
+      // Check win condition
+      if (this.brickField.isCleared() && !this._pendingTransition) {
+        this._pendingTransition = {
+          state: 'WIN',
+          data: {
+            score: this.scoreSystem.score,
+            level: this.level,
+            levelIndex: this.levelIndex,
+          },
+        };
+      }
+    };
+
+    this.physics.onBallLost = (ball) => {
+      ball._dead = true;
+    };
+
+    this.physics.onPaddleHit = (_ball) => {
+      if (typeof audio !== 'undefined') audio.playPaddleHit();
+    };
+  }
+
+  /** Place a new ball on top of the paddle (pre-launch). */
+  _spawnBallOnPaddle() {
+    const ball = new Ball(
+      this.paddle.x,
+      this.paddle.y - this.paddle.height / 2 - C.BALL_RADIUS - 2,
+    );
+    ball.speed = this.level.ballSpeed || C.BALL_SPEED;
+    this.balls.push(ball);
+    this._launched = false;
+  }
+
+  exit(preserveState) {
+    if (!preserveState) {
+      this.balls        = [];
+      this.paddle       = null;
+      this.brickField   = null;
+      this.physics      = null;
+      this.powerUpDrops = [];
+      this.activePowerUps = [];
+      this.particles    = [];
+    }
+  }
+
+  // ---- Frame update ----
+
+  update(dt) {
+    // Guard: nothing to update if not entered
+    if (!this.paddle || !this.brickField) return;
+
+    // Pre-launch: ball tracks paddle position
+    if (!this._launched) {
+      if (this.balls.length > 0) {
+        this.balls[0].x = this.paddle.x;
+        this.balls[0].y = this.paddle.y - this.paddle.height / 2 - C.BALL_RADIUS - 2;
+      }
+      this.paddle.update(dt);
+      return;
+    }
+
+    this.paddle.update(dt);
+    this.brickField.update(dt);
+    this.scoreSystem.update(dt);
+
+    // Run physics tick (handles ball-wall, ball-paddle, ball-brick)
+    this.physics.tick(this.balls, dt);
+
+    // Remove dead balls (fell off bottom)
+    this.balls = this.balls.filter(b => !b._dead);
+
+    // If every ball is gone, lose a life
+    if (this.balls.length === 0) {
+      this.lives--;
+      if (typeof audio !== 'undefined') audio.playLifeLost();
+      if (this.lives <= 0 && !this._pendingTransition) {
+        this._pendingTransition = {
+          state: 'LOSE',
+          data: {
+            score: this.scoreSystem.score,
+            level: this.level,
+            levelIndex: this.levelIndex,
+          },
+        };
+      } else if (this.lives > 0) {
+        this._spawnBallOnPaddle();
+      }
+    }
+
+    // --- Power-up drops: fall & check paddle catch ---
+    for (const drop of this.powerUpDrops) {
+      drop.update(dt);
+      if (drop.alive) {
+        const pb = this.paddle.getBounds();
+        if (drop.x >= pb.left && drop.x <= pb.right &&
+            drop.y + drop.radius >= pb.top &&
+            drop.y - drop.radius <= pb.bottom) {
+          drop.alive = false;
+          this._activatePowerUp(drop.type);
+          if (typeof audio !== 'undefined') audio.playPowerUp();
+        }
+      }
+    }
+    this.powerUpDrops = this.powerUpDrops.filter(d => d.alive);
+
+    // --- Tick active timed power-ups ---
+    this.activePowerUps = this.activePowerUps.filter(pu => {
+      pu.timer -= dt;
+      return pu.timer > 0;
+    });
+
+    // --- Particles ---
+    for (const p of this.particles) p.update(dt);
+    this.particles = this.particles.filter(p => !p.dead);
+
+    // --- Deferred state transition (win / lose) ---
+    if (this._pendingTransition) {
+      const { state, data } = this._pendingTransition;
+      this._pendingTransition = null;
+      this._game.stateMachine.transition(state, data);
+    }
+  }
+
+  // ---- Power-up activation ----
+
+  _activatePowerUp(type) {
+    switch (type) {
+
+      case PowerUpType.SPLIT: {
+        // Every existing ball spawns two extra at ±0.4 rad offset
+        const newBalls = [];
+        for (const ball of this.balls) {
+          const baseAngle = Math.atan2(ball.vy, ball.vx);
+
+          for (const offset of [-0.4, 0.4]) {
+            const angle = baseAngle + offset;
+            const b = new Ball(ball.x, ball.y, ball.radius);
+            b.speed = ball.speed;
+            b.vx    = ball.speed * Math.cos(angle);
+            b.vy    = ball.speed * Math.sin(angle);
+            b.isFireball   = ball.isFireball;
+            b.fireballTimer = ball.fireballTimer;
+            newBalls.push(b);
+          }
+        }
+        this.balls.push(...newBalls);
+        break;
+      }
+
+      case PowerUpType.MULTI_SHOT: {
+        // Fire 3 new balls from the paddle in a fan
+        for (let i = -1; i <= 1; i++) {
+          const b = new Ball(
+            this.paddle.x + i * 15,
+            this.paddle.y - this.paddle.height / 2 - C.BALL_RADIUS - 2,
+          );
+          b.speed = this.level.ballSpeed || C.BALL_SPEED;
+          b.launch(C.LAUNCH_ANGLE + i * 0.3);
+          this.balls.push(b);
+        }
+        break;
+      }
+
+      case PowerUpType.FIREBALL: {
+        // All current balls become fireballs for 8 s
+        for (const ball of this.balls) {
+          ball.isFireball   = true;
+          ball.fireballTimer = 8;
+        }
+        this.activePowerUps.push({ type: PowerUpType.FIREBALL, timer: 8 });
+        break;
+      }
+
+      case PowerUpType.WIDE_PADDLE: {
+        this.paddle.setWide(10);
+        this.activePowerUps.push({ type: PowerUpType.WIDE_PADDLE, timer: 10 });
+        break;
+      }
+
+      case PowerUpType.EXTRA_LIFE: {
+        this.lives = Math.min(this.lives + 1, 9);
+        break;
+      }
+    }
+  }
+
+  // ---- Rendering ----
+
+  render() {
+    const r = this._game.renderer;
+    r.drawBackground();
+
+    // Guard: render nothing if scene hasn't been entered yet (or was exited)
+    if (!this.brickField || !this.paddle) return;
+
+    r.drawBricks(this.brickField);
+    r.drawPaddle(this.paddle);
+    r.drawBalls(this.balls);
+    r.drawPowerUps(this.powerUpDrops);
+    r.drawParticles(this.particles);
+    r.drawComboTexts(this.scoreSystem.comboTexts);
+    r.drawHUD(
+      this.scoreSystem.score,
+      this.lives,
+      this.level.name,
+      this.activePowerUps,
+    );
+
+    // Show launch hint when waiting for first tap
+    if (!this._launched) {
+      r.drawSubtitle('点击发射', C.SCREEN_H - 120, 16);
+    }
+  }
+
+  // ---- Input ----
+
+  onTap(x, y) {
+    // Tap on HUD area → pause
+    if (y < C.PLAY_TOP) {
+      this._game.stateMachine.transition('PAUSED');
+      return;
+    }
+
+    // First tap launches the ball
+    if (!this._launched) {
+      this._launched = true;
+      for (const ball of this.balls) {
+        ball.speed = this.level.ballSpeed || C.BALL_SPEED;
+        ball.launch();
+      }
+    }
+  }
+
+  onMove(x, _y) {
+    if (this.paddle) this.paddle.moveTo(x, C.SCREEN_W);
+  }
+}
+
+
+// src/scenes/paused-scene.js
+// Provides: PausedScene
+// Depends: C, STATES, getPresetLevel, Renderer
+
+class PausedScene {
+  constructor(game) {
+    this._game = game;
+    this._buttons = [];
+  }
+
+  enter() {
+    const cx = C.SCREEN_W / 2;
+    this._buttons = [
+      { x: cx - 100, y: 280, w: 200, h: 48, text: '继续游戏',    action: 'resume' },
+      { x: cx - 100, y: 340, w: 200, h: 48, text: '重新开始',   action: 'restart' },
+      { x: cx - 100, y: 400, w: 200, h: 48, text: '选择关卡',   action: 'levelSelect' },
+      { x: cx - 100, y: 460, w: 200, h: 48, text: '返回主菜单', action: 'menu' },
+    ];
+  }
+
+  exit() {}
+
+  update(dt) {}
+
+  render() {
+    // Draw the game scene underneath (frozen snapshot)
+    const gameScene = this._game.stateMachine._scenes[STATES.PLAYING];
+    if (gameScene && gameScene.brickField) gameScene.render();
+
+    const r = this._game.renderer;
+
+    // Semi-transparent dark overlay
+    r.drawOverlay(0.75);
+
+    // Title
+    r.drawTitle('暂停', 220, 32);
+
+    // Buttons
+    for (const btn of this._buttons) {
+      r.drawButton(btn.x, btn.y, btn.w, btn.h, btn.text);
+    }
+  }
+
+  onTap(x, y) {
+    for (const btn of this._buttons) {
+      if (x >= btn.x && x <= btn.x + btn.w &&
+          y >= btn.y && y <= btn.y + btn.h) {
+        switch (btn.action) {
+
+          case 'resume':
+            this._game.stateMachine.transition('PLAYING');
+            break;
+
+          case 'restart': {
+            // Transition back to PLAYING, then re-enter with same level
+            const gameScene = this._game.stateMachine._scenes[STATES.PLAYING];
+            this._game.stateMachine.transition('PLAYING');
+            if (gameScene) {
+              const idx = gameScene.levelIndex;
+              gameScene.exit(false);
+              gameScene.enter({ level: getPresetLevel(idx), levelIndex: idx });
+            }
+            break;
+          }
+
+          case 'levelSelect':
+            this._game.stateMachine.transition('LEVEL_SELECT');
+            break;
+
+          case 'menu':
+            this._game.stateMachine.transition('MENU');
+            break;
+        }
+      }
+    }
+  }
+
+  onMove() {}
+}
+
+
+// src/scenes/result-scene.js
+// Provides: ResultScene
+// Depends: C, Theme, getPresetLevel, audio
+
+/**
+ * Reusable result scene. Instantiate once for 'WIN' and once for 'LOSE'.
+ * On WIN it also unlocks the next level.
+ */
+class ResultScene {
+  /**
+   * @param {object} game  – game controller reference
+   * @param {'WIN'|'LOSE'} type – which result variant to display
+   */
+  constructor(game, type) {
+    this._game = game;
+    this._type = type;
+    this._data = null;
+    this._buttons = [];
+  }
+
+  enter(data) {
+    this._data = data || {};
+    const cx = C.SCREEN_W / 2;
+
+    // Play win/lose sound
+    if (typeof audio !== 'undefined') {
+      if (this._type === 'WIN') audio.playWin();
+      else audio.playGameOver();
+    }
+
+    if (this._type === 'WIN') {
+      // Unlock the next level (if not already)
+      const nextIdx = (this._data.levelIndex || 0) + 1;
+      if (nextIdx + 1 > (this._game.unlockedLevels || 1)) {
+        this._game.unlockedLevels = nextIdx + 1;
+      }
+
+      this._buttons = [
+        { x: cx - 100, y: 380, w: 200, h: 48, text: '下一关',    action: 'next' },
+        { x: cx - 100, y: 440, w: 200, h: 48, text: '选择关卡', action: 'levelSelect' },
+        { x: cx - 100, y: 500, w: 200, h: 48, text: '主菜单',   action: 'menu' },
+      ];
+    } else {
+      this._buttons = [
+        { x: cx - 100, y: 380, w: 200, h: 48, text: '重试',     action: 'retry' },
+        { x: cx - 100, y: 440, w: 200, h: 48, text: '选择关卡', action: 'levelSelect' },
+        { x: cx - 100, y: 500, w: 200, h: 48, text: '主菜单',   action: 'menu' },
+      ];
+    }
+  }
+
+  exit() {}
+
+  update(dt) {}
+
+  render() {
+    const r   = this._game.renderer;
+    const ctx = r.ctx;
+
+    r.drawBackground();
+
+    // Result title
+    if (this._type === 'WIN') {
+      r.drawTitle('🎉 恭喜通关！', 200, 30);
+    } else {
+      r.drawTitle('💀 游戏结束', 200, 30);
+    }
+
+    // Score display
+    ctx.textAlign = 'center';
+    ctx.font      = 'bold 24px "Courier New", monospace';
+    ctx.fillStyle = Theme.accent;
+    ctx.fillText(`得分: ${this._data.score || 0}`, C.SCREEN_W / 2, 280);
+
+    // Level name
+    ctx.font      = '14px sans-serif';
+    ctx.fillStyle = Theme.textSecondary;
+    ctx.fillText(this._data.level?.name || '', C.SCREEN_W / 2, 320);
+
+    // Action buttons
+    for (const btn of this._buttons) {
+      r.drawButton(btn.x, btn.y, btn.w, btn.h, btn.text);
+    }
+  }
+
+  onTap(x, y) {
+    for (const btn of this._buttons) {
+      if (x >= btn.x && x <= btn.x + btn.w &&
+          y >= btn.y && y <= btn.y + btn.h) {
+        switch (btn.action) {
+
+          case 'next': {
+            const nextIdx   = (this._data.levelIndex || 0) + 1;
+            const nextLevel = getPresetLevel(nextIdx);
+            if (nextLevel) {
+              this._game.stateMachine.transition('PLAYING', {
+                level: nextLevel,
+                levelIndex: nextIdx,
+              });
+            } else {
+              // No more levels — go back to selection
+              this._game.stateMachine.transition('LEVEL_SELECT');
+            }
+            break;
+          }
+
+          case 'retry': {
+            const idx = this._data.levelIndex || 0;
+            this._game.stateMachine.transition('PLAYING', {
+              level: getPresetLevel(idx),
+              levelIndex: idx,
+            });
+            break;
+          }
+
+          case 'levelSelect':
+            this._game.stateMachine.transition('LEVEL_SELECT');
+            break;
+
+          case 'menu':
+            this._game.stateMachine.transition('MENU');
+            break;
+        }
+      }
+    }
+  }
+
+  onMove() {}
+}
+
+
+// src/scenes/image-upload.js
+// Provides: ImageUploadScene
+// Depends: C, Theme, BrickMapper
+
+class ImageUploadScene {
+
+  constructor(game) {
+    this._game = game;
+    this._buttons = [];
+    this._imageData = null;
+    this._previewLevel = null;
+    this._status = 'idle';            // 'idle' | 'processing' | 'ready'
+    this._statusText = '选择一张图片来生成像素关卡';
+    this._fileInput = null;
+  }
+
+  // --- Lifecycle ---
+
+  enter() {
+    this._imageData = null;
+    this._previewLevel = null;
+    this._status = 'idle';
+    this._statusText = '选择一张图片来生成像素关卡';
+    this._buildButtons();
+    this._ensureFileInput();
+  }
+
+  exit() {
+    // Nothing to tear down — the hidden input persists for reuse
+  }
+
+  // --- Private helpers ---
+
+  /** Create the initial button layout for the idle state. */
+  _buildButtons() {
+    const cx = C.SCREEN_W / 2;
+
+    if (this._status === 'ready') {
+      this._buttons = [
+        { x: cx - 100, y: 250, w: 200, h: 50, text: '换一张',   action: 'pick' },
+        { x: cx - 100, y: 440, w: 200, h: 50, text: '开始游戏', action: 'play' },
+        { x: cx - 100, y: 510, w: 200, h: 50, text: '返回',     action: 'back' },
+      ];
+    } else {
+      this._buttons = [
+        { x: cx - 100, y: 250, w: 200, h: 50, text: '选择图片', action: 'pick' },
+        { x: cx - 100, y: 500, w: 200, h: 50, text: '返回',     action: 'back' },
+      ];
+    }
+  }
+
+  /** Lazily create a hidden <input type="file"> element for image selection. */
+  _ensureFileInput() {
+    if (this._fileInput) return;
+
+    this._fileInput = document.createElement('input');
+    this._fileInput.type = 'file';
+    this._fileInput.accept = 'image/*';
+    this._fileInput.style.display = 'none';
+    document.body.appendChild(this._fileInput);
+    this._fileInput.addEventListener('change', (e) => this._handleFile(e));
+  }
+
+  /**
+   * Process the selected file:
+   *   1. Read as data-URL
+   *   2. Draw to an offscreen canvas (cropped to grid aspect ratio)
+   *   3. Extract ImageData and run BrickMapper
+   */
+  _handleFile(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    this._status = 'processing';
+    this._statusText = '正在处理图片...';
+
+    const reader = new FileReader();
+
+    reader.onload = (evt) => {
+      const img = new Image();
+
+      img.onload = () => {
+        const gridW = 40;
+        const gridH = 28;
+
+        // Crop the source image to match the grid's aspect ratio
+        const aspect = img.width / img.height;
+        const targetAspect = gridW / gridH;
+        let sw, sh, sx, sy;
+
+        if (aspect > targetAspect) {
+          // Image is wider → crop sides
+          sh = img.height;
+          sw = sh * targetAspect;
+          sx = (img.width - sw) / 2;
+          sy = 0;
+        } else {
+          // Image is taller → crop top/bottom
+          sw = img.width;
+          sh = sw / targetAspect;
+          sx = 0;
+          sy = (img.height - sh) / 2;
+        }
+
+        // Draw to a small offscreen canvas (low-res is intentional)
+        const oc = document.createElement('canvas');
+        oc.width = gridW * 4;   // 160 px
+        oc.height = gridH * 4;  // 112 px
+        const octx = oc.getContext('2d');
+        octx.drawImage(img, sx, sy, sw, sh, 0, 0, oc.width, oc.height);
+
+        const imageData = octx.getImageData(0, 0, oc.width, oc.height);
+        this._previewLevel = BrickMapper.imageToLevel(imageData, gridW, gridH);
+
+        this._status = 'ready';
+        this._statusText =
+          '已生成关卡: ' + this._previewLevel.bricks.length + ' 个砖块';
+        this._buildButtons();
+      };
+
+      img.src = evt.target.result;
+    };
+
+    reader.readAsDataURL(file);
+  }
+
+  // --- Scene interface ---
+
+  update(/* dt */) {
+    // No per-frame logic needed — processing is async via FileReader
+  }
+
+  render() {
+    const r = this._game.renderer;
+    const ctx = r.ctx;
+
+    r.drawBackground();
+    r.drawTitle('图片关卡', 60, 28);
+
+    // Status / instruction text
+    ctx.textAlign = 'center';
+    ctx.font = '14px sans-serif';
+    ctx.fillStyle = Theme.textSecondary;
+    ctx.fillText(this._statusText, C.SCREEN_W / 2, 200);
+
+    // Mini brick preview (only when a level has been generated)
+    if (this._previewLevel) {
+      this._renderPreview(ctx);
+    }
+
+    // Buttons
+    for (const btn of this._buttons) {
+      r.drawButton(btn.x, btn.y, btn.w, btn.h, btn.text);
+    }
+  }
+
+  /** Draw a miniature representation of the generated brick layout. */
+  _renderPreview(ctx) {
+    const previewW = C.SCREEN_W - 40;
+    const previewH = 140;
+    const previewX = 20;
+    const previewY = 310;
+
+    // Border
+    ctx.strokeStyle = Theme.button.border;
+    ctx.lineWidth = 1;
+    ctx.strokeRect(previewX - 1, previewY - 1, previewW + 2, previewH + 2);
+
+    // Dark background
+    ctx.fillStyle = Theme.bg;
+    ctx.fillRect(previewX, previewY, previewW, previewH);
+
+    // Individual bricks
+    const level = this._previewLevel;
+    const bw = previewW / level.gridWidth;
+    const bh = previewH / level.gridHeight;
+
+    for (const b of level.bricks) {
+      ctx.fillStyle = b.color || '#44dd88';
+      ctx.fillRect(
+        previewX + b.col * bw + 0.5,
+        previewY + b.row * bh + 0.5,
+        bw - 1,
+        bh - 1
+      );
+    }
+  }
+
+  // --- Input ---
+
+  onTap(x, y) {
+    for (const btn of this._buttons) {
+      if (
+        x >= btn.x && x <= btn.x + btn.w &&
+        y >= btn.y && y <= btn.y + btn.h
+      ) {
+        switch (btn.action) {
+          case 'pick':
+            // Reset value so re-selecting the same file still fires 'change'
+            this._fileInput.value = '';
+            this._fileInput.click();
+            break;
+
+          case 'play':
+            if (this._previewLevel) {
+              this._game.stateMachine.transition('PLAYING', {
+                level: this._previewLevel,
+                levelIndex: -1,
+              });
+            }
+            break;
+
+          case 'back':
+            this._game.stateMachine.transition('LEVEL_SELECT');
+            break;
+        }
+        return; // only process the first matching button
+      }
+    }
+  }
+
+  onMove(/* x, y */) {
+    // No hover behaviour in this scene
+  }
+}
+
+
+// src/image/median-cut.js
+// Provides: MedianCut
+// Depends: (none)
+
+class MedianCut {
+
+  /**
+   * Quantize an array of [r, g, b] pixels down to at most `maxColors` colors.
+   * Returns an array of [r, g, b] representative colors (the palette).
+   */
+  static quantize(pixels, maxColors = 24) {
+    if (pixels.length === 0) return [];
+
+    // Start with a single bucket containing all pixels
+    let buckets = [pixels.slice()];
+
+    // Iteratively split the bucket with the largest color range
+    while (buckets.length < maxColors) {
+      let maxRange = -1;
+      let maxIdx = 0;
+
+      // Find the bucket whose dominant channel spans the widest range
+      for (let i = 0; i < buckets.length; i++) {
+        const range = MedianCut._getRange(buckets[i]);
+        if (range.maxRange > maxRange) {
+          maxRange = range.maxRange;
+          maxIdx = i;
+        }
+      }
+
+      // No further splitting possible (all buckets are uniform)
+      if (maxRange <= 0) break;
+
+      const bucket = buckets[maxIdx];
+      const range = MedianCut._getRange(bucket);
+
+      // Sort along the channel with the widest spread
+      bucket.sort((a, b) => a[range.channel] - b[range.channel]);
+
+      // Split at the median
+      const mid = Math.floor(bucket.length / 2);
+      const left = bucket.slice(0, mid);
+      const right = bucket.slice(mid);
+
+      // Replace original bucket with the two halves
+      buckets.splice(maxIdx, 1, left, right);
+    }
+
+    // Compute the average color for each bucket → palette entry
+    return buckets
+      .filter(b => b.length > 0)
+      .map(bucket => {
+        const avg = [0, 0, 0];
+        for (const p of bucket) {
+          avg[0] += p[0];
+          avg[1] += p[1];
+          avg[2] += p[2];
+        }
+        return [
+          Math.round(avg[0] / bucket.length),
+          Math.round(avg[1] / bucket.length),
+          Math.round(avg[2] / bucket.length),
+        ];
+      });
+  }
+
+  /**
+   * Determine which RGB channel has the largest spread within a bucket,
+   * and return that channel index plus the spread value.
+   */
+  static _getRange(bucket) {
+    let minR = 255, maxR = 0;
+    let minG = 255, maxG = 0;
+    let minB = 255, maxB = 0;
+
+    for (const p of bucket) {
+      if (p[0] < minR) minR = p[0]; if (p[0] > maxR) maxR = p[0];
+      if (p[1] < minG) minG = p[1]; if (p[1] > maxG) maxG = p[1];
+      if (p[2] < minB) minB = p[2]; if (p[2] > maxB) maxB = p[2];
+    }
+
+    const ranges = [maxR - minR, maxG - minG, maxB - minB];
+    let channel = 0;
+    if (ranges[1] > ranges[0]) channel = 1;
+    if (ranges[2] > ranges[channel]) channel = 2;
+
+    return { channel, maxRange: ranges[channel] };
+  }
+
+  /**
+   * Find the closest color in `palette` to the given `pixel` [r, g, b],
+   * using squared Euclidean distance in RGB space.
+   */
+  static closestColor(pixel, palette) {
+    let minDist = Infinity;
+    let closest = palette[0];
+
+    for (const c of palette) {
+      const dr = pixel[0] - c[0];
+      const dg = pixel[1] - c[1];
+      const db = pixel[2] - c[2];
+      const dist = dr * dr + dg * dg + db * db;
+      if (dist < minDist) {
+        minDist = dist;
+        closest = c;
+      }
+    }
+
+    return closest;
+  }
+}
+
+
+// src/image/brick-mapper.js
+// Provides: BrickMapper
+// Depends: MedianCut
+
+class BrickMapper {
+
+  /**
+   * Convert an ImageData object to a level descriptor.
+   * @param {ImageData} imageData - Raw pixel data from a canvas context.
+   * @param {number}    gridWidth - Number of brick columns (default 20).
+   * @param {number}    gridHeight - Number of brick rows (default 14).
+   * @returns {object}  Level descriptor with name, bricks[], and settings.
+   */
+  static imageToLevel(imageData, gridWidth = 40, gridHeight = 28) {
+    const { width, height, data } = imageData;
+
+    // Dimensions of one grid cell in source-pixel space
+    const cellW = width / gridWidth;
+    const cellH = height / gridHeight;
+
+    const gridPixels = []; // [row][col] = [r, g, b]
+    const allPixels = [];  // flat list for palette extraction
+
+    // --- Sample: compute average color per grid cell ---
+    for (let r = 0; r < gridHeight; r++) {
+      gridPixels[r] = [];
+      for (let c = 0; c < gridWidth; c++) {
+        let avgR = 0, avgG = 0, avgB = 0, count = 0;
+
+        const startX = Math.floor(c * cellW);
+        const startY = Math.floor(r * cellH);
+        const endX   = Math.floor((c + 1) * cellW);
+        const endY   = Math.floor((r + 1) * cellH);
+
+        for (let py = startY; py < endY; py++) {
+          for (let px = startX; px < endX; px++) {
+            const idx = (py * width + px) * 4;
+            avgR += data[idx];
+            avgG += data[idx + 1];
+            avgB += data[idx + 2];
+            count++;
+          }
+        }
+
+        if (count > 0) {
+          avgR = Math.round(avgR / count);
+          avgG = Math.round(avgG / count);
+          avgB = Math.round(avgB / count);
+        }
+
+        gridPixels[r][c] = [avgR, avgG, avgB];
+        allPixels.push([avgR, avgG, avgB]);
+      }
+    }
+
+    // --- Quantize all sampled colors into a compact palette ---
+    const palette = MedianCut.quantize(allPixels, 24);
+
+    // --- Map each grid cell to a brick (or skip if near-white) ---
+    const bricks = [];
+
+    for (let r = 0; r < gridHeight; r++) {
+      for (let c = 0; c < gridWidth; c++) {
+        const pixel = gridPixels[r][c];
+        const color = MedianCut.closestColor(pixel, palette);
+
+        // Perceived luminance (ITU-R BT.601)
+        const luminance =
+          (0.299 * color[0] + 0.587 * color[1] + 0.114 * color[2]) / 255;
+
+        // Very bright cells are treated as empty space (background)
+        if (luminance > 0.92) continue;
+
+        // All image bricks are hp=1 (one hit to destroy)
+        // The fun is in seeing the picture, not grinding through tough bricks
+        const hp = 1;
+
+        // Convert [r, g, b] to hex string
+        const hexColor =
+          '#' +
+          color[0].toString(16).padStart(2, '0') +
+          color[1].toString(16).padStart(2, '0') +
+          color[2].toString(16).padStart(2, '0');
+
+        bricks.push({ row: r, col: c, hp, color: hexColor });
+      }
+    }
+
+    return {
+      name: '自定义 - 图片关卡',
+      gridWidth,
+      gridHeight,
+      ballSpeed: 300,
+      paddleWidth: 110,
+      bricks,
+      lives: 4,
+    };
+  }
+}
+
+
+// src/input/input-manager.js
+// Provides: InputManager
+// Depends: C
+
+class InputManager {
+
+  constructor(canvas, game) {
+    this._game = game;
+    this._canvas = canvas;
+    this._firstFingerId = null;   // track only one finger at a time
+
+    // --- Mouse events ---
+    canvas.addEventListener('mousedown', (e) => {
+      this._onDown(e.clientX, e.clientY);
+    });
+    canvas.addEventListener('mousemove', (e) => {
+      this._onMove(e.clientX, e.clientY);
+    });
+
+    // --- Touch events ---
+    canvas.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      const t = e.changedTouches[0];
+      this._firstFingerId = t.identifier;
+      this._onDown(t.clientX, t.clientY);
+    }, { passive: false });
+
+    canvas.addEventListener('touchmove', (e) => {
+      e.preventDefault();
+      for (const t of e.changedTouches) {
+        if (t.identifier === this._firstFingerId) {
+          this._onMove(t.clientX, t.clientY);
+          break;
+        }
+      }
+    }, { passive: false });
+
+    canvas.addEventListener('touchend', (e) => {
+      for (const t of e.changedTouches) {
+        if (t.identifier === this._firstFingerId) {
+          this._firstFingerId = null;
+          break;
+        }
+      }
+    });
+  }
+
+  // --- Coordinate conversion ---
+
+  /**
+   * Map a viewport-space (client) coordinate pair to game-space coordinates,
+   * accounting for any CSS scaling applied to the canvas element.
+   */
+  _toGame(clientX, clientY) {
+    const rect = this._canvas.getBoundingClientRect();
+    const scaleX = C.SCREEN_W / rect.width;
+    const scaleY = C.SCREEN_H / rect.height;
+    return [
+      (clientX - rect.left) * scaleX,
+      (clientY - rect.top)  * scaleY,
+    ];
+  }
+
+  // --- Event dispatch ---
+
+  _onDown(clientX, clientY) {
+    const [x, y] = this._toGame(clientX, clientY);
+    const scene = this._game.stateMachine.getActiveScene();
+    if (scene && scene.onTap) scene.onTap(x, y);
+  }
+
+  _onMove(clientX, clientY) {
+    const [x, y] = this._toGame(clientX, clientY);
+    const scene = this._game.stateMachine.getActiveScene();
+    if (scene && scene.onMove) scene.onMove(x, y);
+  }
+}
+
+
+// src/game.js
+// Provides: Game, game (global instance)
+// Depends: C, STATES, Renderer, StateMachine, InputManager,
+//          MenuScene, LevelSelectScene, GameScene, PausedScene,
+//          ResultScene, ImageUploadScene
+
+class Game {
+
+  constructor(canvas) {
+    this.canvas = canvas;
+    this.ctx = canvas.getContext('2d');
+
+    // Player progress — number of levels accessible
+    this.unlockedLevels = 1;
+    this._loadProgress();
+
+    // Responsive canvas sizing
+    this._setupCanvas();
+    window.addEventListener('resize', () => this._setupCanvas());
+
+    // --- Sub-systems ---
+    this.renderer = new Renderer(this.ctx, C.SCREEN_W, C.SCREEN_H);
+    this.stateMachine = new StateMachine();
+
+    // --- Register all scenes ---
+    const menuScene        = new MenuScene(this);
+    const levelSelectScene = new LevelSelectScene(this);
+    const gameScene        = new GameScene(this);
+    const pausedScene      = new PausedScene(this);
+    const winScene         = new ResultScene(this, 'WIN');
+    const loseScene        = new ResultScene(this, 'LOSE');
+    const imageUploadScene = new ImageUploadScene(this);
+
+    this.stateMachine.registerScene(STATES.MENU,         menuScene);
+    this.stateMachine.registerScene(STATES.LEVEL_SELECT,  levelSelectScene);
+    this.stateMachine.registerScene(STATES.PLAYING,       gameScene);
+    this.stateMachine.registerScene(STATES.PAUSED,        pausedScene);
+    this.stateMachine.registerScene(STATES.WIN,           winScene);
+    this.stateMachine.registerScene(STATES.LOSE,          loseScene);
+    this.stateMachine.registerScene(STATES.IMAGE_UPLOAD,  imageUploadScene);
+
+    // --- Input ---
+    this.input = new InputManager(canvas, this);
+
+    // --- Enter the initial scene ---
+    menuScene.enter();
+
+    // --- Start the game loop ---
+    this._lastTime = performance.now();
+    this._accumulator = 0;
+    this._loop();
+  }
+
+  // --- Canvas setup ---
+
+  /**
+   * Size the canvas element to fill the viewport while preserving the
+   * game's logical aspect ratio.  Uses devicePixelRatio for crisp rendering.
+   */
+  _setupCanvas() {
+    const dpr = window.devicePixelRatio || 1;
+    const maxW = window.innerWidth;
+    const maxH = window.innerHeight;
+    const aspect = C.SCREEN_W / C.SCREEN_H;
+
+    let w, h;
+    if (maxW / maxH < aspect) {
+      // Viewport is narrower than game — fit to width
+      w = maxW;
+      h = maxW / aspect;
+    } else {
+      // Viewport is taller than game — fit to height
+      h = maxH;
+      w = maxH * aspect;
+    }
+
+    // CSS size (logical pixels)
+    this.canvas.style.width  = w + 'px';
+    this.canvas.style.height = h + 'px';
+
+    // Backing-store size (physical pixels)
+    this.canvas.width  = C.SCREEN_W * dpr;
+    this.canvas.height = C.SCREEN_H * dpr;
+
+    // Re-acquire context and apply DPR scaling
+    this.ctx = this.canvas.getContext('2d');
+    this.ctx.scale(dpr, dpr);
+
+    // Keep the renderer in sync with the (potentially new) context
+    if (this.renderer) {
+      this.renderer.ctx = this.ctx;
+    }
+  }
+
+  // --- Persistence ---
+
+  _loadProgress() {
+    try {
+      const saved = localStorage.getItem('breakout-maker-progress');
+      if (saved) {
+        const data = JSON.parse(saved);
+        this.unlockedLevels = data.unlockedLevels || 1;
+      }
+    } catch (e) {
+      // localStorage may be unavailable in some contexts — ignore
+    }
+  }
+
+  _saveProgress() {
+    try {
+      localStorage.setItem(
+        'breakout-maker-progress',
+        JSON.stringify({ unlockedLevels: this.unlockedLevels })
+      );
+    } catch (e) {
+      // Silently ignore write failures
+    }
+  }
+
+  // --- Game loop ---
+
+  /**
+   * The main frame loop.
+   *
+   * - For the PLAYING state a **fixed timestep** is used so that physics
+   *   behaves identically regardless of display refresh rate.
+   * - All other states (menus, paused, results) use a simple variable
+   *   timestep which is fine for UI animations.
+   * - The accumulator is capped to C.MAX_ACCUMULATOR to prevent a
+   *   "spiral of death" after long pauses (e.g. switching browser tabs).
+   */
+  _loop() {
+    const now = performance.now();
+    let dt = (now - this._lastTime) / 1000;   // seconds
+    this._lastTime = now;
+
+    // Clamp to avoid huge jumps after tab-switch / debugger pause
+    if (dt > C.MAX_ACCUMULATOR) dt = C.MAX_ACCUMULATOR;
+
+    // Let the renderer update its own timer (used for animated effects)
+    this.renderer.update(dt);
+
+    // Dispatch to the active scene
+    const scene = this.stateMachine.getActiveScene();
+
+    if (scene) {
+      if (this.stateMachine.state === STATES.PLAYING) {
+        // ---- Fixed-timestep physics ----
+        this._accumulator += dt;
+        let steps = 0;
+
+        while (this._accumulator >= C.FIXED_DT && steps < C.MAX_STEPS) {
+          scene.update(C.FIXED_DT);
+          this._accumulator -= C.FIXED_DT;
+          steps++;
+
+          // If the scene triggered a state transition mid-step, stop
+          if (this.stateMachine.state !== STATES.PLAYING) break;
+        }
+
+        // Safety valve: discard leftover time if it grew too large
+        if (this._accumulator > C.MAX_ACCUMULATOR) {
+          this._accumulator = 0;
+        }
+      } else {
+        // ---- Variable timestep for UI scenes ----
+        scene.update(dt);
+      }
+
+      scene.render();
+    }
+
+    // Persist player progress (cheap JSON write, OK every frame)
+    this._saveProgress();
+
+    // Schedule next frame
+    requestAnimationFrame(() => this._loop());
+  }
+}
+
+
+// ============================================================================
+// Boot — create the Game instance once the DOM is ready
+// ============================================================================
+const game = new Game(document.getElementById('gameCanvas'));
+
+  </script>
+</body>
+</html>
