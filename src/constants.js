@@ -125,7 +125,11 @@ function _brickColor(hp) {
 function _applyColors(level) {
   const copy = JSON.parse(JSON.stringify(level));
   for (const brick of copy.bricks) {
-    brick.color = _brickColor(brick.hp);
+    // Preserve colours from image-generated levels; only apply HP-based
+    // theme colours when no colour was provided by the server.
+    if (!brick.color) {
+      brick.color = _brickColor(brick.hp);
+    }
   }
   return copy;
 }
