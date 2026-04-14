@@ -312,7 +312,7 @@ class GameScene {
 
     // Show launch hint when waiting for first tap (with pulse animation)
     if (!this._launched) {
-      r.drawPulseSubtitle('点击发射', C.SCREEN_H - 120, 16);
+      r.drawPulseSubtitle('\u70b9\u51fb\u53d1\u5c04', C.SCREEN_H - 120, 16);
     }
   }
 

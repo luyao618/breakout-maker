@@ -11,7 +11,7 @@ class CreativeScene {
   constructor(game) {
     this._game = game;
     this._buttons = [];
-    this._status = 'idle';           // 'idle' | 'inputting' | 'generating' | 'ready' | 'error'
+    this._status = 'idle';
     this._statusText = '';
     this._promptText = '';
     this._previewLevel = null;
@@ -23,14 +23,13 @@ class CreativeScene {
     this._textarea = null;
     this._confirmBtn = null;
     this._tagRects = [];
-    this._tags = ['城堡', '心形', '星空', '笑脸', '迷宫', '钻石', '随机'];
+    this._tags = ['\u57ce\u5821', '\u5fc3\u5f62', '\u661f\u7a7a', '\u7b11\u8138', '\u8ff7\u5bab', '\u94bb\u77f3', '\u968f\u673a'];
     this._randomPool = [
-      '城堡', '心形', '星空', '笑脸', '迷宫', '钻石',
-      '彩虹', '火箭', '小猫', '机器人', '雪花', '音符', '皇冠', '闪电',
+      '\u57ce\u5821', '\u5fc3\u5f62', '\u661f\u7a7a', '\u7b11\u8138', '\u8ff7\u5bab', '\u94bb\u77f3',
+      '\u5f69\u8679', '\u706b\u7bad', '\u5c0f\u732b', '\u673a\u5668\u4eba', '\u96ea\u82b1', '\u97f3\u7b26', '\u7687\u51a0', '\u95ea\u7535',
     ];
+    this._enterTime = 0;
   }
-
-  // --- Lifecycle ---
 
   enter() {
     this._status = 'idle';
@@ -43,6 +42,7 @@ class CreativeScene {
     this._processingTimer = 0;
     this._generateStartTime = 0;
     this._tagRects = [];
+    this._enterTime = 0;
     this._buildButtons();
     this._ensureDOMElements();
     this._hideDOMElements();
@@ -52,33 +52,31 @@ class CreativeScene {
     this._hideDOMElements();
   }
 
-  // --- Private helpers ---
-
   _buildButtons() {
     const cx = C.SCREEN_W / 2;
     switch (this._status) {
       case 'idle':
         this._buttons = [
-          { x: cx - 100, y: 440, w: 200, h: 50, text: '输入描述', action: 'input' },
-          { x: cx - 100, y: 510, w: 200, h: 50, text: '返回',     action: 'back' },
+          { x: cx - 110, y: 440, w: 220, h: 50, text: '\u2726  \u8f93\u5165\u63cf\u8ff0', action: 'input' },
+          { x: cx - 110, y: 510, w: 220, h: 50, text: '\u8fd4\u56de', action: 'back' },
         ];
         break;
-      case 'inputting': // fall-through
+      case 'inputting':
       case 'generating':
         this._buttons = [];
         break;
       case 'ready':
         this._buttons = [
-          { x: cx - 100, y: 490, w: 200, h: 50, text: '开始游戏', action: 'play' },
-          { x: cx - 100, y: 550, w: 200, h: 44, text: '再造一次', action: 'regenerate' },
-          { x: cx - 100, y: 602, w: 100, h: 40, text: '修改描述', action: 'edit' },
-          { x: cx + 10,  y: 602, w: 90,  h: 40, text: '返回',     action: 'back' },
+          { x: cx - 110, y: 490, w: 220, h: 50, text: '\u5f00\u59cb\u6e38\u620f', action: 'play' },
+          { x: cx - 110, y: 550, w: 220, h: 44, text: '\u518d\u9020\u4e00\u6b21', action: 'regenerate' },
+          { x: cx - 110, y: 602, w: 106, h: 40, text: '\u4fee\u6539\u63cf\u8ff0', action: 'edit' },
+          { x: cx + 4,   y: 602, w: 106, h: 40, text: '\u8fd4\u56de', action: 'back' },
         ];
         break;
       case 'error':
         this._buttons = [
-          { x: cx - 100, y: 440, w: 200, h: 50, text: '重试', action: 'retry' },
-          { x: cx - 100, y: 510, w: 200, h: 50, text: '返回', action: 'back' },
+          { x: cx - 110, y: 440, w: 220, h: 50, text: '\u91cd\u8bd5', action: 'retry' },
+          { x: cx - 110, y: 510, w: 220, h: 50, text: '\u8fd4\u56de', action: 'back' },
         ];
         break;
     }
@@ -89,13 +87,13 @@ class CreativeScene {
 
     const ta = document.createElement('textarea');
     ta.maxLength = 140;
-    ta.placeholder = '例如: 一座城堡';
+    ta.placeholder = '\u4f8b\u5982: \u4e00\u5ea7\u57ce\u5821';
     Object.assign(ta.style, {
       position: 'fixed', left: '50%', transform: 'translateX(-50%)',
       width: '280px', height: '80px',
-      background: '#2a1a0e', color: '#f0e0c0',
-      border: '2px solid #d4a24e', borderRadius: '8px',
-      padding: '10px', fontSize: '16px', fontFamily: 'sans-serif',
+      background: '#161225', color: '#f2e8d0',
+      border: '2px solid #e8b84a', borderRadius: '10px',
+      padding: '12px', fontSize: '16px', fontFamily: '"Avenir Next", "Segoe UI", sans-serif',
       resize: 'none', outline: 'none', display: 'none',
       zIndex: '1000', boxSizing: 'border-box',
     });
@@ -103,13 +101,13 @@ class CreativeScene {
     this._textarea = ta;
 
     const btn = document.createElement('button');
-    btn.textContent = '确定';
+    btn.textContent = '\u786e\u5b9a';
     Object.assign(btn.style, {
       position: 'fixed', left: '50%', transform: 'translateX(-50%)',
       width: '280px', height: '44px',
-      background: '#3a2a18', color: '#f0e0c0',
-      border: '2px solid #d4a24e', borderRadius: '8px',
-      fontSize: '16px', fontFamily: 'sans-serif', cursor: 'pointer',
+      background: '#1e1a30', color: '#f2e8d0',
+      border: '2px solid #e8b84a', borderRadius: '10px',
+      fontSize: '16px', fontFamily: '"Avenir Next", "Segoe UI", sans-serif', cursor: 'pointer',
       display: 'none', zIndex: '1000', boxSizing: 'border-box',
     });
     btn.addEventListener('click', () => this._onConfirmInput());
@@ -138,8 +136,8 @@ class CreativeScene {
   _onConfirmInput() {
     const text = (this._textarea.value || '').trim();
     if (!text) {
-      this._textarea.style.borderColor = '#ff4444';
-      setTimeout(() => { if (this._textarea) this._textarea.style.borderColor = '#d4a24e'; }, 500);
+      this._textarea.style.borderColor = '#e04050';
+      setTimeout(() => { if (this._textarea) this._textarea.style.borderColor = '#e8b84a'; }, 500);
       return;
     }
     this._promptText = text;
@@ -174,32 +172,29 @@ class CreativeScene {
         const data = await response.json();
         if (data.error) throw new Error(data.error);
         if (!data.gridWidth || !data.gridHeight || !Array.isArray(data.bricks) || data.bricks.length === 0) {
-          throw new Error('服务器返回了无效的关卡数据');
+          throw new Error('\u670d\u52a1\u5668\u8fd4\u56de\u4e86\u65e0\u6548\u7684\u5173\u5361\u6570\u636e');
         }
         this._previewLevel = _applyColors(data);
         this._status = 'ready';
-        this._statusText = '已铸造: ' + data.bricks.length + ' 个砖块';
+        this._statusText = '\u5df2\u94f8\u9020: ' + data.bricks.length + ' \u4e2a\u7816\u5757';
         this._buildButtons();
-        return; // success — exit loop
+        return;
       } catch (err) {
         if (attempt === 0) {
-          // First failure — retry silently
           this._generateStartTime = Date.now();
           continue;
         }
-        // Second failure — show error
         this._status = 'error';
         this._statusText = err.name === 'AbortError'
-          ? '铸造超时，请重试'
-          : '铸造失败: ' + (err.message || '请重试');
+          ? '\u94f8\u9020\u8d85\u65f6\uff0c\u8bf7\u91cd\u8bd5'
+          : '\u94f8\u9020\u5931\u8d25: ' + (err.message || '\u8bf7\u91cd\u8bd5');
       }
     }
     this._buildButtons();
   }
 
-  // --- Scene interface ---
-
   update(dt) {
+    this._enterTime += dt;
     if (this._pressTimer > 0) {
       this._pressTimer -= dt;
       if (this._pressTimer <= 0) this._pressedBtn = null;
@@ -217,7 +212,8 @@ class CreativeScene {
     const r = this._game.renderer;
     const ctx = r.ctx;
     r.drawBackground();
-    r.drawTitle('创造模式', 60, 28);
+    r.drawTitle('\u521b\u9020\u6a21\u5f0f', 58, 26);
+    r.drawOrnament(78, 140);
 
     switch (this._status) {
       case 'idle':       this._renderIdle(r, ctx);       break;
@@ -235,95 +231,194 @@ class CreativeScene {
   }
 
   _renderIdle(r, ctx) {
-    r.drawPulseSubtitle('描述你想要的砖块图案', 110, 14);
+    // Large decorative icon
+    ctx.textAlign = 'center';
+    ctx.font = '44px sans-serif';
+    ctx.globalAlpha = 0.3;
+    ctx.fillStyle = Theme.accent;
+    ctx.fillText('\u2728', C.SCREEN_W / 2, 160);
+    ctx.globalAlpha = 1;
+
+    r.drawPulseSubtitle('\u63cf\u8ff0\u4f60\u60f3\u8981\u7684\u7816\u5757\u56fe\u6848', 200, 14);
+
+    // Subtitle
+    ctx.font = '11px "Avenir Next", "Segoe UI", sans-serif';
+    ctx.fillStyle = Theme.textMuted;
+    ctx.fillText('\u70b9\u51fb\u6807\u7b7e\u5feb\u901f\u5f00\u59cb\uff0c\u6216\u8f93\u5165\u81ea\u5b9a\u4e49\u63cf\u8ff0', C.SCREEN_W / 2, 225);
+
     this._renderTags(r, ctx);
   }
 
   _renderInputting(r, ctx) {
     ctx.textAlign = 'center';
-    ctx.font = '14px sans-serif';
+    ctx.font = '14px "Avenir Next", "Segoe UI", sans-serif';
     ctx.fillStyle = Theme.textSecondary;
-    ctx.fillText('输入你的创意描述', C.SCREEN_W / 2, 110);
+    ctx.fillText('\u8f93\u5165\u4f60\u7684\u521b\u610f\u63cf\u8ff0', C.SCREEN_W / 2, 110);
     const remaining = 140 - (this._textarea ? this._textarea.value.length : 0);
-    ctx.font = '12px sans-serif';
+    ctx.font = '11px "Avenir Next", "Segoe UI", sans-serif';
     ctx.fillStyle = Theme.textMuted;
-    ctx.fillText('剩余 ' + remaining + ' 字', C.SCREEN_W / 2, 290);
+    ctx.fillText('\u5269\u4f59 ' + remaining + ' \u5b57', C.SCREEN_W / 2, 290);
   }
 
   _renderGenerating(r, ctx) {
     const elapsed = (Date.now() - this._generateStartTime) / 1000;
     const dots = '.'.repeat(this._processingDots);
 
+    // Animated forge/forge spinner
+    this._drawForgeAnimation(ctx, C.SCREEN_W / 2, 180, elapsed);
+
     ctx.textAlign = 'center';
-    ctx.font = '16px sans-serif';
+    ctx.font = '15px "Avenir Next", "Segoe UI", sans-serif';
     ctx.fillStyle = Theme.textPrimary;
     ctx.globalAlpha = Math.sin(Date.now() / 300) * 0.2 + 0.8;
-    ctx.fillText('正在铸造你的关卡' + dots, C.SCREEN_W / 2, 200);
+    ctx.fillText('\u6b63\u5728\u94f8\u9020\u4f60\u7684\u5173\u5361' + dots, C.SCREEN_W / 2, 240);
     ctx.globalAlpha = 1;
 
-    let phase = elapsed < 1.5 ? '解读描述...' : elapsed < 3 ? '设计布局...' : '铸造砖块...';
-    ctx.font = '14px sans-serif';
+    let phase = elapsed < 1.5 ? '\u89e3\u8bfb\u63cf\u8ff0...' : elapsed < 3 ? '\u8bbe\u8ba1\u5e03\u5c40...' : '\u94f8\u9020\u7816\u5757...';
+    ctx.font = '12px "Avenir Next", "Segoe UI", sans-serif';
     ctx.fillStyle = Theme.textSecondary;
-    ctx.fillText(phase, C.SCREEN_W / 2, 240);
+    ctx.fillText(phase, C.SCREEN_W / 2, 270);
 
-    ctx.font = '13px sans-serif';
+    // Progress bar
+    const barW = 200, barH = 3;
+    const barX = (C.SCREEN_W - barW) / 2;
+    const barY = 290;
+    ctx.fillStyle = 'rgba(232,184,74,0.15)';
+    ctx.fillRect(barX, barY, barW, barH);
+    const progress = Math.min(1, elapsed / 10);
     ctx.fillStyle = Theme.accent;
-    ctx.fillText('「' + this._promptText + '」', C.SCREEN_W / 2, 300);
+    ctx.fillRect(barX, barY, barW * progress, barH);
+
+    ctx.font = '12px "Avenir Next", "Segoe UI", sans-serif';
+    ctx.fillStyle = Theme.accent;
+    ctx.fillText('\u300c' + this._promptText + '\u300d', C.SCREEN_W / 2, 330);
+  }
+
+  _drawForgeAnimation(ctx, x, y, t) {
+    ctx.save();
+    ctx.translate(x, y);
+
+    // Rotating ring of dots
+    for (let i = 0; i < 12; i++) {
+      const angle = (i / 12) * Math.PI * 2 - t * 2;
+      const alpha = ((i + Math.floor(t * 12)) % 12) / 12;
+      ctx.globalAlpha = 0.15 + alpha * 0.6;
+      ctx.fillStyle = Theme.accent;
+      const dx = Math.cos(angle) * 20;
+      const dy = Math.sin(angle) * 20;
+      ctx.save();
+      ctx.translate(dx, dy);
+      ctx.rotate(Math.PI / 4);
+      ctx.fillRect(-1.5, -1.5, 3, 3);
+      ctx.restore();
+    }
+
+    // Center pulsing diamond
+    const pulse = Math.sin(t * 4) * 0.3 + 0.7;
+    ctx.globalAlpha = pulse;
+    ctx.fillStyle = Theme.accent;
+    ctx.save();
+    ctx.rotate(Math.PI / 4 + t * 0.5);
+    ctx.fillRect(-5, -5, 10, 10);
+    ctx.restore();
+
+    ctx.restore();
+    ctx.globalAlpha = 1;
   }
 
   _renderReady(r, ctx) {
     ctx.textAlign = 'center';
-    ctx.font = '14px sans-serif';
+    ctx.font = '13px "Avenir Next", "Segoe UI", sans-serif';
     ctx.fillStyle = Theme.accent;
-    ctx.fillText('「' + this._promptText + '」', C.SCREEN_W / 2, 100);
+    ctx.fillText('\u300c' + this._promptText + '\u300d', C.SCREEN_W / 2, 100);
 
-    ctx.font = '12px sans-serif';
+    ctx.font = '10px "Avenir Next", "Segoe UI", sans-serif';
     ctx.fillStyle = Theme.textSecondary;
-    ctx.fillText('关卡预览', C.SCREEN_W / 2, 130);
+    ctx.fillText('PREVIEW', C.SCREEN_W / 2, 125);
 
     if (this._previewLevel) this._renderPreview(ctx, 140);
 
     ctx.textAlign = 'center';
-    ctx.font = '14px sans-serif';
+    ctx.font = '12px "Avenir Next", "Segoe UI", sans-serif';
     ctx.fillStyle = Theme.textSecondary;
     ctx.fillText(this._statusText, C.SCREEN_W / 2, 470);
   }
 
   _renderError(r, ctx) {
+    // Error icon
     ctx.textAlign = 'center';
-    ctx.font = '14px sans-serif';
+    ctx.font = '36px sans-serif';
+    ctx.globalAlpha = 0.4;
+    ctx.fillText('\u26a0\ufe0f', C.SCREEN_W / 2, 260);
+    ctx.globalAlpha = 1;
+
+    ctx.font = '13px "Avenir Next", "Segoe UI", sans-serif';
     ctx.fillStyle = Theme.accent2;
-    ctx.fillText(this._statusText, C.SCREEN_W / 2, 300);
+    ctx.fillText(this._statusText, C.SCREEN_W / 2, 310);
     if (this._promptText) {
-      ctx.font = '13px sans-serif';
+      ctx.font = '12px "Avenir Next", "Segoe UI", sans-serif';
       ctx.fillStyle = Theme.textSecondary;
-      ctx.fillText('「' + this._promptText + '」', C.SCREEN_W / 2, 340);
+      ctx.fillText('\u300c' + this._promptText + '\u300d', C.SCREEN_W / 2, 345);
     }
   }
 
   _renderTags(r, ctx) {
-    const tagY = 320, tagH = 34, gap = 8;
-    ctx.font = '13px sans-serif';
-    const widths = this._tags.map(t => ctx.measureText(t).width + 24);
-    const totalW = widths.reduce((a, b) => a + b, 0) + gap * (this._tags.length - 1);
-    let x = (C.SCREEN_W - totalW) / 2;
+    const tagY = 290, tagH = 36, gapX = 8, gapY = 8;
+    ctx.font = '12px "Avenir Next", "Segoe UI", sans-serif';
 
-    this._tagRects = [];
+    // Calculate widths first
+    const widths = this._tags.map(t => ctx.measureText(t).width + 28);
+
+    // Flow layout: wrap tags into multiple rows
+    const maxRowW = C.SCREEN_W - 40;
+    const rows = [];
+    let currentRow = [];
+    let currentRowW = 0;
+
     for (let i = 0; i < this._tags.length; i++) {
       const tw = widths[i];
-      ctx.fillStyle = Theme.button.bg;
-      ctx.beginPath();
-      ctx.roundRect(x, tagY, tw, tagH, tagH / 2);
-      ctx.fill();
-      ctx.strokeStyle = Theme.button.border;
-      ctx.lineWidth = 1;
-      ctx.stroke();
-      ctx.fillStyle = Theme.button.text;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(this._tags[i], x + tw / 2, tagY + tagH / 2);
-      this._tagRects[i] = { x, y: tagY, w: tw, h: tagH };
-      x += tw + gap;
+      if (currentRowW + tw + (currentRow.length > 0 ? gapX : 0) > maxRowW && currentRow.length > 0) {
+        rows.push(currentRow);
+        currentRow = [];
+        currentRowW = 0;
+      }
+      currentRow.push({ tag: this._tags[i], width: tw, index: i });
+      currentRowW += tw + (currentRow.length > 1 ? gapX : 0);
+    }
+    if (currentRow.length > 0) rows.push(currentRow);
+
+    this._tagRects = [];
+    let y = tagY;
+
+    for (const row of rows) {
+      const totalRowW = row.reduce((s, r) => s + r.width, 0) + (row.length - 1) * gapX;
+      let x = (C.SCREEN_W - totalRowW) / 2;
+
+      for (const item of row) {
+        const tw = item.width;
+
+        // Tag pill with gradient
+        const tagGrad = ctx.createLinearGradient(x, y, x, y + tagH);
+        tagGrad.addColorStop(0, 'rgba(30,26,48,0.9)');
+        tagGrad.addColorStop(1, 'rgba(18,16,30,0.9)');
+        ctx.fillStyle = tagGrad;
+        ctx.beginPath();
+        ctx.roundRect(x, y, tw, tagH, tagH / 2);
+        ctx.fill();
+
+        ctx.strokeStyle = 'rgba(232,184,74,0.3)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        ctx.fillStyle = Theme.button.text;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(item.tag, x + tw / 2, y + tagH / 2);
+
+        this._tagRects[item.index] = { x, y, w: tw, h: tagH };
+        x += tw + gapX;
+      }
+      y += tagH + gapY;
     }
     ctx.textBaseline = 'alphabetic';
   }
@@ -336,9 +431,10 @@ class CreativeScene {
     const previewH = Math.min(rawH, maxPreviewH);
     const previewX = 20;
 
-    ctx.strokeStyle = Theme.button.border;
-    ctx.lineWidth = 1;
-    ctx.strokeRect(previewX - 1, startY - 1, previewW + 2, previewH + 2);
+    // Corner brackets
+    const r = this._game.renderer;
+    r.drawCornerBrackets(previewX - 2, startY - 2, previewW + 4, previewH + 4, 8);
+
     ctx.fillStyle = Theme.bg;
     ctx.fillRect(previewX, startY, previewW, previewH);
 
@@ -356,17 +452,14 @@ class CreativeScene {
     ctx.fill();
   }
 
-  // --- Input ---
-
   onTap(x, y) {
-    // Tag taps (only in idle state)
     if (this._status === 'idle' && this._tagRects.length) {
       for (let i = 0; i < this._tagRects.length; i++) {
         const tr = this._tagRects[i];
-        if (x >= tr.x && x <= tr.x + tr.w && y >= tr.y && y <= tr.y + tr.h) {
+        if (tr && x >= tr.x && x <= tr.x + tr.w && y >= tr.y && y <= tr.y + tr.h) {
           if (typeof audio !== 'undefined') { audio.init(); audio.playClick(); }
           let chosen = this._tags[i];
-          if (chosen === '随机') {
+          if (chosen === '\u968f\u673a') {
             chosen = this._randomPool[Math.floor(Math.random() * this._randomPool.length)];
           }
           this._promptText = chosen;
@@ -377,15 +470,13 @@ class CreativeScene {
       }
     }
 
-    // Button taps
     for (const btn of this._buttons) {
       if (x >= btn.x && x <= btn.x + btn.w && y >= btn.y && y <= btn.y + btn.h) {
         this._pressedBtn = btn;
         this._pressTimer = 0.12;
         if (typeof audio !== 'undefined') { audio.init(); audio.playClick(); }
-
         switch (btn.action) {
-          case 'input': // fall-through
+          case 'input':
           case 'edit':
             this._status = 'inputting';
             this._buildButtons();
@@ -401,7 +492,7 @@ class CreativeScene {
               });
             }
             break;
-          case 'regenerate': // fall-through
+          case 'regenerate':
           case 'retry':
             this._handleGenerate();
             break;

@@ -165,13 +165,13 @@ const html = `<!DOCTYPE html>
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
-  <title>Breakout Maker - Preview</title>
+  <title>Breakout Maker - \u9020\u7816\u5382</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body {
       width: 100%; height: 100%;
       overflow: hidden;
-      background: #000;
+      background: #060410;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -183,6 +183,18 @@ const html = `<!DOCTYPE html>
     canvas {
       display: block;
       image-rendering: pixelated;
+      border-radius: 4px;
+    }
+    /* Native textarea/button theming for creative mode */
+    textarea::placeholder {
+      color: rgba(144,136,168,0.5);
+    }
+    textarea:focus {
+      border-color: #e8b84a !important;
+      box-shadow: 0 0 12px rgba(232,184,74,0.2);
+    }
+    button:active {
+      background: #2a2440 !important;
     }
   </style>
 </head>
