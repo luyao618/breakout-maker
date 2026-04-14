@@ -13,16 +13,16 @@ const C = {
   BALL_RADIUS: 4,
   BALL_SPEED: 300,             // Default ball speed (px/s)
   MIN_VY_RATIO: 0.3,          // Min vertical component ratio to prevent horizontal stalling
-  LAUNCH_ANGLE: Math.PI / 4,  // 45° default launch angle
+  LAUNCH_ANGLE: Math.PI / 4,  // 45 default launch angle
 
   PADDLE_HEIGHT: 10,
   MAX_PADDLE_SPEED: 1200,     // Max paddle movement speed (px/s)
   PADDLE_SMOOTHING: 1.0,      // Smoothing factor (1.0 = instant)
-  MAX_REFLECT_ANGLE: Math.PI / 3, // 60° max reflect off paddle
+  MAX_REFLECT_ANGLE: Math.PI / 3, // 60 max reflect off paddle
 
   BRICK_GAP: 2,               // Gap between bricks (px)
 
-  INDESTRUCTIBLE_HP: 999,     // Sentinel value — no longer used in levels
+  INDESTRUCTIBLE_HP: 999,     // Sentinel value -- no longer used in levels
   IRONCLAD_HP: 10,            // Iron bricks: tough but breakable (10 hits)
 
   DEFAULT_LIVES: 3,
@@ -39,73 +39,80 @@ const C = {
 };
 
 // ---------------------------------------------------------------------------
-// 2. Theme Colors — Steampunk (蒸汽朋克)
+// 2. Theme Colors — Astral Foundry (星界熔铸)
+// ---------------------------------------------------------------------------
+// A celestial steampunk palette: deep indigo-blacks meet molten gold and
+// tarnished copper. The feeling is a clockwork observatory at midnight —
+// warm metallics glow against the cold cosmic dark.
 // ---------------------------------------------------------------------------
 const Theme = {
-  bg: '#1a1008',                // Dark walnut wood
-  panelBg: '#2a1a0e',           // Dark leather
-  accent: '#d4a24e',            // Polished brass
-  accent2: '#c45e3a',           // Copper/rust
-  accent3: '#8b6d2e',           // Aged bronze
-  textPrimary: '#f0e0c0',       // Warm parchment
-  textSecondary: '#a08860',      // Faded ink
+  bg: '#0c0a14',                // Deep midnight indigo
+  panelBg: '#161225',           // Dark amethyst panel
+  accent: '#e8b84a',            // Molten gold
+  accent2: '#d4623a',           // Furnace copper
+  accent3: '#7a6830',           // Tarnished bronze
+  textPrimary: '#f2e8d0',       // Warm ivory
+  textSecondary: '#9088a8',     // Muted lavender
 
-  paddleGrad: ['#c4973a', '#8b6914'],   // Brass gradient
-  ballGlow: '#d4a24e',
+  paddleGrad: ['#e8b84a', '#a07820'],   // Gold gradient
+  ballGlow: '#e8b84a',
 
   brick: {
-    hp1: ['#7a6840', '#5a4830'],            // Weathered bronze
-    hp2: ['#c45e3a', '#8a3a22'],            // Copper
-    hp3: ['#d4a24e', '#9a7a2e'],            // Brass
-    iron: ['#4a4a4a', '#2e2e2e'],           // Cast iron (10 hits)
+    hp1: ['#6a5e88', '#4a4068'],            // Amethyst stone
+    hp2: ['#d4623a', '#9a3a1e'],            // Copper ore
+    hp3: ['#e8b84a', '#b08a2a'],            // Molten gold
+    iron: ['#3e3e50', '#24242e'],           // Dark iron
   },
 
-  bgGradTop: '#12100e',            // Background gradient top (derived from bg)
-  bgGradBottom: '#1e1a16',         // Background gradient bottom (derived from bg)
-  textMuted: 'rgba(160,136,96,0.45)', // Muted hint text (warm, derived from textSecondary)
+  bgGradTop: '#080614',            // Near-black indigo
+  bgGradBottom: '#12101e',         // Dark violet undertone
 
-  starfield: '#d4a24e',          // Floating gear particles instead of stars
+  textMuted: 'rgba(144,136,168,0.45)', // Muted lavender hint
+
+  starfield: '#e8b84a',          // Gold motes
 
   powerUp: {
-    split: '#d4a24e',            // Brass
-    multiShot: '#c45e3a',        // Copper
+    split: '#e8b84a',            // Gold
+    multiShot: '#d4623a',        // Copper
     fireball: '#ff6622',         // Furnace orange
     fireballGlow: '#ff4400',     // Fireball shadow/glow
     fireballCore: '#ffaa00',     // Fireball gradient mid-tone
-    widePaddle: '#8b6d2e',       // Bronze
-    extraLife: '#cc3333',        // Steam valve red
+    widePaddle: '#7a6830',       // Bronze
+    extraLife: '#e04050',        // Ruby red
   },
 
   card: {
-    bg: 'rgba(42,26,14,0.8)',        // Warm card background (from panelBg)
-    bgLocked: 'rgba(26,16,8,0.5)',   // Dimmed card background
-    borderLocked: '#5a4830',         // Warm muted border for locked cards
-    textLocked: '#6a5a40',           // Warm muted text for locked elements
+    bg: 'rgba(22,18,37,0.85)',        // Dark amethyst card
+    bgLocked: 'rgba(12,10,20,0.6)',   // Dim locked card
+    borderLocked: '#3a3450',          // Muted purple border
+    textLocked: '#4a4460',            // Dim locked text
   },
 
   button: {
-    bg: '#3a2a18',               // Dark wood
-    hover: '#4a3a28',            // Highlighted wood
-    text: '#f0e0c0',             // Parchment
-    border: '#d4a24e',           // Brass trim
+    bg: '#1e1a30',               // Dark indigo
+    hover: '#2a2440',            // Highlighted indigo
+    text: '#f2e8d0',             // Warm ivory
+    border: '#e8b84a',           // Gold trim
+  },
+
+  // Extended palette for new UI elements
+  glow: {
+    gold: 'rgba(232,184,74,0.3)',
+    copper: 'rgba(212,98,58,0.3)',
+    purple: 'rgba(120,90,180,0.15)',
+  },
+
+  ornament: {
+    line: 'rgba(232,184,74,0.2)',     // Decorative line
+    lineBright: 'rgba(232,184,74,0.5)', // Brighter decorative line
+    dot: 'rgba(232,184,74,0.6)',      // Ornamental dot/rivet
   },
 };
 
 // ---------------------------------------------------------------------------
-// 3. Level Loading — Levels are defined in external JSON files
-// ---------------------------------------------------------------------------
-// The LEVEL_DATA array is injected at build time by the build script.
-// Each entry is a plain object: { name, gridWidth, gridHeight, ballSpeed,
-//   paddleWidth, lives, bricks: [{ row, col, hp }, ...] }
-//
-// At runtime, _brickColor(hp) maps hp values to Theme colors, and
-// getPresetLevel() returns a deep copy with colors applied.
+// 3. Level Loading
 // ---------------------------------------------------------------------------
 
-/**
- * Map hp value to Theme brick color pair.
- * Applied at runtime when loading a level — NOT stored in level JSON.
- */
 function _brickColor(hp) {
   if (hp >= C.IRONCLAD_HP) return Theme.brick.iron;
   if (hp >= 3) return Theme.brick.hp3;
@@ -113,19 +120,8 @@ function _brickColor(hp) {
   return Theme.brick.hp1;
 }
 
-/**
- * LEVEL_DATA — injected at build time.
- * In the assembled preview.html, this will be replaced with the actual
- * array of level objects loaded from levels/*.json files.
- *
- * Format: const LEVEL_DATA = [ {level1}, {level2}, ... ];
- */
 // __LEVEL_DATA_PLACEHOLDER__
 
-/**
- * Apply runtime color to a raw level descriptor.
- * Takes a level from LEVEL_DATA and adds color to each brick based on hp.
- */
 function _applyColors(level) {
   const copy = JSON.parse(JSON.stringify(level));
   for (const brick of copy.bricks) {
@@ -134,13 +130,11 @@ function _applyColors(level) {
   return copy;
 }
 
-/** Get a deep copy of a preset level by index (0-based), with colors applied. */
 function getPresetLevel(index) {
   if (index < 0 || index >= LEVEL_DATA.length) return null;
   return _applyColors(LEVEL_DATA[index]);
 }
 
-/** Total number of preset levels. */
 function getTotalLevels() {
   return LEVEL_DATA.length;
 }
