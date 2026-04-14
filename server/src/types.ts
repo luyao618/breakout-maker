@@ -16,11 +16,12 @@ export interface Level {
   bricks: Brick[];
 }
 
-/** Shared default gameplay constants for AI-generated levels. */
+/** Shared default gameplay constants for AI-generated levels.
+ *  Forgiving params for the larger 56×40 grid with many bricks. */
 export const LEVEL_DEFAULTS = {
-  ballSpeed: 300,
-  paddleWidth: 90,
-  lives: 4,
+  ballSpeed: 280,
+  paddleWidth: 120,
+  lives: 5,
 } as const;
 
 /** Minimum bricks required for a playable level. */

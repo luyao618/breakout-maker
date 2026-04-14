@@ -43,6 +43,9 @@ class GameScene {
     this._pendingTransition = null;
     this._launched          = false;
     this.powerUpDrops       = [];
+
+    // Invalidate brick cache so the new level's bricks are rendered fresh
+    this._game.renderer.invalidateBrickCache();
     this.activePowerUps     = [];
     this.particles          = [];
 

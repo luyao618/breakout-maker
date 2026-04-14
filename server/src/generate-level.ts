@@ -1,6 +1,6 @@
 import type { Brick, Level } from "./types.js";
 import { buildLevel } from "./types.js";
-import { parseAsciiGrid, assignHP, enforceSymmetry } from "./ascii-parser.js";
+import { parseAsciiGrid, enforceSymmetry } from "./ascii-parser.js";
 import { matchTemplate, getTemplateWithVariation, GRID_W, GRID_H } from "./templates.js";
 import { generateFromImage } from "./generate-image.js";
 
@@ -46,6 +46,9 @@ export async function generateLevel(prompt: string): Promise<Level> {
 /**
  * Convert a parsed ASCII grid (string[]) to a Level object.
  * Used by the template fast-path only.
+ *
+ * At 56×40 (2240 cells), all bricks stay hp=1 for pixel-art feel.
+ * Symmetry is enforced for known symmetric shapes.
  */
 function gridToLevel(grid: string[], prompt: string): Level {
   const gridW = GRID_W;
@@ -54,14 +57,9 @@ function gridToLevel(grid: string[], prompt: string): Level {
   // Parse ASCII to bricks (all hp=1)
   let bricks = parseAsciiGrid(grid.join("\n"), gridW, gridH);
 
-  // Assign HP via border detection
-  bricks = assignHP(bricks, gridW, gridH);
-
-  // Enforce symmetry for symmetric shapes
+  // Enforce symmetry for known symmetric shapes
   if (isSymmetricPrompt(prompt)) {
     bricks = enforceSymmetry(bricks, gridW);
-    // Re-assign HP after symmetry enforcement changes the shape
-    bricks = assignHP(bricks, gridW, gridH);
   }
 
   return buildLevel(bricks, prompt, gridW, gridH);

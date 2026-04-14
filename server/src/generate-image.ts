@@ -83,7 +83,7 @@ async function callImageAPI(prompt: string): Promise<string> {
       body: JSON.stringify({
         model: IMAGE_MODEL,
         prompt,
-        image_size: "1024x512",
+        image_size: "1024x768",
         num_inference_steps: 20,
       }),
       signal: controller.signal,
@@ -215,8 +215,8 @@ interface SampledCell {
 async function samplePixels(
   imageBuffer: Buffer,
 ): Promise<SampledCell[][]> {
-  const sampledW = GRID_W * SAMPLE_FACTOR; // e.g. 120
-  const sampledH = GRID_H * SAMPLE_FACTOR; // e.g. 60
+  const sampledW = GRID_W * SAMPLE_FACTOR; // 56 * 4 = 224
+  const sampledH = GRID_H * SAMPLE_FACTOR; // 40 * 4 = 160
 
   // Resize to exact sampled dimensions and extract raw RGBA pixel data
   const { data, info } = await sharp(imageBuffer)

@@ -95,8 +95,23 @@ class PhysicsWorld {
     let nearestR = -1;
     let nearestC = -1;
 
-    for (let r = 0; r < this.bf.gridH; r++) {
-      for (let c = 0; c < this.bf.gridW; c++) {
+    // AABB early-out: only check bricks near the ball's swept path
+    const cellW = this.bf.brickW + C.BRICK_GAP;
+    const cellH = this.bf.brickH + C.BRICK_GAP;
+    const futureX = ball.x + ball.vx * dt;
+    const futureY = ball.y + ball.vy * dt;
+    const bx0 = Math.min(ball.x, futureX) - ball.radius;
+    const bx1 = Math.max(ball.x, futureX) + ball.radius;
+    const by0 = Math.min(ball.y, futureY) - ball.radius;
+    const by1 = Math.max(ball.y, futureY) + ball.radius;
+
+    const rMin = Math.max(0, Math.floor((by0 - this.bf.offsetY) / cellH) - 1);
+    const rMax = Math.min(this.bf.gridH - 1, Math.ceil((by1 - this.bf.offsetY) / cellH) + 1);
+    const cMin = Math.max(0, Math.floor((bx0 - this.bf.offsetX) / cellW) - 1);
+    const cMax = Math.min(this.bf.gridW - 1, Math.ceil((bx1 - this.bf.offsetX) / cellW) + 1);
+
+    for (let r = rMin; r <= rMax; r++) {
+      for (let c = cMin; c <= cMax; c++) {
         const brick = this.bf.bricks[r][c];
         if (!brick || !brick.alive) continue;
 
