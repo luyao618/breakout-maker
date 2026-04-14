@@ -1,24 +1,30 @@
 /**
  * Pre-designed ASCII shape templates for breakout game creative mode.
  *
- * Each template is a 30×15 grid (15 strings of 30 chars each).
+ * Templates are authored on a 30×15 grid (15 strings of 30 chars each).
  *   '.' = empty cell
  *   '#' = filled brick
  *
+ * Templates are upscaled to the exported GRID_W×GRID_H (56×40) at runtime.
  * HP assignment is handled separately by assignHP().
  * Row 14 (bottom) is kept empty for gameplay space.
  */
 
-export const GRID_W = 30;
-export const GRID_H = 15;
+/** Internal template authoring dimensions (30×15). */
+const TEMPLATE_W = 30;
+const TEMPLATE_H = 15;
+
+/** Exported grid dimensions for creative-mode levels (56×40). */
+export const GRID_W = 56;
+export const GRID_H = 40;
 
 // ---------------------------------------------------------------------------
-// Row-building helpers — guarantee exact 30-char width & easy symmetry
+// Row-building helpers — guarantee exact TEMPLATE_W-char width & easy symmetry
 // ---------------------------------------------------------------------------
 
-/** Build a 30-char row by specifying filled column ranges [start, end] (inclusive). */
+/** Build a TEMPLATE_W-char row by specifying filled column ranges [start, end] (inclusive). */
 function row(...ranges: [number, number][]): string {
-  const chars = Array.from({ length: GRID_W }, () => ".");
+  const chars = Array.from({ length: TEMPLATE_W }, () => ".");
   for (const [start, end] of ranges) {
     for (let c = start; c <= end; c++) chars[c] = "#";
   }
@@ -26,16 +32,16 @@ function row(...ranges: [number, number][]): string {
 }
 
 /**
- * Build a mirror-symmetric 30-char row.
+ * Build a mirror-symmetric TEMPLATE_W-char row.
  * Specify ranges on the left side; they are auto-mirrored to the right.
- * Symmetry axis is between col 14 and col 15: col c ↔ col (29 - c).
+ * Symmetry axis is between col 14 and col 15: col c ↔ col (TEMPLATE_W - 1 - c).
  */
 function sym(...leftRanges: [number, number][]): string {
-  const chars = Array.from({ length: GRID_W }, () => ".");
+  const chars = Array.from({ length: TEMPLATE_W }, () => ".");
   for (const [start, end] of leftRanges) {
     for (let c = start; c <= end; c++) {
       chars[c] = "#";
-      chars[29 - c] = "#";
+      chars[TEMPLATE_W - 1 - c] = "#";
     }
   }
   return chars.join("");
@@ -48,7 +54,7 @@ function poke(rowStr: string, ...cols: number[]): string {
   return chars.join("");
 }
 
-const EMPTY = ".".repeat(GRID_W);
+const EMPTY = ".".repeat(TEMPLATE_W);
 
 // ---------------------------------------------------------------------------
 // Template data
@@ -344,13 +350,13 @@ export const SHAPE_TEMPLATES: Record<string, { keywords: string[]; grid: string[
 
 (function validateTemplates(): void {
   for (const [name, { grid }] of Object.entries(SHAPE_TEMPLATES)) {
-    if (grid.length !== GRID_H) {
-      throw new Error(`Template "${name}" has ${grid.length} rows, expected ${GRID_H}`);
+    if (grid.length !== TEMPLATE_H) {
+      throw new Error(`Template "${name}" has ${grid.length} rows, expected ${TEMPLATE_H}`);
     }
     for (let r = 0; r < grid.length; r++) {
-      if (grid[r].length !== GRID_W) {
+      if (grid[r].length !== TEMPLATE_W) {
         throw new Error(
-          `Template "${name}" row ${r} has ${grid[r].length} chars, expected ${GRID_W}: "${grid[r]}"`,
+          `Template "${name}" row ${r} has ${grid[r].length} chars, expected ${TEMPLATE_W}: "${grid[r]}"`,
         );
       }
     }
@@ -379,11 +385,59 @@ export function matchTemplate(prompt: string): string[] | null {
 }
 
 /**
- * Return a (potentially varied) version of a template grid.
- * Currently returns the grid as-is — placeholder for future random variation
- * (e.g. randomly removing a few edge bricks for an organic feel).
+ * Return a (potentially varied) version of a template grid, upscaled to
+ * the exported GRID_W×GRID_H dimensions.
+ * Currently returns the upscaled grid as-is — placeholder for future random
+ * variation (e.g. randomly removing a few edge bricks for an organic feel).
  * HP variation is handled separately by assignHP().
  */
 export function getTemplateWithVariation(templateGrid: string[]): string[] {
-  return templateGrid.map((r) => r);
+  return upscaleGrid(templateGrid, TEMPLATE_W, TEMPLATE_H, GRID_W, GRID_H);
+}
+
+// ---------------------------------------------------------------------------
+// Grid upscaling — letterbox 30×15 templates into 56×40 with aspect ratio
+// ---------------------------------------------------------------------------
+
+/**
+ * Upscale a source grid to a larger destination grid, preserving aspect ratio
+ * via letterboxing (empty rows at top/bottom if needed).
+ *
+ * Example: 30×15 (2:1) → 56×40 (1.4:1) becomes 56×28 centred in 56×40.
+ */
+function upscaleGrid(
+  src: string[],
+  srcW: number,
+  srcH: number,
+  dstW: number,
+  dstH: number,
+): string[] {
+  // Preserve aspect ratio: scale width to dstW, compute matching height
+  const scaledH = Math.round((dstW * srcH) / srcW); // 56 * 15/30 = 28
+  const padTop = Math.floor((dstH - scaledH) / 2);
+
+  const result: string[] = [];
+
+  // Top padding
+  for (let i = 0; i < padTop; i++) {
+    result.push(".".repeat(dstW));
+  }
+
+  // Upscaled content — nearest-neighbour sampling
+  for (let r = 0; r < scaledH; r++) {
+    const srcR = Math.min(Math.floor((r + 0.5) * srcH / scaledH), srcH - 1);
+    let row = "";
+    for (let c = 0; c < dstW; c++) {
+      const srcC = Math.min(Math.floor((c + 0.5) * srcW / dstW), srcW - 1);
+      row += src[srcR][srcC];
+    }
+    result.push(row);
+  }
+
+  // Bottom padding
+  while (result.length < dstH) {
+    result.push(".".repeat(dstW));
+  }
+
+  return result;
 }

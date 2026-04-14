@@ -441,6 +441,48 @@ class Renderer {
   drawBricks(brickField) {
     const ctx = this.ctx;
 
+    // ---- Brick cache: render all static bricks to an offscreen canvas ----
+    // Bricks with active shakeTimer are drawn live on top of the cache.
+    const hasShaking = this._hasShakingBricks(brickField);
+
+    // Fast path: cache valid, no shaking bricks — just blit
+    if (!this._brickCacheDirty && this._brickCache && !hasShaking) {
+      ctx.drawImage(this._brickCache, 0, 0);
+      return;
+    }
+
+    // Semi-fast path: cache valid but some bricks are shaking —
+    // reuse cached layer, draw only shaking bricks live on top
+    if (!this._brickCacheDirty && this._brickCache && hasShaking) {
+      ctx.drawImage(this._brickCache, 0, 0);
+      for (let r = 0; r < brickField.gridH; r++) {
+        for (let c = 0; c < brickField.gridW; c++) {
+          const brick = brickField.bricks[r][c];
+          if (!brick || !brick.alive || brick.shakeTimer <= 0) continue;
+          const rect = brickField.getBrickRect(r, c);
+          const shakeX = (Math.random() - 0.5) * 4;
+          const shakeY = (Math.random() - 0.5) * 4;
+          this._drawSingleBrick(ctx, brick, rect, shakeX, shakeY);
+        }
+      }
+      return;
+    }
+
+    // Slow path: rebuild the offscreen cache
+    // Use logical dimensions (same as main canvas coordinate space).
+    // The main canvas already handles DPR scaling, so the offscreen
+    // canvas just needs to match the logical coordinate system.
+    if (!this._brickCache || this._brickCache.width !== this.w || this._brickCache.height !== this.h) {
+      this._brickCache = document.createElement('canvas');
+      this._brickCache.width = this.w;
+      this._brickCache.height = this.h;
+    }
+
+    const offCtx = this._brickCache.getContext('2d');
+    offCtx.clearRect(0, 0, this.w, this.h);
+
+    const shakingBricks = [];
+
     for (let r = 0; r < brickField.gridH; r++) {
       for (let c = 0; c < brickField.gridW; c++) {
         const brick = brickField.bricks[r][c];
@@ -448,78 +490,110 @@ class Renderer {
 
         const rect = brickField.getBrickRect(r, c);
 
-        let shakeX = 0, shakeY = 0;
+        // Defer shaking bricks to draw live on top
         if (brick.shakeTimer > 0) {
-          shakeX = (Math.random() - 0.5) * 4;
-          shakeY = (Math.random() - 0.5) * 4;
+          shakingBricks.push({ brick, rect });
+          continue;
         }
 
-        const x = rect.x + shakeX;
-        const y = rect.y + shakeY;
+        this._drawSingleBrick(offCtx, brick, rect, 0, 0);
+      }
+    }
 
-        let colors;
-        if (brick.color) {
-          if (Array.isArray(brick.color)) {
-            colors = brick.color;
-          } else {
-            colors = [brick.color, this._darken(brick.color, 30)];
-          }
-        } else if (brick.maxHp >= C.IRONCLAD_HP) {
-          colors = Theme.brick.iron;
-        } else {
-          const hpKey = `hp${Math.min(brick.hp, 3)}`;
-          colors = Theme.brick[hpKey] || Theme.brick.hp1;
-        }
+    this._brickCacheDirty = false;
 
-        // Gradient fill
-        const grad = ctx.createLinearGradient(x, y, x, y + rect.h);
-        grad.addColorStop(0, colors[0]);
-        grad.addColorStop(1, colors[1]);
+    // Blit cached layer, then overlay shaking bricks
+    ctx.drawImage(this._brickCache, 0, 0);
 
-        const br = Math.min(3, rect.h / 3);
-        ctx.fillStyle = grad;
+    for (const { brick, rect } of shakingBricks) {
+      const shakeX = (Math.random() - 0.5) * 4;
+      const shakeY = (Math.random() - 0.5) * 4;
+      this._drawSingleBrick(ctx, brick, rect, shakeX, shakeY);
+    }
+  }
+
+  _hasShakingBricks(brickField) {
+    for (let r = 0; r < brickField.gridH; r++) {
+      for (let c = 0; c < brickField.gridW; c++) {
+        const brick = brickField.bricks[r][c];
+        if (brick && brick.alive && brick.shakeTimer > 0) return true;
+      }
+    }
+    return false;
+  }
+
+  _drawSingleBrick(ctx, brick, rect, shakeX, shakeY) {
+    const x = rect.x + shakeX;
+    const y = rect.y + shakeY;
+
+    let colors;
+    if (brick.color) {
+      if (Array.isArray(brick.color)) {
+        colors = brick.color;
+      } else {
+        colors = [brick.color, this._darken(brick.color, 30)];
+      }
+    } else if (brick.maxHp >= C.IRONCLAD_HP) {
+      colors = Theme.brick.iron;
+    } else {
+      const hpKey = `hp${Math.min(brick.hp, 3)}`;
+      colors = Theme.brick[hpKey] || Theme.brick.hp1;
+    }
+
+    // Pixel-art mode: flat fill for small bricks (high-density grids)
+    if (rect.w < 6) {
+      ctx.fillStyle = Array.isArray(colors) ? colors[0] : colors;
+      ctx.fillRect(x, y, rect.w, rect.h);
+      return;
+    }
+
+    // Gradient fill
+    const grad = ctx.createLinearGradient(x, y, x, y + rect.h);
+    grad.addColorStop(0, colors[0]);
+    grad.addColorStop(1, colors[1]);
+
+    const br = Math.min(3, rect.h / 3);
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.roundRect(x, y, rect.w, rect.h, br);
+    ctx.fill();
+
+    // Top gloss
+    ctx.fillStyle = 'rgba(255,255,255,0.12)';
+    ctx.fillRect(x + 1, y + 1, rect.w - 2, rect.h * 0.3);
+
+    // Bottom shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.25)';
+    ctx.fillRect(x + 1, y + rect.h * 0.7, rect.w - 2, rect.h * 0.3);
+
+    // Iron brick bolts
+    if (brick.maxHp >= C.IRONCLAD_HP) {
+      ctx.fillStyle = 'rgba(160,140,180,0.3)';
+      const boltR = 1.5, margin = 3;
+      ctx.beginPath(); ctx.arc(x + margin, y + margin, boltR, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(x + rect.w - margin, y + margin, boltR, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(x + margin, y + rect.h - margin, boltR, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(x + rect.w - margin, y + rect.h - margin, boltR, 0, Math.PI * 2); ctx.fill();
+    }
+
+    // Crack lines on damaged bricks
+    if (brick.maxHp >= 2 && brick.maxHp < C.IRONCLAD_HP && brick.hp < brick.maxHp) {
+      const damage = brick.maxHp - brick.hp;
+      ctx.strokeStyle = 'rgba(0,0,0,0.5)';
+      ctx.lineWidth = 1;
+      if (damage >= 1) {
         ctx.beginPath();
-        ctx.roundRect(x, y, rect.w, rect.h, br);
-        ctx.fill();
-
-        // Top gloss
-        ctx.fillStyle = 'rgba(255,255,255,0.12)';
-        ctx.fillRect(x + 1, y + 1, rect.w - 2, rect.h * 0.3);
-
-        // Bottom shadow
-        ctx.fillStyle = 'rgba(0,0,0,0.25)';
-        ctx.fillRect(x + 1, y + rect.h * 0.7, rect.w - 2, rect.h * 0.3);
-
-        // Iron brick bolts
-        if (brick.maxHp >= C.IRONCLAD_HP) {
-          ctx.fillStyle = 'rgba(160,140,180,0.3)';
-          const boltR = 1.5, margin = 3;
-          ctx.beginPath(); ctx.arc(x + margin, y + margin, boltR, 0, Math.PI * 2); ctx.fill();
-          ctx.beginPath(); ctx.arc(x + rect.w - margin, y + margin, boltR, 0, Math.PI * 2); ctx.fill();
-          ctx.beginPath(); ctx.arc(x + margin, y + rect.h - margin, boltR, 0, Math.PI * 2); ctx.fill();
-          ctx.beginPath(); ctx.arc(x + rect.w - margin, y + rect.h - margin, boltR, 0, Math.PI * 2); ctx.fill();
-        }
-
-        // Crack lines on damaged bricks
-        if (brick.maxHp >= 2 && brick.maxHp < C.IRONCLAD_HP && brick.hp < brick.maxHp) {
-          const damage = brick.maxHp - brick.hp;
-          ctx.strokeStyle = 'rgba(0,0,0,0.5)';
-          ctx.lineWidth = 1;
-          if (damage >= 1) {
-            ctx.beginPath();
-            ctx.moveTo(x + rect.w * 0.4, y + 1);
-            ctx.lineTo(x + rect.w * 0.5, y + rect.h * 0.4);
-            ctx.lineTo(x + rect.w * 0.35, y + rect.h * 0.6);
-            ctx.stroke();
-          }
-          if (damage >= 2) {
-            ctx.beginPath();
-            ctx.moveTo(x + rect.w - 1, y + rect.h * 0.3);
-            ctx.lineTo(x + rect.w * 0.6, y + rect.h * 0.5);
-            ctx.lineTo(x + rect.w * 0.7, y + rect.h * 0.8);
-            ctx.stroke();
-          }
-        }
+        ctx.moveTo(x + rect.w * 0.4, y + 1);
+        ctx.lineTo(x + rect.w * 0.5, y + rect.h * 0.4);
+        ctx.lineTo(x + rect.w * 0.35, y + rect.h * 0.6);
+        ctx.stroke();
+      }
+      if (damage >= 2) {
+        ctx.beginPath();
+        ctx.moveTo(x + rect.w - 1, y + rect.h * 0.3);
+        ctx.lineTo(x + rect.w * 0.6, y + rect.h * 0.5);
+        ctx.lineTo(x + rect.w * 0.7, y + rect.h * 0.8);
+        ctx.stroke();
       }
     }
   }
