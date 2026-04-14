@@ -10,8 +10,8 @@ class Game {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d');
 
-    // Player progress — number of levels accessible
-    this.unlockedLevels = 1;
+    // Player progress — number of levels accessible (first 6 unlocked by default)
+    this.unlockedLevels = 6;
     this._loadProgress();
 
     // Responsive canvas sizing
@@ -101,7 +101,15 @@ class Game {
       const saved = localStorage.getItem('breakout-maker-progress');
       if (saved) {
         const data = JSON.parse(saved);
-        this.unlockedLevels = data.unlockedLevels || 1;
+        // Reset progress if level data version changed (levels were redesigned)
+        if (data.levelVersion !== 3) {
+          localStorage.removeItem('breakout-maker-progress');
+          this.unlockedLevels = 6;
+          return;
+        }
+        this.unlockedLevels = data.unlockedLevels || 6;
+      } else {
+        this.unlockedLevels = 6;
       }
     } catch (e) {
       // localStorage may be unavailable in some contexts — ignore
@@ -112,7 +120,7 @@ class Game {
     try {
       localStorage.setItem(
         'breakout-maker-progress',
-        JSON.stringify({ unlockedLevels: this.unlockedLevels })
+        JSON.stringify({ unlockedLevels: this.unlockedLevels, levelVersion: 3 })
       );
     } catch (e) {
       // Silently ignore write failures

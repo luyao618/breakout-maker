@@ -48,7 +48,7 @@ class LevelSelectScene {
       const x   = gridStartX + col * (cardW + gapX);
       const y   = gridStartY + row * (cardH + gapY);
       const level    = getPresetLevel(levelIdx);
-      const unlocked = true;
+      const unlocked = levelIdx < 6 || levelIdx < this._unlockedLevels;
 
       this._levelCards.push({ x, y, w: cardW, h: cardH, levelIdx, level, unlocked, animDelay: i * 0.05 });
     }
