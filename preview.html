@@ -51,7 +51,8 @@ const C = {
 
   BRICK_GAP: 2,               // Gap between bricks (px)
 
-  INDESTRUCTIBLE_HP: 999,     // Sentinel value for indestructible bricks
+  INDESTRUCTIBLE_HP: 999,     // Sentinel value — no longer used in levels
+  IRONCLAD_HP: 10,            // Iron bricks: tough but breakable (10 hits)
 
   DEFAULT_LIVES: 3,
 
@@ -85,9 +86,12 @@ const Theme = {
     hp1: ['#7a6840', '#5a4830'],            // Weathered bronze
     hp2: ['#c45e3a', '#8a3a22'],            // Copper
     hp3: ['#d4a24e', '#9a7a2e'],            // Brass
-    hp4: ['#8b4513', '#5c2e0e'],            // Dark mahogany
-    indestructible: ['#4a4a4a', '#2e2e2e'], // Cast iron
+    iron: ['#4a4a4a', '#2e2e2e'],           // Cast iron (10 hits)
   },
+
+  bgGradTop: '#12100e',            // Background gradient top (derived from bg)
+  bgGradBottom: '#1e1a16',         // Background gradient bottom (derived from bg)
+  textMuted: 'rgba(160,136,96,0.45)', // Muted hint text (warm, derived from textSecondary)
 
   starfield: '#d4a24e',          // Floating gear particles instead of stars
 
@@ -95,8 +99,17 @@ const Theme = {
     split: '#d4a24e',            // Brass
     multiShot: '#c45e3a',        // Copper
     fireball: '#ff6622',         // Furnace orange
+    fireballGlow: '#ff4400',     // Fireball shadow/glow
+    fireballCore: '#ffaa00',     // Fireball gradient mid-tone
     widePaddle: '#8b6d2e',       // Bronze
     extraLife: '#cc3333',        // Steam valve red
+  },
+
+  card: {
+    bg: 'rgba(42,26,14,0.8)',        // Warm card background (from panelBg)
+    bgLocked: 'rgba(26,16,8,0.5)',   // Dimmed card background
+    borderLocked: '#5a4830',         // Warm muted border for locked cards
+    textLocked: '#6a5a40',           // Warm muted text for locked elements
   },
 
   button: {
@@ -123,8 +136,7 @@ const Theme = {
  * Applied at runtime when loading a level — NOT stored in level JSON.
  */
 function _brickColor(hp) {
-  if (hp >= C.INDESTRUCTIBLE_HP) return Theme.brick.indestructible;
-  if (hp >= 4) return Theme.brick.hp4;
+  if (hp >= C.IRONCLAD_HP) return Theme.brick.iron;
   if (hp >= 3) return Theme.brick.hp3;
   if (hp >= 2) return Theme.brick.hp2;
   return Theme.brick.hp1;
@@ -429,14 +441,15 @@ class Brick {
   /**
    * @param {number} row
    * @param {number} col
-   * @param {number} hp     - hit points (>= INDESTRUCTIBLE_HP = unbreakable)
+   * @param {number} hp     - hit points (10 = iron brick, tough but breakable)
    * @param {string|null} color - override colour, or null for hp-based
    */
   constructor(row, col, hp = 1, color = null) {
     this.row = row;
     this.col = col;
-    this.hp = hp;
-    this.maxHp = hp;
+    // Convert legacy indestructible (999) to iron (10)
+    this.hp = (hp >= C.INDESTRUCTIBLE_HP) ? C.IRONCLAD_HP : hp;
+    this.maxHp = this.hp;
     this.color = color;     // explicit colour override
     this.alive = true;
     this.shakeTimer = 0;    // visual feedback on hit
@@ -444,12 +457,17 @@ class Brick {
 
   /**
    * Register a hit on this brick.
-   * @param {boolean} isFireball - if true, brick is destroyed instantly
+   * @param {boolean} isFireball - if true, non-iron brick is destroyed instantly
    * @returns {boolean} true if the brick was destroyed by this hit
    */
   hit(isFireball = false) {
-    // Indestructible bricks only shake
-    if (this.hp >= C.INDESTRUCTIBLE_HP) {
+    // Iron bricks always take exactly 1 hp per hit (fireball doesn't one-shot them)
+    if (this.maxHp >= C.IRONCLAD_HP) {
+      this.hp--;
+      if (this.hp <= 0) {
+        this.alive = false;
+        return true; // destroyed
+      }
       this.shakeTimer = 0.15;
       return false;
     }
@@ -508,7 +526,8 @@ class BrickField {
     for (const b of level.bricks) {
       const brick = new Brick(b.row, b.col, b.hp, b.color || null);
       this.bricks[b.row][b.col] = brick;
-      if (b.hp < C.INDESTRUCTIBLE_HP) this.totalDestructible++;
+      // All bricks are now destructible (iron bricks take 10 hits)
+      this.totalDestructible++;
     }
   }
 
@@ -1204,10 +1223,84 @@ const audio = new AudioManager();
 // Provides: Starfield, Renderer
 // Depends: C, Theme, PowerUpType
 
-// ---- Background (clean, no animated elements) ----
+// ---- Background Atmosphere: "Brass Dust" ----
+// Warm-toned floating particles like metal dust in lamplight,
+// plus a radial vignette for depth framing.
 class Starfield {
-  constructor() {}
-  render() {}
+  constructor(screenW, screenH) {
+    this.w = screenW;
+    this.h = screenH;
+
+    // Particle pool — warm motes drifting upward
+    const colors = ['#ff6622', '#ff4400', '#ffaa00', '#d4a24e', '#ff8833'];
+    this._particles = [];
+    for (let i = 0; i < 80; i++) {
+      this._particles.push(this._spawnParticle(colors, true));
+    }
+
+    // Pre-render vignette to an offscreen canvas (drawn once)
+    this._vignette = document.createElement('canvas');
+    this._vignette.width = screenW;
+    this._vignette.height = screenH;
+    const vCtx = this._vignette.getContext('2d');
+    const cx = screenW / 2;
+    const cy = screenH / 2;
+    const outerR = Math.sqrt(cx * cx + cy * cy);
+    const grad = vCtx.createRadialGradient(cx, cy, screenW * 0.3, cx, cy, outerR);
+    grad.addColorStop(0, 'rgba(0,0,0,0)');
+    grad.addColorStop(1, 'rgba(0,0,0,0.6)');
+    vCtx.fillStyle = grad;
+    vCtx.fillRect(0, 0, screenW, screenH);
+  }
+
+  /** Create a single particle with randomized properties. */
+  _spawnParticle(colors, randomY) {
+    return {
+      x: Math.random() * this.w,
+      y: randomY ? Math.random() * this.h : this.h + Math.random() * 20,
+      vy: 6 + Math.random() * 12,          // upward speed (px/s)
+      sineAmp: 10 + Math.random() * 20,    // horizontal sway amplitude
+      sineSpeed: 0.4 + Math.random() * 1.2, // sway frequency
+      sineOffset: Math.random() * Math.PI * 2,
+      size: 1 + Math.random() * 1.5,       // small sparks (1-2.5px)
+      alpha: 0.4 + Math.random() * 0.5,    // bright like embers (0.4-0.9)
+      color: colors[Math.floor(Math.random() * colors.length)],
+    };
+  }
+
+  /**
+   * Render particles + vignette.
+   * @param {CanvasRenderingContext2D} ctx
+   * @param {number} time — accumulated time in seconds
+   * @param {number} intensity — visibility multiplier (0-1)
+   */
+  render(ctx, time, intensity = 1) {
+    const colors = ['#ff6622', '#ff4400', '#ffaa00', '#d4a24e', '#ff8833'];
+
+    // Update and draw particles
+    for (const p of this._particles) {
+      // Drift upward
+      p.y -= p.vy * 0.016; // approximate dt for smooth look
+      // Horizontal sway
+      const swayX = Math.sin(time * p.sineSpeed + p.sineOffset) * p.sineAmp;
+
+      // Recycle particles that drift off the top
+      if (p.y < -10) {
+        Object.assign(p, this._spawnParticle(colors, false));
+      }
+
+      // Draw tiny square mote — alpha scaled by intensity
+      ctx.globalAlpha = p.alpha * intensity;
+      ctx.fillStyle = p.color;
+      ctx.fillRect(p.x + swayX - p.size / 2, p.y - p.size / 2, p.size, p.size);
+    }
+    ctx.globalAlpha = 1;
+
+    // Vignette overlay — also scaled by intensity
+    ctx.globalAlpha = intensity;
+    ctx.drawImage(this._vignette, 0, 0);
+    ctx.globalAlpha = 1;
+  }
 }
 
 // ---- Renderer --------------------------------------------
@@ -1225,7 +1318,7 @@ class Renderer {
     this.ctx = ctx;
     this.w = screenW;
     this.h = screenH;
-    this.starfield = new Starfield();
+    this.starfield = new Starfield(screenW, screenH);
     this._brickCache = null;       // OffscreenCanvas for brick field
     this._brickCacheDirty = true;  // flag to rebuild cache
     this._time = 0;                // accumulated time (seconds)
@@ -1249,14 +1342,21 @@ class Renderer {
   //  Background
   // ==========================================================
 
-  /** Draw a clean dark background. */
-  drawBackground() {
+  /**
+   * Draw the background gradient + atmospheric particles.
+   * @param {number} intensity — particle visibility multiplier (0-1).
+   *   1.0 = full effect (menu), 0.3 = subtle (gameplay). Default 0.3.
+   */
+  drawBackground(intensity = 0.3) {
     const ctx = this.ctx;
     const grad = ctx.createLinearGradient(0, 0, 0, this.h);
-    grad.addColorStop(0, '#12100e');
-    grad.addColorStop(1, '#1e1a16');
+    grad.addColorStop(0, Theme.bgGradTop);
+    grad.addColorStop(1, Theme.bgGradBottom);
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, this.w, this.h);
+
+    // Render atmospheric particles with intensity control
+    this.starfield.render(ctx, this._time, intensity);
   }
 
   // ==========================================================
@@ -1283,13 +1383,11 @@ class Renderer {
     ctx.textAlign = 'left';
     ctx.fillText(`⚡ ${score}`, 10, 30);
 
-    // ---- Lives as hearts (right-aligned) ----
+    // ---- Lives as "❤️ × N" (right-aligned) ----
     ctx.textAlign = 'right';
     ctx.fillStyle = Theme.accent2;
     ctx.font = '16px sans-serif';
-    let heartsStr = '';
-    for (let i = 0; i < lives; i++) heartsStr += '❤️ ';
-    ctx.fillText(heartsStr.trim(), this.w - 10, 30);
+    ctx.fillText(`❤️ × ${lives}`, this.w - 10, 30);
 
     // ---- Level name (centered) ----
     ctx.textAlign = 'center';
@@ -1298,8 +1396,8 @@ class Renderer {
     ctx.fillText(levelName || '', this.w / 2, 30);
 
     // ---- Pause hint ----
-    ctx.font = '10px sans-serif';
-    ctx.fillStyle = 'rgba(255,255,255,0.3)';
+    ctx.font = '11px sans-serif';
+    ctx.fillStyle = Theme.textMuted;
     ctx.fillText('⏸ 点击此处暂停', this.w / 2, 55);
 
     // ---- Active power-up indicators (bottom of HUD) ----
@@ -1372,7 +1470,7 @@ class Renderer {
     ctx.stroke();
 
     // Rivets
-    ctx.fillStyle = '#8b6914';
+    ctx.fillStyle = Theme.paddleGrad[1];
     const rivetR = 2;
     ctx.beginPath(); ctx.arc(b.left + 8, b.top + paddle.height/2, rivetR, 0, Math.PI*2); ctx.fill();
     ctx.beginPath(); ctx.arc(b.right - 8, b.top + paddle.height/2, rivetR, 0, Math.PI*2); ctx.fill();
@@ -1413,7 +1511,7 @@ class Renderer {
       }
 
       // ---- Main ball body ----
-      ctx.shadowColor = ball.isFireball ? '#ff4400' : Theme.ballGlow;
+      ctx.shadowColor = ball.isFireball ? Theme.powerUp.fireballGlow : Theme.ballGlow;
       ctx.shadowBlur = ball.isFireball ? 20 : 10;
 
       if (ball.isFireball) {
@@ -1423,8 +1521,8 @@ class Renderer {
           ball.x, ball.y, ball.radius * 2
         );
         grad.addColorStop(0,   '#ffffff');
-        grad.addColorStop(0.3, '#ffaa00');
-        grad.addColorStop(0.7, '#ff4400');
+        grad.addColorStop(0.3, Theme.powerUp.fireballCore);
+        grad.addColorStop(0.7, Theme.powerUp.fireballGlow);
         grad.addColorStop(1,   'rgba(255,0,0,0)');
         ctx.fillStyle = grad;
         ctx.beginPath();
@@ -1487,10 +1585,10 @@ class Renderer {
           } else {
             colors = [brick.color, this._darken(brick.color, 30)];
           }
-        } else if (brick.hp >= C.INDESTRUCTIBLE_HP) {
-          colors = Theme.brick.indestructible;
+        } else if (brick.maxHp >= C.IRONCLAD_HP) {
+          colors = Theme.brick.iron;
         } else {
-          const hpKey = `hp${Math.min(brick.hp, 4)}`;
+          const hpKey = `hp${Math.min(brick.hp, 3)}`;
           colors = Theme.brick[hpKey] || Theme.brick.hp1;
         }
 
@@ -1514,8 +1612,8 @@ class Renderer {
         ctx.fillStyle = 'rgba(0,0,0,0.2)';
         ctx.fillRect(x + 1, y + rect.h * 0.7, rect.w - 2, rect.h * 0.3);
 
-        // Indestructible indicator: industrial bolts in corners
-        if (brick.hp >= C.INDESTRUCTIBLE_HP) {
+        // Iron brick indicator: industrial bolts in corners (no cracks)
+        if (brick.maxHp >= C.IRONCLAD_HP) {
           ctx.fillStyle = 'rgba(200,180,140,0.4)';
           const boltR = 1.5;
           const margin = 3;
@@ -1525,7 +1623,30 @@ class Renderer {
           ctx.beginPath(); ctx.arc(x + rect.w - margin, y + rect.h - margin, boltR, 0, Math.PI*2); ctx.fill();
         }
 
-        // HP numbers removed — visual style alone indicates brick type
+        // Crack lines on damaged multi-hp bricks (not iron bricks)
+        if (brick.maxHp >= 2 && brick.maxHp < C.IRONCLAD_HP && brick.hp < brick.maxHp) {
+          const damage = brick.maxHp - brick.hp; // how many hits taken
+          ctx.strokeStyle = 'rgba(0,0,0,0.5)';
+          ctx.lineWidth = 1;
+
+          // First crack: diagonal from top-center area
+          if (damage >= 1) {
+            ctx.beginPath();
+            ctx.moveTo(x + rect.w * 0.4, y + 1);
+            ctx.lineTo(x + rect.w * 0.5, y + rect.h * 0.4);
+            ctx.lineTo(x + rect.w * 0.35, y + rect.h * 0.6);
+            ctx.stroke();
+          }
+
+          // Second crack: from right side
+          if (damage >= 2) {
+            ctx.beginPath();
+            ctx.moveTo(x + rect.w - 1, y + rect.h * 0.3);
+            ctx.lineTo(x + rect.w * 0.6, y + rect.h * 0.5);
+            ctx.lineTo(x + rect.w * 0.7, y + rect.h * 0.8);
+            ctx.stroke();
+          }
+        }
       }
     }
   }
@@ -1755,6 +1876,24 @@ class Renderer {
   }
 
   /**
+   * Draw a pulsing subtitle (opacity oscillates gently).
+   * Useful for drawing attention to action hints like "点击发射".
+   * @param {string} text
+   * @param {number} y
+   * @param {number} size
+   */
+  drawPulseSubtitle(text, y, size = 14) {
+    const ctx = this.ctx;
+    const alpha = Math.sin(this._time * 3) * 0.25 + 0.75;
+    ctx.globalAlpha = alpha;
+    ctx.textAlign = 'center';
+    ctx.font = `${size}px sans-serif`;
+    ctx.fillStyle = Theme.textSecondary;
+    ctx.fillText(text, this.w / 2, y);
+    ctx.globalAlpha = 1;
+  }
+
+  /**
    * Fill the entire screen with a semi-transparent dark overlay
    * (used for pause / game-over / menu screens).
    * @param {number} alpha – opacity 0-1
@@ -1783,9 +1922,9 @@ const STATES = {
 
 /** Allowed transitions from each state. */
 const TRANSITIONS = {
-  MENU:         ['LEVEL_SELECT'],
+  MENU:         ['LEVEL_SELECT', 'IMAGE_UPLOAD'],
   LEVEL_SELECT: ['MENU', 'PLAYING', 'IMAGE_UPLOAD'],
-  IMAGE_UPLOAD: ['LEVEL_SELECT', 'PLAYING'],
+  IMAGE_UPLOAD: ['LEVEL_SELECT', 'PLAYING', 'MENU'],
   PLAYING:      ['PAUSED', 'WIN', 'LOSE'],
   PAUSED:       ['PLAYING', 'MENU', 'LEVEL_SELECT'],
   WIN:          ['LEVEL_SELECT', 'MENU', 'PLAYING'],
@@ -1855,20 +1994,31 @@ class MenuScene {
     this._game = game;
     this._buttons = [];
     this._floatingBalls = []; // decorative animated balls
+    this._pressedBtn = null;  // tap feedback tracking
+    this._pressTimer = 0;
   }
 
   enter() {
-    // Buttons
+    // Buttons — two modes: 关卡模式 + 图片模式
+    const cx = C.SCREEN_W / 2;
     this._buttons = [
       {
-        x: C.SCREEN_W / 2 - 100, y: 380,
+        x: cx - 100, y: 340,
         w: 200, h: 50,
-        text: '开始游戏',
-        action: 'start',
+        text: '关卡模式',
+        action: 'levels',
+      },
+      {
+        x: cx - 100, y: 410,
+        w: 200, h: 50,
+        text: '图片模式',
+        action: 'image',
       },
     ];
     // Sound toggle icon (top-right corner)
     this._sfxOn = (typeof audio !== 'undefined') ? audio.sfxEnabled : true;
+    this._pressedBtn = null;
+    this._pressTimer = 0;
 
     // Spawn decorative floating balls for the background
     this._floatingBalls = [];
@@ -1893,35 +2043,63 @@ class MenuScene {
       if (b.x < 0 || b.x > C.SCREEN_W) b.vx *= -1;
       if (b.y < 100 || b.y > 320) b.vy *= -1;
     }
+
+    // Tick tap-feedback timer
+    if (this._pressTimer > 0) {
+      this._pressTimer -= dt;
+      if (this._pressTimer <= 0) this._pressedBtn = null;
+    }
   }
 
   render() {
     const r   = this._game.renderer;
     const ctx = r.ctx;
 
-    r.drawBackground();
+    r.drawBackground(1.0);
 
     // --- Title ---
-    r.drawTitle('BREAKOUT', 200, 40);
-    r.drawTitle('MAKER', 250, 40);
-    r.drawSubtitle('打砖块创造者', 290, 16);
+    r.drawTitle('造砖厂', 210, 42);
+    r.drawSubtitle('BREAKOUT MAKER', 260, 14);
 
-    // --- Buttons ---
+    // --- Buttons with tap feedback ---
     for (const btn of this._buttons) {
-      r.drawButton(btn.x, btn.y, btn.w, btn.h, btn.text);
+      const isPressed = this._pressedBtn === btn;
+      r.drawButton(btn.x, btn.y, btn.w, btn.h, btn.text, { highlighted: isPressed });
     }
 
-    // --- Sound toggle icon (top-right corner) ---
-    ctx.font = '22px sans-serif';
-    ctx.textAlign = 'right';
-    ctx.fillStyle = Theme.textSecondary;
-    ctx.fillText(this._sfxOn ? '🔊' : '🔇', C.SCREEN_W - 15, 30);
+    // --- Sound toggle button (top-right corner, with visible container) ---
+    const sfxBtnX = C.SCREEN_W - 52;
+    const sfxBtnY = 8;
+    const sfxBtnSize = 44;
+
+    // Button container background
+    ctx.fillStyle = Theme.button.bg;
+    ctx.beginPath();
+    ctx.roundRect(sfxBtnX, sfxBtnY, sfxBtnSize, sfxBtnSize, 8);
+    ctx.fill();
+
+    // Border
+    ctx.strokeStyle = Theme.button.border;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // Icon
+    ctx.font = '20px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = Theme.textPrimary;
+    ctx.fillText(this._sfxOn ? '🔊' : '🔇', sfxBtnX + sfxBtnSize / 2, sfxBtnY + sfxBtnSize / 2);
+    ctx.textBaseline = 'alphabetic'; // reset
 
   }
 
   onTap(x, y) {
-    // Check sound icon (top-right corner, ~40x40 area)
-    if (x >= C.SCREEN_W - 50 && y <= 45) {
+    // Check sound button (top-right 44x44 area)
+    const sfxBtnX = C.SCREEN_W - 52;
+    const sfxBtnY = 8;
+    const sfxBtnSize = 44;
+    if (x >= sfxBtnX && x <= sfxBtnX + sfxBtnSize &&
+        y >= sfxBtnY && y <= sfxBtnY + sfxBtnSize) {
       if (typeof audio !== 'undefined') {
         audio.init();
         audio.toggleSfx();
@@ -1933,10 +2111,15 @@ class MenuScene {
     for (const btn of this._buttons) {
       if (x >= btn.x && x <= btn.x + btn.w &&
           y >= btn.y && y <= btn.y + btn.h) {
-        if (btn.action === 'start') {
-          if (typeof audio !== 'undefined') { audio.init(); }
-          if (typeof audio !== 'undefined') audio.playClick();
+        this._pressedBtn = btn;
+        this._pressTimer = 0.12;
+        if (typeof audio !== 'undefined') { audio.init(); }
+        if (typeof audio !== 'undefined') audio.playClick();
+
+        if (btn.action === 'levels') {
           this._game.stateMachine.transition('LEVEL_SELECT');
+        } else if (btn.action === 'image') {
+          this._game.stateMachine.transition('IMAGE_UPLOAD');
         }
       }
     }
@@ -1958,10 +2141,14 @@ class LevelSelectScene {
     this._levelCards = [];
     this._pageText = '';
     this._unlockedLevels = 1; // level 1 unlocked by default
+    this._pressedBtn = null;  // track pressed button for tap feedback
+    this._pressTimer = 0;
   }
 
   enter() {
     this._unlockedLevels = this._game.unlockedLevels || 1;
+    this._pressedBtn = null;
+    this._pressTimer = 0;
     this._buildPage();
   }
 
@@ -1996,17 +2183,17 @@ class LevelSelectScene {
       this._levelCards.push({ x, y, w: cardW, h: cardH, levelIdx, level, unlocked });
     }
 
-    // --- Pagination buttons ---
+    // --- Pagination buttons (fixed: meet 44pt minimum) ---
     const btnY = 380;
     if (this._page > 0) {
       this._buttons.push({
-        x: 20, y: btnY, w: 80, h: 40,
+        x: 20, y: btnY, w: 100, h: 48,
         text: '上一页', action: 'prevPage',
       });
     }
     if (this._page < totalPages - 1) {
       this._buttons.push({
-        x: C.SCREEN_W - 100, y: btnY, w: 80, h: 40,
+        x: C.SCREEN_W - 120, y: btnY, w: 100, h: 48,
         text: '下一页', action: 'nextPage',
       });
     }
@@ -2014,18 +2201,20 @@ class LevelSelectScene {
     // Page indicator text
     this._pageText = `${this._page + 1} / ${totalPages}`;
 
-    // --- Bottom action buttons ---
+    // --- Bottom action button ---
     this._buttons.push({
-      x: 30, y: 520, w: 140, h: 45,
-      text: '上传图片', action: 'upload',
-    });
-    this._buttons.push({
-      x: C.SCREEN_W - 170, y: 520, w: 140, h: 45,
+      x: C.SCREEN_W / 2 - 70, y: 520, w: 140, h: 48,
       text: '返回', action: 'back',
     });
   }
 
-  update(dt) {}
+  update(dt) {
+    // Tick tap-feedback timer
+    if (this._pressTimer > 0) {
+      this._pressTimer -= dt;
+      if (this._pressTimer <= 0) this._pressedBtn = null;
+    }
+  }
 
   render() {
     const r   = this._game.renderer;
@@ -2038,9 +2227,9 @@ class LevelSelectScene {
     for (const card of this._levelCards) {
       const isLocked = !card.unlocked;
 
-      // Card background
-      ctx.fillStyle   = isLocked ? 'rgba(30,30,60,0.5)' : 'rgba(20,20,50,0.8)';
-      ctx.strokeStyle = isLocked ? '#333355' : Theme.button.border;
+      // Card background — warm tones from Theme
+      ctx.fillStyle   = isLocked ? Theme.card.bgLocked : Theme.card.bg;
+      ctx.strokeStyle = isLocked ? Theme.card.borderLocked : Theme.button.border;
       ctx.lineWidth   = 1.5;
       ctx.beginPath();
       ctx.roundRect(card.x, card.y, card.w, card.h, 8);
@@ -2049,13 +2238,13 @@ class LevelSelectScene {
 
       // Level number
       ctx.font      = 'bold 22px "Courier New", monospace';
-      ctx.fillStyle = isLocked ? '#555577' : Theme.accent;
+      ctx.fillStyle = isLocked ? Theme.card.textLocked : Theme.accent;
       ctx.textAlign = 'center';
       ctx.fillText(card.levelIdx + 1, card.x + card.w / 2, card.y + 30);
 
       // Level name (part after the dash, if any)
       ctx.font      = '10px sans-serif';
-      ctx.fillStyle = isLocked ? '#555577' : Theme.textSecondary;
+      ctx.fillStyle = isLocked ? Theme.card.textLocked : Theme.textSecondary;
       ctx.fillText(
         card.level.name.split(' - ')[1] || '',
         card.x + card.w / 2,
@@ -2063,7 +2252,7 @@ class LevelSelectScene {
       );
 
       if (!isLocked) {
-        // Mini brick preview — tiny colored dots
+        // Mini brick preview — using Theme brick colors
         const previewW = card.w - 20;
         const previewH = 40;
         const previewX = card.x + 10;
@@ -2071,19 +2260,23 @@ class LevelSelectScene {
         const dotW = previewW / card.level.gridWidth;
         const dotH = previewH / card.level.gridHeight;
 
-        const hpColors = ['#44dd88', '#ffaa00', '#ff3366', '#aa44ff'];
+        const hpColors = [
+          Theme.brick.hp1[0],
+          Theme.brick.hp2[0],
+          Theme.brick.hp3[0],
+        ];
         for (const b of card.level.bricks) {
           const bx = previewX + b.col * dotW;
           const by = previewY + b.row * dotH;
-          ctx.fillStyle = (b.hp >= C.INDESTRUCTIBLE_HP)
-            ? '#667788'
-            : (hpColors[Math.min(b.hp - 1, 3)] || '#44dd88');
+          ctx.fillStyle = (b.hp >= C.IRONCLAD_HP || b.hp >= 999)
+            ? Theme.brick.iron[0]
+            : (hpColors[Math.min(b.hp - 1, 2)] || hpColors[0]);
           ctx.fillRect(bx, by, Math.max(1, dotW - 0.5), Math.max(1, dotH - 0.5));
         }
       } else {
         // Lock icon for locked levels
         ctx.font      = '30px sans-serif';
-        ctx.fillStyle = '#555577';
+        ctx.fillStyle = Theme.card.textLocked;
         ctx.fillText('🔒', card.x + card.w / 2, card.y + 85);
       }
     }
@@ -2091,9 +2284,10 @@ class LevelSelectScene {
     // Page indicator
     r.drawSubtitle(this._pageText, 420, 14);
 
-    // Navigation & action buttons
+    // Navigation & action buttons — with tap feedback
     for (const btn of this._buttons) {
-      r.drawButton(btn.x, btn.y, btn.w, btn.h, btn.text);
+      const isPressed = this._pressedBtn === btn;
+      r.drawButton(btn.x, btn.y, btn.w, btn.h, btn.text, { highlighted: isPressed });
     }
   }
 
@@ -2111,10 +2305,12 @@ class LevelSelectScene {
       }
     }
 
-    // Then check buttons
+    // Then check buttons — with tap feedback
     for (const btn of this._buttons) {
       if (x >= btn.x && x <= btn.x + btn.w &&
           y >= btn.y && y <= btn.y + btn.h) {
+        this._pressedBtn = btn;
+        this._pressTimer = 0.12;
         switch (btn.action) {
           case 'prevPage':
             this._page--;
@@ -2123,9 +2319,6 @@ class LevelSelectScene {
           case 'nextPage':
             this._page++;
             this._buildPage();
-            break;
-          case 'upload':
-            this._game.stateMachine.transition('IMAGE_UPLOAD');
             break;
           case 'back':
             this._game.stateMachine.transition('MENU');
@@ -2451,9 +2644,9 @@ class GameScene {
       this.activePowerUps,
     );
 
-    // Show launch hint when waiting for first tap
+    // Show launch hint when waiting for first tap (with pulse animation)
     if (!this._launched) {
-      r.drawSubtitle('点击发射', C.SCREEN_H - 120, 16);
+      r.drawPulseSubtitle('点击发射', C.SCREEN_H - 120, 16);
     }
   }
 
@@ -2490,6 +2683,8 @@ class PausedScene {
   constructor(game) {
     this._game = game;
     this._buttons = [];
+    this._pressedBtn = null;  // tap feedback tracking
+    this._pressTimer = 0;
   }
 
   enter() {
@@ -2500,11 +2695,19 @@ class PausedScene {
       { x: cx - 100, y: 400, w: 200, h: 48, text: '选择关卡',   action: 'levelSelect' },
       { x: cx - 100, y: 460, w: 200, h: 48, text: '返回主菜单', action: 'menu' },
     ];
+    this._pressedBtn = null;
+    this._pressTimer = 0;
   }
 
   exit() {}
 
-  update(dt) {}
+  update(dt) {
+    // Tick tap-feedback timer
+    if (this._pressTimer > 0) {
+      this._pressTimer -= dt;
+      if (this._pressTimer <= 0) this._pressedBtn = null;
+    }
+  }
 
   render() {
     // Draw the game scene underneath (frozen snapshot)
@@ -2519,9 +2722,10 @@ class PausedScene {
     // Title
     r.drawTitle('暂停', 220, 32);
 
-    // Buttons
+    // Buttons with tap feedback
     for (const btn of this._buttons) {
-      r.drawButton(btn.x, btn.y, btn.w, btn.h, btn.text);
+      const isPressed = this._pressedBtn === btn;
+      r.drawButton(btn.x, btn.y, btn.w, btn.h, btn.text, { highlighted: isPressed });
     }
   }
 
@@ -2529,6 +2733,9 @@ class PausedScene {
     for (const btn of this._buttons) {
       if (x >= btn.x && x <= btn.x + btn.w &&
           y >= btn.y && y <= btn.y + btn.h) {
+        this._pressedBtn = btn;
+        this._pressTimer = 0.12;
+
         switch (btn.action) {
 
           case 'resume':
@@ -2581,10 +2788,14 @@ class ResultScene {
     this._type = type;
     this._data = null;
     this._buttons = [];
+    this._pressedBtn = null;  // tap feedback tracking
+    this._pressTimer = 0;
   }
 
   enter(data) {
     this._data = data || {};
+    this._pressedBtn = null;
+    this._pressTimer = 0;
     const cx = C.SCREEN_W / 2;
 
     // Play win/lose sound
@@ -2616,7 +2827,13 @@ class ResultScene {
 
   exit() {}
 
-  update(dt) {}
+  update(dt) {
+    // Tick tap-feedback timer
+    if (this._pressTimer > 0) {
+      this._pressTimer -= dt;
+      if (this._pressTimer <= 0) this._pressedBtn = null;
+    }
+  }
 
   render() {
     const r   = this._game.renderer;
@@ -2642,9 +2859,10 @@ class ResultScene {
     ctx.fillStyle = Theme.textSecondary;
     ctx.fillText(this._data.level?.name || '', C.SCREEN_W / 2, 320);
 
-    // Action buttons
+    // Action buttons with tap feedback
     for (const btn of this._buttons) {
-      r.drawButton(btn.x, btn.y, btn.w, btn.h, btn.text);
+      const isPressed = this._pressedBtn === btn;
+      r.drawButton(btn.x, btn.y, btn.w, btn.h, btn.text, { highlighted: isPressed });
     }
   }
 
@@ -2652,6 +2870,9 @@ class ResultScene {
     for (const btn of this._buttons) {
       if (x >= btn.x && x <= btn.x + btn.w &&
           y >= btn.y && y <= btn.y + btn.h) {
+        this._pressedBtn = btn;
+        this._pressTimer = 0.12;
+
         switch (btn.action) {
 
           case 'next': {
@@ -2708,6 +2929,10 @@ class ImageUploadScene {
     this._status = 'idle';            // 'idle' | 'processing' | 'ready'
     this._statusText = '选择一张图片来生成像素关卡';
     this._fileInput = null;
+    this._pressedBtn = null;          // tap feedback tracking
+    this._pressTimer = 0;
+    this._processingDots = 0;         // animated dots counter
+    this._processingTimer = 0;
   }
 
   // --- Lifecycle ---
@@ -2717,6 +2942,10 @@ class ImageUploadScene {
     this._previewLevel = null;
     this._status = 'idle';
     this._statusText = '选择一张图片来生成像素关卡';
+    this._pressedBtn = null;
+    this._pressTimer = 0;
+    this._processingDots = 0;
+    this._processingTimer = 0;
     this._buildButtons();
     this._ensureFileInput();
   }
@@ -2768,7 +2997,9 @@ class ImageUploadScene {
     if (!file) return;
 
     this._status = 'processing';
-    this._statusText = '正在处理图片...';
+    this._statusText = '正在处理图片';
+    this._processingDots = 0;
+    this._processingTimer = 0;
 
     const reader = new FileReader();
 
@@ -2776,8 +3007,8 @@ class ImageUploadScene {
       const img = new Image();
 
       img.onload = () => {
-        const gridW = 40;
-        const gridH = 28;
+        const gridW = 56;
+        const gridH = 40;
 
         // Crop the source image to match the grid's aspect ratio
         const aspect = img.width / img.height;
@@ -2800,8 +3031,8 @@ class ImageUploadScene {
 
         // Draw to a small offscreen canvas (low-res is intentional)
         const oc = document.createElement('canvas');
-        oc.width = gridW * 4;   // 160 px
-        oc.height = gridH * 4;  // 112 px
+        oc.width = gridW * 4;   // 224 px
+        oc.height = gridH * 4;  // 160 px
         const octx = oc.getContext('2d');
         octx.drawImage(img, sx, sy, sw, sh, 0, 0, oc.width, oc.height);
 
@@ -2822,8 +3053,21 @@ class ImageUploadScene {
 
   // --- Scene interface ---
 
-  update(/* dt */) {
-    // No per-frame logic needed — processing is async via FileReader
+  update(dt) {
+    // Tick tap-feedback timer
+    if (this._pressTimer > 0) {
+      this._pressTimer -= dt;
+      if (this._pressTimer <= 0) this._pressedBtn = null;
+    }
+
+    // Animate processing dots
+    if (this._status === 'processing') {
+      this._processingTimer += dt;
+      if (this._processingTimer >= 0.4) {
+        this._processingTimer = 0;
+        this._processingDots = (this._processingDots + 1) % 4;
+      }
+    }
   }
 
   render() {
@@ -2837,25 +3081,44 @@ class ImageUploadScene {
     ctx.textAlign = 'center';
     ctx.font = '14px sans-serif';
     ctx.fillStyle = Theme.textSecondary;
-    ctx.fillText(this._statusText, C.SCREEN_W / 2, 200);
+
+    if (this._status === 'processing') {
+      // Animated processing text with pulsing dots
+      const dots = '.'.repeat(this._processingDots);
+      const alpha = Math.sin(Date.now() / 300) * 0.2 + 0.8;
+      ctx.globalAlpha = alpha;
+      ctx.fillText(this._statusText + dots, C.SCREEN_W / 2, 200);
+      ctx.globalAlpha = 1;
+    } else {
+      ctx.fillText(this._statusText, C.SCREEN_W / 2, 200);
+    }
 
     // Mini brick preview (only when a level has been generated)
     if (this._previewLevel) {
       this._renderPreview(ctx);
     }
 
-    // Buttons
+    // Buttons with tap feedback
     for (const btn of this._buttons) {
-      r.drawButton(btn.x, btn.y, btn.w, btn.h, btn.text);
+      const isPressed = this._pressedBtn === btn;
+      r.drawButton(btn.x, btn.y, btn.w, btn.h, btn.text, { highlighted: isPressed });
     }
   }
 
   /** Draw a miniature representation of the generated brick layout. */
   _renderPreview(ctx) {
+    const level = this._previewLevel;
     const previewW = C.SCREEN_W - 40;
-    const previewH = 140;
+    // Maintain grid aspect ratio in the preview
+    const previewH = Math.round(previewW * (level.gridHeight / level.gridWidth));
     const previewX = 20;
-    const previewY = 310;
+    const previewY = 300;
+
+    // Preview label
+    ctx.textAlign = 'center';
+    ctx.font = '12px sans-serif';
+    ctx.fillStyle = Theme.textSecondary;
+    ctx.fillText('关卡预览', C.SCREEN_W / 2, previewY - 8);
 
     // Border
     ctx.strokeStyle = Theme.button.border;
@@ -2867,12 +3130,11 @@ class ImageUploadScene {
     ctx.fillRect(previewX, previewY, previewW, previewH);
 
     // Individual bricks
-    const level = this._previewLevel;
     const bw = previewW / level.gridWidth;
     const bh = previewH / level.gridHeight;
 
     for (const b of level.bricks) {
-      ctx.fillStyle = b.color || '#44dd88';
+      ctx.fillStyle = b.color || Theme.accent;
       ctx.fillRect(
         previewX + b.col * bw + 0.5,
         previewY + b.row * bh + 0.5,
@@ -2880,6 +3142,16 @@ class ImageUploadScene {
         bh - 1
       );
     }
+
+    // Mini paddle at the bottom of the preview
+    const paddleW = 30;
+    const paddleH = 4;
+    const paddleX = previewX + previewW / 2 - paddleW / 2;
+    const paddleY = previewY + previewH - paddleH - 3;
+    ctx.fillStyle = Theme.accent;
+    ctx.beginPath();
+    ctx.roundRect(paddleX, paddleY, paddleW, paddleH, 2);
+    ctx.fill();
   }
 
   // --- Input ---
@@ -2890,6 +3162,9 @@ class ImageUploadScene {
         x >= btn.x && x <= btn.x + btn.w &&
         y >= btn.y && y <= btn.y + btn.h
       ) {
+        this._pressedBtn = btn;
+        this._pressTimer = 0.12;
+
         switch (btn.action) {
           case 'pick':
             // Reset value so re-selecting the same file still fires 'change'
@@ -2907,7 +3182,7 @@ class ImageUploadScene {
             break;
 
           case 'back':
-            this._game.stateMachine.transition('LEVEL_SELECT');
+            this._game.stateMachine.transition('MENU');
             break;
         }
         return; // only process the first matching button
@@ -3047,7 +3322,7 @@ class BrickMapper {
    * @param {number}    gridHeight - Number of brick rows (default 14).
    * @returns {object}  Level descriptor with name, bricks[], and settings.
    */
-  static imageToLevel(imageData, gridWidth = 40, gridHeight = 28) {
+  static imageToLevel(imageData, gridWidth = 56, gridHeight = 40) {
     const { width, height, data } = imageData;
 
     // Dimensions of one grid cell in source-pixel space
@@ -3090,7 +3365,7 @@ class BrickMapper {
     }
 
     // --- Quantize all sampled colors into a compact palette ---
-    const palette = MedianCut.quantize(allPixels, 24);
+    const palette = MedianCut.quantize(allPixels, 32);
 
     // --- Map each grid cell to a brick (or skip if near-white) ---
     const bricks = [];
@@ -3105,7 +3380,7 @@ class BrickMapper {
           (0.299 * color[0] + 0.587 * color[1] + 0.114 * color[2]) / 255;
 
         // Very bright cells are treated as empty space (background)
-        if (luminance > 0.92) continue;
+        if (luminance > 0.90) continue;
 
         // All image bricks are hp=1 (one hit to destroy)
         // The fun is in seeing the picture, not grinding through tough bricks
@@ -3126,10 +3401,10 @@ class BrickMapper {
       name: '自定义 - 图片关卡',
       gridWidth,
       gridHeight,
-      ballSpeed: 300,
-      paddleWidth: 110,
+      ballSpeed: 280,
+      paddleWidth: 120,
       bricks,
-      lives: 4,
+      lives: 5,
     };
   }
 }

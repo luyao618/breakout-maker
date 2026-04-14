@@ -245,7 +245,7 @@ suite.test('brick collision: 2-hp brick takes two hits', () => {
   assertEqual(bf.bricks[0][0].hp, 1, 'HP should be 1 after first hit');
 });
 
-suite.test('brick collision: indestructible brick survives', () => {
+suite.test('brick collision: iron brick survives single hit', () => {
   const level = {
     name: 'Test', gridWidth: 1, gridHeight: 1,
     ballSpeed: 300, paddleWidth: 90, lives: 3,
@@ -263,9 +263,9 @@ suite.test('brick collision: indestructible brick survives', () => {
   ball.speed = 600;
 
   physics.tick([ball], C.FIXED_DT);
-  assertEqual(bf.destroyed, 0, 'Indestructible brick should not be destroyed');
+  assertEqual(bf.destroyed, 0, 'Iron brick should not be destroyed in 1 hit');
   assert(bf.bricks[0][0] !== null, 'Brick should still exist');
-  assertEqual(bf.bricks[0][0].hp, C.INDESTRUCTIBLE_HP, 'HP should remain unchanged');
+  assertEqual(bf.bricks[0][0].hp, C.IRONCLAD_HP - 1, 'HP should decrease by 1');
 });
 
 // =============================================================================

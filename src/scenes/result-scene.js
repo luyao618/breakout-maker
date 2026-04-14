@@ -16,10 +16,14 @@ class ResultScene {
     this._type = type;
     this._data = null;
     this._buttons = [];
+    this._pressedBtn = null;  // tap feedback tracking
+    this._pressTimer = 0;
   }
 
   enter(data) {
     this._data = data || {};
+    this._pressedBtn = null;
+    this._pressTimer = 0;
     const cx = C.SCREEN_W / 2;
 
     // Play win/lose sound
@@ -51,7 +55,13 @@ class ResultScene {
 
   exit() {}
 
-  update(dt) {}
+  update(dt) {
+    // Tick tap-feedback timer
+    if (this._pressTimer > 0) {
+      this._pressTimer -= dt;
+      if (this._pressTimer <= 0) this._pressedBtn = null;
+    }
+  }
 
   render() {
     const r   = this._game.renderer;
@@ -77,9 +87,10 @@ class ResultScene {
     ctx.fillStyle = Theme.textSecondary;
     ctx.fillText(this._data.level?.name || '', C.SCREEN_W / 2, 320);
 
-    // Action buttons
+    // Action buttons with tap feedback
     for (const btn of this._buttons) {
-      r.drawButton(btn.x, btn.y, btn.w, btn.h, btn.text);
+      const isPressed = this._pressedBtn === btn;
+      r.drawButton(btn.x, btn.y, btn.w, btn.h, btn.text, { highlighted: isPressed });
     }
   }
 
@@ -87,6 +98,9 @@ class ResultScene {
     for (const btn of this._buttons) {
       if (x >= btn.x && x <= btn.x + btn.w &&
           y >= btn.y && y <= btn.y + btn.h) {
+        this._pressedBtn = btn;
+        this._pressTimer = 0.12;
+
         switch (btn.action) {
 
           case 'next': {

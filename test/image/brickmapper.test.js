@@ -144,11 +144,11 @@ suite.test('imageToLevel: all-black image produces full grid of bricks', () => {
 // Default Grid Size
 // =============================================================================
 
-suite.test('imageToLevel: default grid size is 40x28', () => {
-  const imageData = makeImageData(80, 56, () => [100, 50, 30, 255]);
+suite.test('imageToLevel: default grid size is 56x40', () => {
+  const imageData = makeImageData(112, 80, () => [100, 50, 30, 255]);
   const level = BrickMapper.imageToLevel(imageData);
-  assertEqual(level.gridWidth, 40, 'Default gridWidth should be 40');
-  assertEqual(level.gridHeight, 28, 'Default gridHeight should be 28');
+  assertEqual(level.gridWidth, 56, 'Default gridWidth should be 56');
+  assertEqual(level.gridHeight, 40, 'Default gridHeight should be 40');
 });
 
 // Run

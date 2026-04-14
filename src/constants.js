@@ -22,7 +22,8 @@ const C = {
 
   BRICK_GAP: 2,               // Gap between bricks (px)
 
-  INDESTRUCTIBLE_HP: 999,     // Sentinel value for indestructible bricks
+  INDESTRUCTIBLE_HP: 999,     // Sentinel value — no longer used in levels
+  IRONCLAD_HP: 10,            // Iron bricks: tough but breakable (10 hits)
 
   DEFAULT_LIVES: 3,
 
@@ -56,9 +57,12 @@ const Theme = {
     hp1: ['#7a6840', '#5a4830'],            // Weathered bronze
     hp2: ['#c45e3a', '#8a3a22'],            // Copper
     hp3: ['#d4a24e', '#9a7a2e'],            // Brass
-    hp4: ['#8b4513', '#5c2e0e'],            // Dark mahogany
-    indestructible: ['#4a4a4a', '#2e2e2e'], // Cast iron
+    iron: ['#4a4a4a', '#2e2e2e'],           // Cast iron (10 hits)
   },
+
+  bgGradTop: '#12100e',            // Background gradient top (derived from bg)
+  bgGradBottom: '#1e1a16',         // Background gradient bottom (derived from bg)
+  textMuted: 'rgba(160,136,96,0.45)', // Muted hint text (warm, derived from textSecondary)
 
   starfield: '#d4a24e',          // Floating gear particles instead of stars
 
@@ -66,8 +70,17 @@ const Theme = {
     split: '#d4a24e',            // Brass
     multiShot: '#c45e3a',        // Copper
     fireball: '#ff6622',         // Furnace orange
+    fireballGlow: '#ff4400',     // Fireball shadow/glow
+    fireballCore: '#ffaa00',     // Fireball gradient mid-tone
     widePaddle: '#8b6d2e',       // Bronze
     extraLife: '#cc3333',        // Steam valve red
+  },
+
+  card: {
+    bg: 'rgba(42,26,14,0.8)',        // Warm card background (from panelBg)
+    bgLocked: 'rgba(26,16,8,0.5)',   // Dimmed card background
+    borderLocked: '#5a4830',         // Warm muted border for locked cards
+    textLocked: '#6a5a40',           // Warm muted text for locked elements
   },
 
   button: {
@@ -94,8 +107,7 @@ const Theme = {
  * Applied at runtime when loading a level — NOT stored in level JSON.
  */
 function _brickColor(hp) {
-  if (hp >= C.INDESTRUCTIBLE_HP) return Theme.brick.indestructible;
-  if (hp >= 4) return Theme.brick.hp4;
+  if (hp >= C.IRONCLAD_HP) return Theme.brick.iron;
   if (hp >= 3) return Theme.brick.hp3;
   if (hp >= 2) return Theme.brick.hp2;
   return Theme.brick.hp1;
