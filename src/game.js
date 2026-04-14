@@ -2,7 +2,7 @@
 // Provides: Game, game (global instance)
 // Depends: C, STATES, Renderer, StateMachine, InputManager,
 //          MenuScene, LevelSelectScene, GameScene, PausedScene,
-//          ResultScene, ImageUploadScene
+//          ResultScene, ImageUploadScene, CreativeScene
 
 class Game {
 
@@ -30,6 +30,7 @@ class Game {
     const winScene         = new ResultScene(this, 'WIN');
     const loseScene        = new ResultScene(this, 'LOSE');
     const imageUploadScene = new ImageUploadScene(this);
+    const creativeScene = new CreativeScene(this);
 
     this.stateMachine.registerScene(STATES.MENU,         menuScene);
     this.stateMachine.registerScene(STATES.LEVEL_SELECT,  levelSelectScene);
@@ -38,6 +39,7 @@ class Game {
     this.stateMachine.registerScene(STATES.WIN,           winScene);
     this.stateMachine.registerScene(STATES.LOSE,          loseScene);
     this.stateMachine.registerScene(STATES.IMAGE_UPLOAD,  imageUploadScene);
+    this.stateMachine.registerScene(STATES.CREATIVE,     creativeScene);
 
     // --- Input ---
     this.input = new InputManager(canvas, this);

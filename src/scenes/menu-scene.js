@@ -12,20 +12,26 @@ class MenuScene {
   }
 
   enter() {
-    // Buttons — two modes: 关卡模式 + 图片模式
+    // Buttons — three modes: 关卡模式 + 图片模式 + 创造模式
     const cx = C.SCREEN_W / 2;
     this._buttons = [
       {
-        x: cx - 100, y: 340,
+        x: cx - 100, y: 320,
         w: 200, h: 50,
         text: '关卡模式',
         action: 'levels',
       },
       {
-        x: cx - 100, y: 410,
+        x: cx - 100, y: 390,
         w: 200, h: 50,
         text: '图片模式',
         action: 'image',
+      },
+      {
+        x: cx - 100, y: 460,
+        w: 200, h: 50,
+        text: '创造模式',
+        action: 'creative',
       },
     ];
     // Sound toggle icon (top-right corner)
@@ -133,6 +139,8 @@ class MenuScene {
           this._game.stateMachine.transition('LEVEL_SELECT');
         } else if (btn.action === 'image') {
           this._game.stateMachine.transition('IMAGE_UPLOAD');
+        } else if (btn.action === 'creative') {
+          this._game.stateMachine.transition('CREATIVE');
         }
       }
     }

@@ -32,24 +32,44 @@ class ResultScene {
       else audio.playGameOver();
     }
 
+    const idx = this._data.levelIndex != null ? this._data.levelIndex : 0;
+
     if (this._type === 'WIN') {
-      // Unlock the next level (if not already)
-      const nextIdx = (this._data.levelIndex || 0) + 1;
-      if (nextIdx + 1 > (this._game.unlockedLevels || 1)) {
-        this._game.unlockedLevels = nextIdx + 1;
+      // Unlock the next level (only for preset levels)
+      if (idx >= 0) {
+        const nextIdx = idx + 1;
+        if (nextIdx + 1 > (this._game.unlockedLevels || 1)) {
+          this._game.unlockedLevels = nextIdx + 1;
+        }
       }
 
-      this._buttons = [
-        { x: cx - 100, y: 380, w: 200, h: 48, text: '下一关',    action: 'next' },
-        { x: cx - 100, y: 440, w: 200, h: 48, text: '选择关卡', action: 'levelSelect' },
-        { x: cx - 100, y: 500, w: 200, h: 48, text: '主菜单',   action: 'menu' },
-      ];
+      // AI levels: show retry + menu only (no "下一关")
+      if (idx < 0) {
+        this._buttons = [
+          { x: cx - 100, y: 380, w: 200, h: 48, text: '再玩一次', action: 'retry' },
+          { x: cx - 100, y: 440, w: 200, h: 48, text: '主菜单',   action: 'menu' },
+        ];
+      } else {
+        this._buttons = [
+          { x: cx - 100, y: 380, w: 200, h: 48, text: '下一关',    action: 'next' },
+          { x: cx - 100, y: 440, w: 200, h: 48, text: '选择关卡', action: 'levelSelect' },
+          { x: cx - 100, y: 500, w: 200, h: 48, text: '主菜单',   action: 'menu' },
+        ];
+      }
     } else {
-      this._buttons = [
-        { x: cx - 100, y: 380, w: 200, h: 48, text: '重试',     action: 'retry' },
-        { x: cx - 100, y: 440, w: 200, h: 48, text: '选择关卡', action: 'levelSelect' },
-        { x: cx - 100, y: 500, w: 200, h: 48, text: '主菜单',   action: 'menu' },
-      ];
+      if (idx < 0) {
+        // AI level: retry + menu only
+        this._buttons = [
+          { x: cx - 100, y: 380, w: 200, h: 48, text: '重试',   action: 'retry' },
+          { x: cx - 100, y: 440, w: 200, h: 48, text: '主菜单', action: 'menu' },
+        ];
+      } else {
+        this._buttons = [
+          { x: cx - 100, y: 380, w: 200, h: 48, text: '重试',     action: 'retry' },
+          { x: cx - 100, y: 440, w: 200, h: 48, text: '选择关卡', action: 'levelSelect' },
+          { x: cx - 100, y: 500, w: 200, h: 48, text: '主菜单',   action: 'menu' },
+        ];
+      }
     }
   }
 
@@ -112,18 +132,23 @@ class ResultScene {
                 levelIndex: nextIdx,
               });
             } else {
-              // No more levels — go back to selection
+              // No more levels (or AI level) — go back to selection
               this._game.stateMachine.transition('LEVEL_SELECT');
             }
             break;
           }
 
           case 'retry': {
-            const idx = this._data.levelIndex || 0;
-            this._game.stateMachine.transition('PLAYING', {
-              level: getPresetLevel(idx),
-              levelIndex: idx,
-            });
+            const idx = this._data.levelIndex;
+            const lvl = idx >= 0 ? getPresetLevel(idx) : this._data.level;
+            if (lvl) {
+              this._game.stateMachine.transition('PLAYING', {
+                level: lvl,
+                levelIndex: idx,
+              });
+            } else {
+              this._game.stateMachine.transition('MENU');
+            }
             break;
           }
 

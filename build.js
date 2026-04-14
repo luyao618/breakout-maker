@@ -114,6 +114,7 @@ const srcFiles = [
   'scenes/paused-scene.js',
   'scenes/result-scene.js',
   'scenes/image-upload.js',
+  'scenes/creative-scene.js',
   'image/median-cut.js',
   'image/brick-mapper.js',
   'input/input-manager.js',

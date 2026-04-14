@@ -71,8 +71,9 @@ class PausedScene {
             this._game.stateMachine.transition('PLAYING');
             if (gameScene) {
               const idx = gameScene.levelIndex;
+              const lvl = idx >= 0 ? getPresetLevel(idx) : gameScene.level;
               gameScene.exit(false);
-              gameScene.enter({ level: getPresetLevel(idx), levelIndex: idx });
+              gameScene.enter({ level: lvl, levelIndex: idx });
             }
             break;
           }

@@ -10,17 +10,19 @@ const STATES = {
   WIN: 'WIN',
   LOSE: 'LOSE',
   IMAGE_UPLOAD: 'IMAGE_UPLOAD',
+  CREATIVE: 'CREATIVE',
 };
 
 /** Allowed transitions from each state. */
 const TRANSITIONS = {
-  MENU:         ['LEVEL_SELECT', 'IMAGE_UPLOAD'],
+  MENU:         ['LEVEL_SELECT', 'IMAGE_UPLOAD', 'CREATIVE'],
   LEVEL_SELECT: ['MENU', 'PLAYING', 'IMAGE_UPLOAD'],
   IMAGE_UPLOAD: ['LEVEL_SELECT', 'PLAYING', 'MENU'],
   PLAYING:      ['PAUSED', 'WIN', 'LOSE'],
   PAUSED:       ['PLAYING', 'MENU', 'LEVEL_SELECT'],
   WIN:          ['LEVEL_SELECT', 'MENU', 'PLAYING'],
   LOSE:         ['LEVEL_SELECT', 'MENU', 'PLAYING'],
+  CREATIVE:     ['MENU', 'PLAYING'],
 };
 
 /**
