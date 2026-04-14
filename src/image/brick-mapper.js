@@ -11,7 +11,7 @@ class BrickMapper {
    * @param {number}    gridHeight - Number of brick rows (default 14).
    * @returns {object}  Level descriptor with name, bricks[], and settings.
    */
-  static imageToLevel(imageData, gridWidth = 40, gridHeight = 28) {
+  static imageToLevel(imageData, gridWidth = 56, gridHeight = 40) {
     const { width, height, data } = imageData;
 
     // Dimensions of one grid cell in source-pixel space
@@ -54,7 +54,7 @@ class BrickMapper {
     }
 
     // --- Quantize all sampled colors into a compact palette ---
-    const palette = MedianCut.quantize(allPixels, 24);
+    const palette = MedianCut.quantize(allPixels, 32);
 
     // --- Map each grid cell to a brick (or skip if near-white) ---
     const bricks = [];
@@ -69,7 +69,7 @@ class BrickMapper {
           (0.299 * color[0] + 0.587 * color[1] + 0.114 * color[2]) / 255;
 
         // Very bright cells are treated as empty space (background)
-        if (luminance > 0.92) continue;
+        if (luminance > 0.90) continue;
 
         // All image bricks are hp=1 (one hit to destroy)
         // The fun is in seeing the picture, not grinding through tough bricks
@@ -90,10 +90,10 @@ class BrickMapper {
       name: '自定义 - 图片关卡',
       gridWidth,
       gridHeight,
-      ballSpeed: 300,
-      paddleWidth: 110,
+      ballSpeed: 280,
+      paddleWidth: 120,
       bricks,
-      lives: 4,
+      lives: 5,
     };
   }
 }

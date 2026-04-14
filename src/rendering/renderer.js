@@ -2,10 +2,84 @@
 // Provides: Starfield, Renderer
 // Depends: C, Theme, PowerUpType
 
-// ---- Background (clean, no animated elements) ----
+// ---- Background Atmosphere: "Brass Dust" ----
+// Warm-toned floating particles like metal dust in lamplight,
+// plus a radial vignette for depth framing.
 class Starfield {
-  constructor() {}
-  render() {}
+  constructor(screenW, screenH) {
+    this.w = screenW;
+    this.h = screenH;
+
+    // Particle pool — warm motes drifting upward
+    const colors = ['#ff6622', '#ff4400', '#ffaa00', '#d4a24e', '#ff8833'];
+    this._particles = [];
+    for (let i = 0; i < 80; i++) {
+      this._particles.push(this._spawnParticle(colors, true));
+    }
+
+    // Pre-render vignette to an offscreen canvas (drawn once)
+    this._vignette = document.createElement('canvas');
+    this._vignette.width = screenW;
+    this._vignette.height = screenH;
+    const vCtx = this._vignette.getContext('2d');
+    const cx = screenW / 2;
+    const cy = screenH / 2;
+    const outerR = Math.sqrt(cx * cx + cy * cy);
+    const grad = vCtx.createRadialGradient(cx, cy, screenW * 0.3, cx, cy, outerR);
+    grad.addColorStop(0, 'rgba(0,0,0,0)');
+    grad.addColorStop(1, 'rgba(0,0,0,0.6)');
+    vCtx.fillStyle = grad;
+    vCtx.fillRect(0, 0, screenW, screenH);
+  }
+
+  /** Create a single particle with randomized properties. */
+  _spawnParticle(colors, randomY) {
+    return {
+      x: Math.random() * this.w,
+      y: randomY ? Math.random() * this.h : this.h + Math.random() * 20,
+      vy: 6 + Math.random() * 12,          // upward speed (px/s)
+      sineAmp: 10 + Math.random() * 20,    // horizontal sway amplitude
+      sineSpeed: 0.4 + Math.random() * 1.2, // sway frequency
+      sineOffset: Math.random() * Math.PI * 2,
+      size: 1 + Math.random() * 1.5,       // small sparks (1-2.5px)
+      alpha: 0.4 + Math.random() * 0.5,    // bright like embers (0.4-0.9)
+      color: colors[Math.floor(Math.random() * colors.length)],
+    };
+  }
+
+  /**
+   * Render particles + vignette.
+   * @param {CanvasRenderingContext2D} ctx
+   * @param {number} time — accumulated time in seconds
+   * @param {number} intensity — visibility multiplier (0-1)
+   */
+  render(ctx, time, intensity = 1) {
+    const colors = ['#ff6622', '#ff4400', '#ffaa00', '#d4a24e', '#ff8833'];
+
+    // Update and draw particles
+    for (const p of this._particles) {
+      // Drift upward
+      p.y -= p.vy * 0.016; // approximate dt for smooth look
+      // Horizontal sway
+      const swayX = Math.sin(time * p.sineSpeed + p.sineOffset) * p.sineAmp;
+
+      // Recycle particles that drift off the top
+      if (p.y < -10) {
+        Object.assign(p, this._spawnParticle(colors, false));
+      }
+
+      // Draw tiny square mote — alpha scaled by intensity
+      ctx.globalAlpha = p.alpha * intensity;
+      ctx.fillStyle = p.color;
+      ctx.fillRect(p.x + swayX - p.size / 2, p.y - p.size / 2, p.size, p.size);
+    }
+    ctx.globalAlpha = 1;
+
+    // Vignette overlay — also scaled by intensity
+    ctx.globalAlpha = intensity;
+    ctx.drawImage(this._vignette, 0, 0);
+    ctx.globalAlpha = 1;
+  }
 }
 
 // ---- Renderer --------------------------------------------
@@ -23,7 +97,7 @@ class Renderer {
     this.ctx = ctx;
     this.w = screenW;
     this.h = screenH;
-    this.starfield = new Starfield();
+    this.starfield = new Starfield(screenW, screenH);
     this._brickCache = null;       // OffscreenCanvas for brick field
     this._brickCacheDirty = true;  // flag to rebuild cache
     this._time = 0;                // accumulated time (seconds)
@@ -47,14 +121,21 @@ class Renderer {
   //  Background
   // ==========================================================
 
-  /** Draw a clean dark background. */
-  drawBackground() {
+  /**
+   * Draw the background gradient + atmospheric particles.
+   * @param {number} intensity — particle visibility multiplier (0-1).
+   *   1.0 = full effect (menu), 0.3 = subtle (gameplay). Default 0.3.
+   */
+  drawBackground(intensity = 0.3) {
     const ctx = this.ctx;
     const grad = ctx.createLinearGradient(0, 0, 0, this.h);
-    grad.addColorStop(0, '#12100e');
-    grad.addColorStop(1, '#1e1a16');
+    grad.addColorStop(0, Theme.bgGradTop);
+    grad.addColorStop(1, Theme.bgGradBottom);
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, this.w, this.h);
+
+    // Render atmospheric particles with intensity control
+    this.starfield.render(ctx, this._time, intensity);
   }
 
   // ==========================================================
@@ -81,13 +162,11 @@ class Renderer {
     ctx.textAlign = 'left';
     ctx.fillText(`⚡ ${score}`, 10, 30);
 
-    // ---- Lives as hearts (right-aligned) ----
+    // ---- Lives as "❤️ × N" (right-aligned) ----
     ctx.textAlign = 'right';
     ctx.fillStyle = Theme.accent2;
     ctx.font = '16px sans-serif';
-    let heartsStr = '';
-    for (let i = 0; i < lives; i++) heartsStr += '❤️ ';
-    ctx.fillText(heartsStr.trim(), this.w - 10, 30);
+    ctx.fillText(`❤️ × ${lives}`, this.w - 10, 30);
 
     // ---- Level name (centered) ----
     ctx.textAlign = 'center';
@@ -96,8 +175,8 @@ class Renderer {
     ctx.fillText(levelName || '', this.w / 2, 30);
 
     // ---- Pause hint ----
-    ctx.font = '10px sans-serif';
-    ctx.fillStyle = 'rgba(255,255,255,0.3)';
+    ctx.font = '11px sans-serif';
+    ctx.fillStyle = Theme.textMuted;
     ctx.fillText('⏸ 点击此处暂停', this.w / 2, 55);
 
     // ---- Active power-up indicators (bottom of HUD) ----
@@ -170,7 +249,7 @@ class Renderer {
     ctx.stroke();
 
     // Rivets
-    ctx.fillStyle = '#8b6914';
+    ctx.fillStyle = Theme.paddleGrad[1];
     const rivetR = 2;
     ctx.beginPath(); ctx.arc(b.left + 8, b.top + paddle.height/2, rivetR, 0, Math.PI*2); ctx.fill();
     ctx.beginPath(); ctx.arc(b.right - 8, b.top + paddle.height/2, rivetR, 0, Math.PI*2); ctx.fill();
@@ -211,7 +290,7 @@ class Renderer {
       }
 
       // ---- Main ball body ----
-      ctx.shadowColor = ball.isFireball ? '#ff4400' : Theme.ballGlow;
+      ctx.shadowColor = ball.isFireball ? Theme.powerUp.fireballGlow : Theme.ballGlow;
       ctx.shadowBlur = ball.isFireball ? 20 : 10;
 
       if (ball.isFireball) {
@@ -221,8 +300,8 @@ class Renderer {
           ball.x, ball.y, ball.radius * 2
         );
         grad.addColorStop(0,   '#ffffff');
-        grad.addColorStop(0.3, '#ffaa00');
-        grad.addColorStop(0.7, '#ff4400');
+        grad.addColorStop(0.3, Theme.powerUp.fireballCore);
+        grad.addColorStop(0.7, Theme.powerUp.fireballGlow);
         grad.addColorStop(1,   'rgba(255,0,0,0)');
         ctx.fillStyle = grad;
         ctx.beginPath();
@@ -285,10 +364,10 @@ class Renderer {
           } else {
             colors = [brick.color, this._darken(brick.color, 30)];
           }
-        } else if (brick.hp >= C.INDESTRUCTIBLE_HP) {
-          colors = Theme.brick.indestructible;
+        } else if (brick.maxHp >= C.IRONCLAD_HP) {
+          colors = Theme.brick.iron;
         } else {
-          const hpKey = `hp${Math.min(brick.hp, 4)}`;
+          const hpKey = `hp${Math.min(brick.hp, 3)}`;
           colors = Theme.brick[hpKey] || Theme.brick.hp1;
         }
 
@@ -312,8 +391,8 @@ class Renderer {
         ctx.fillStyle = 'rgba(0,0,0,0.2)';
         ctx.fillRect(x + 1, y + rect.h * 0.7, rect.w - 2, rect.h * 0.3);
 
-        // Indestructible indicator: industrial bolts in corners
-        if (brick.hp >= C.INDESTRUCTIBLE_HP) {
+        // Iron brick indicator: industrial bolts in corners (no cracks)
+        if (brick.maxHp >= C.IRONCLAD_HP) {
           ctx.fillStyle = 'rgba(200,180,140,0.4)';
           const boltR = 1.5;
           const margin = 3;
@@ -323,7 +402,30 @@ class Renderer {
           ctx.beginPath(); ctx.arc(x + rect.w - margin, y + rect.h - margin, boltR, 0, Math.PI*2); ctx.fill();
         }
 
-        // HP numbers removed — visual style alone indicates brick type
+        // Crack lines on damaged multi-hp bricks (not iron bricks)
+        if (brick.maxHp >= 2 && brick.maxHp < C.IRONCLAD_HP && brick.hp < brick.maxHp) {
+          const damage = brick.maxHp - brick.hp; // how many hits taken
+          ctx.strokeStyle = 'rgba(0,0,0,0.5)';
+          ctx.lineWidth = 1;
+
+          // First crack: diagonal from top-center area
+          if (damage >= 1) {
+            ctx.beginPath();
+            ctx.moveTo(x + rect.w * 0.4, y + 1);
+            ctx.lineTo(x + rect.w * 0.5, y + rect.h * 0.4);
+            ctx.lineTo(x + rect.w * 0.35, y + rect.h * 0.6);
+            ctx.stroke();
+          }
+
+          // Second crack: from right side
+          if (damage >= 2) {
+            ctx.beginPath();
+            ctx.moveTo(x + rect.w - 1, y + rect.h * 0.3);
+            ctx.lineTo(x + rect.w * 0.6, y + rect.h * 0.5);
+            ctx.lineTo(x + rect.w * 0.7, y + rect.h * 0.8);
+            ctx.stroke();
+          }
+        }
       }
     }
   }
@@ -550,6 +652,24 @@ class Renderer {
     ctx.font = `${size}px sans-serif`;
     ctx.fillStyle = Theme.textSecondary;
     ctx.fillText(text, this.w / 2, y);
+  }
+
+  /**
+   * Draw a pulsing subtitle (opacity oscillates gently).
+   * Useful for drawing attention to action hints like "点击发射".
+   * @param {string} text
+   * @param {number} y
+   * @param {number} size
+   */
+  drawPulseSubtitle(text, y, size = 14) {
+    const ctx = this.ctx;
+    const alpha = Math.sin(this._time * 3) * 0.25 + 0.75;
+    ctx.globalAlpha = alpha;
+    ctx.textAlign = 'center';
+    ctx.font = `${size}px sans-serif`;
+    ctx.fillStyle = Theme.textSecondary;
+    ctx.fillText(text, this.w / 2, y);
+    ctx.globalAlpha = 1;
   }
 
   /**

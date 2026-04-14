@@ -30,7 +30,8 @@ class BrickField {
     for (const b of level.bricks) {
       const brick = new Brick(b.row, b.col, b.hp, b.color || null);
       this.bricks[b.row][b.col] = brick;
-      if (b.hp < C.INDESTRUCTIBLE_HP) this.totalDestructible++;
+      // All bricks are now destructible (iron bricks take 10 hits)
+      this.totalDestructible++;
     }
   }
 

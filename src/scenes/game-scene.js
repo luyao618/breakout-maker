@@ -310,9 +310,9 @@ class GameScene {
       this.activePowerUps,
     );
 
-    // Show launch hint when waiting for first tap
+    // Show launch hint when waiting for first tap (with pulse animation)
     if (!this._launched) {
-      r.drawSubtitle('点击发射', C.SCREEN_H - 120, 16);
+      r.drawPulseSubtitle('点击发射', C.SCREEN_H - 120, 16);
     }
   }
 

@@ -6,14 +6,15 @@ class Brick {
   /**
    * @param {number} row
    * @param {number} col
-   * @param {number} hp     - hit points (>= INDESTRUCTIBLE_HP = unbreakable)
+   * @param {number} hp     - hit points (10 = iron brick, tough but breakable)
    * @param {string|null} color - override colour, or null for hp-based
    */
   constructor(row, col, hp = 1, color = null) {
     this.row = row;
     this.col = col;
-    this.hp = hp;
-    this.maxHp = hp;
+    // Convert legacy indestructible (999) to iron (10)
+    this.hp = (hp >= C.INDESTRUCTIBLE_HP) ? C.IRONCLAD_HP : hp;
+    this.maxHp = this.hp;
     this.color = color;     // explicit colour override
     this.alive = true;
     this.shakeTimer = 0;    // visual feedback on hit
@@ -21,12 +22,17 @@ class Brick {
 
   /**
    * Register a hit on this brick.
-   * @param {boolean} isFireball - if true, brick is destroyed instantly
+   * @param {boolean} isFireball - if true, non-iron brick is destroyed instantly
    * @returns {boolean} true if the brick was destroyed by this hit
    */
   hit(isFireball = false) {
-    // Indestructible bricks only shake
-    if (this.hp >= C.INDESTRUCTIBLE_HP) {
+    // Iron bricks always take exactly 1 hp per hit (fireball doesn't one-shot them)
+    if (this.maxHp >= C.IRONCLAD_HP) {
+      this.hp--;
+      if (this.hp <= 0) {
+        this.alive = false;
+        return true; // destroyed
+      }
       this.shakeTimer = 0.15;
       return false;
     }

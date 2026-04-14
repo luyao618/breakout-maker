@@ -187,11 +187,13 @@ suite.test('Brick.hit(): 2-hp brick takes 2 hits to destroy', () => {
   assert(!brick.alive);
 });
 
-suite.test('Brick indestructible (hp=999) does not die', () => {
+suite.test('Brick iron (hp=999 in JSON) converts to IRONCLAD_HP=10', () => {
   const brick = new Brick(0, 0, C.INDESTRUCTIBLE_HP);
+  assertEqual(brick.hp, C.IRONCLAD_HP, 'HP should be converted to 10');
+  assertEqual(brick.maxHp, C.IRONCLAD_HP, 'maxHp should be 10');
   const destroyed = brick.hit();
-  assert(!destroyed, 'Indestructible brick should not be destroyed');
-  assertEqual(brick.hp, C.INDESTRUCTIBLE_HP, 'HP should remain 999');
+  assert(!destroyed, 'Iron brick should not be destroyed in 1 hit');
+  assertEqual(brick.hp, C.IRONCLAD_HP - 1, 'HP should decrease by 1');
   assert(brick.alive, 'Should still be alive');
 });
 
@@ -202,11 +204,12 @@ suite.test('Brick.hit(isFireball=true): instantly destroys normal brick', () => 
   assert(!brick.alive);
 });
 
-suite.test('Brick.hit(isFireball=true): does not destroy indestructible', () => {
+suite.test('Brick.hit(isFireball=true): does not one-shot iron brick', () => {
   const brick = new Brick(0, 0, C.INDESTRUCTIBLE_HP);
   const destroyed = brick.hit(true);
-  assert(!destroyed, 'Fireball should not destroy indestructible');
+  assert(!destroyed, 'Fireball should not one-shot iron brick');
   assert(brick.alive);
+  assertEqual(brick.hp, C.IRONCLAD_HP - 1, 'Iron brick loses 1 hp from fireball');
 });
 
 suite.test('Brick.update(): decrements shakeTimer', () => {
@@ -252,7 +255,7 @@ suite.test('BrickField.isCleared(): false when bricks remain', () => {
   assert(!bf.isCleared(), 'Should not be cleared');
 });
 
-suite.test('BrickField.isCleared(): true when all destructible bricks gone', () => {
+suite.test('BrickField.isCleared(): true when all bricks gone (including iron)', () => {
   const level = {
     name: 'Test', gridWidth: 2, gridHeight: 1,
     ballSpeed: 300, paddleWidth: 90, lives: 3,
@@ -262,23 +265,30 @@ suite.test('BrickField.isCleared(): true when all destructible bricks gone', () 
     ],
   };
   const bf = new BrickField(level, 375);
-  assertEqual(bf.totalDestructible, 1, 'Only 1 destructible brick');
+  assertEqual(bf.totalDestructible, 2, 'All bricks are destructible (iron included)');
 
-  // Destroy the destructible one
+  // Destroy both
   bf.bricks[0][0].hit();
   bf.destroyed++;
-  assert(bf.isCleared(), 'Should be cleared (only destructible brick gone)');
+  assert(!bf.isCleared(), 'Not cleared yet — iron brick still alive');
+
+  // Destroy iron brick (10 hits)
+  for (let i = 0; i < C.IRONCLAD_HP; i++) {
+    bf.bricks[0][1].hit();
+  }
+  bf.destroyed++;
+  assert(bf.isCleared(), 'Should be cleared after all bricks destroyed');
 });
 
-suite.test('BrickField.isCleared(): indestructible-only level is cleared immediately', () => {
+suite.test('BrickField: iron-only level requires destroying iron bricks', () => {
   const level = {
     name: 'Test', gridWidth: 1, gridHeight: 1,
     ballSpeed: 300, paddleWidth: 90, lives: 3,
     bricks: [{ row: 0, col: 0, hp: C.INDESTRUCTIBLE_HP }],
   };
   const bf = new BrickField(level, 375);
-  assertEqual(bf.totalDestructible, 0, '0 destructible bricks');
-  assert(bf.isCleared(), 'Should be cleared (no destructible bricks)');
+  assertEqual(bf.totalDestructible, 1, '1 iron brick is destructible');
+  assert(!bf.isCleared(), 'Not cleared — iron brick still alive');
 });
 
 suite.test('BrickField.getBrickRect(): returns valid rectangle', () => {
