@@ -4298,6 +4298,8 @@ class InputManager {
     this._game = game;
     this._canvas = canvas;
     this._firstFingerId = null;   // track only one finger at a time
+    this._touchStartX = null;     // touch start position for tap detection
+    this._touchStartY = null;
 
     // --- Mouse events ---
     canvas.addEventListener('mousedown', (e) => {
@@ -4339,11 +4341,27 @@ class InputManager {
         if (t.identifier === this._firstFingerId) {
           this._firstFingerId = null;
           // Only fire tap if the finger didn't move far (avoid triggering on drag)
-          const dx = t.clientX - (this._touchStartX || 0);
-          const dy = t.clientY - (this._touchStartY || 0);
-          if (Math.abs(dx) < 20 && Math.abs(dy) < 20) {
-            this._onDown(t.clientX, t.clientY);
+          if (this._touchStartX !== null) {
+            const dx = t.clientX - this._touchStartX;
+            const dy = t.clientY - this._touchStartY;
+            if (Math.abs(dx) < 20 && Math.abs(dy) < 20) {
+              this._onDown(t.clientX, t.clientY);
+            }
           }
+          this._touchStartX = null;
+          this._touchStartY = null;
+          break;
+        }
+      }
+    });
+
+    // touchcancel: clean up tracked state
+    canvas.addEventListener('touchcancel', (e) => {
+      for (const t of e.changedTouches) {
+        if (t.identifier === this._firstFingerId) {
+          this._firstFingerId = null;
+          this._touchStartX = null;
+          this._touchStartY = null;
           break;
         }
       }
