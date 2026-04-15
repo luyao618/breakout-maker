@@ -15,18 +15,42 @@ echo "================================"
 
 # --- 1. 安装 Docker (如果没有) ---
 if ! command -v docker &> /dev/null; then
-    echo "📦 安装 Docker..."
-    curl -fsSL https://get.docker.com | sh
+    echo "📦 安装 Docker (使用阿里云镜像)..."
+    apt-get update
+    apt-get install -y ca-certificates curl gnupg
+    install -m 0755 -d /etc/apt/keyrings
+    curl -fsSL https://mirrors.aliyun.com/docker-ce/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+    chmod a+r /etc/apt/keyrings/docker.gpg
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://mirrors.aliyun.com/docker-ce/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" > /etc/apt/sources.list.d/docker.list
+    apt-get update
+    apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
     systemctl enable docker
     systemctl start docker
-    echo "✅ Docker 安装完成"
+    echo "✅ Docker + Compose 安装完成"
 fi
 
-# --- 2. 安装 Docker Compose plugin (如果没有) ---
+# --- 2. 确认 Docker Compose plugin ---
 if ! docker compose version &> /dev/null; then
-    echo "📦 安装 Docker Compose..."
+    echo "📦 安装 Docker Compose plugin..."
     apt-get update && apt-get install -y docker-compose-plugin
     echo "✅ Docker Compose 安装完成"
+fi
+
+# --- 2.5. 配置 Docker 镜像加速 (国内服务器) ---
+if [ ! -f /etc/docker/daemon.json ] || ! grep -q registry-mirrors /etc/docker/daemon.json 2>/dev/null; then
+    echo "🪞 配置 Docker 镜像加速..."
+    mkdir -p /etc/docker
+    cat > /etc/docker/daemon.json <<'DAEMON'
+{
+  "registry-mirrors": [
+    "https://mirror.ccs.tencentyun.com",
+    "https://docker.m.daocloud.io"
+  ]
+}
+DAEMON
+    systemctl daemon-reload
+    systemctl restart docker
+    echo "✅ 镜像加速配置完成"
 fi
 
 # --- 3. Clone 项目 ---
