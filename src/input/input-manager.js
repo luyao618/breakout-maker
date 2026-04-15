@@ -18,11 +18,18 @@ class InputManager {
     });
 
     // --- Touch events ---
+    // touchstart: only track the finger and start move tracking.
+    // Do NOT call onTap here — defer to touchend so that
+    // programmatic clicks (file input) and AudioContext.resume()
+    // are allowed by mobile Safari's security policy.
     canvas.addEventListener('touchstart', (e) => {
       e.preventDefault();
       const t = e.changedTouches[0];
       this._firstFingerId = t.identifier;
-      this._onDown(t.clientX, t.clientY);
+      this._touchStartX = t.clientX;
+      this._touchStartY = t.clientY;
+      // Begin move tracking immediately (for paddle movement)
+      this._onMove(t.clientX, t.clientY);
     }, { passive: false });
 
     canvas.addEventListener('touchmove', (e) => {
@@ -35,10 +42,18 @@ class InputManager {
       }
     }, { passive: false });
 
+    // touchend: fire the tap action here so that iOS allows
+    // programmatic input.click() and AudioContext operations.
     canvas.addEventListener('touchend', (e) => {
       for (const t of e.changedTouches) {
         if (t.identifier === this._firstFingerId) {
           this._firstFingerId = null;
+          // Only fire tap if the finger didn't move far (avoid triggering on drag)
+          const dx = t.clientX - (this._touchStartX || 0);
+          const dy = t.clientY - (this._touchStartY || 0);
+          if (Math.abs(dx) < 20 && Math.abs(dy) < 20) {
+            this._onDown(t.clientX, t.clientY);
+          }
           break;
         }
       }
