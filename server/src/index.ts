@@ -1,8 +1,12 @@
 import "dotenv/config";
+import path from "path";
+import { fileURLToPath } from "url";
 import express from "express";
 import cors from "cors";
 import { generateLevel } from "./generate-level.js";
 import type { GenerateRequest } from "./types.js";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const app = express();
 const PORT = parseInt(process.env.PORT || "3001", 10);
@@ -16,6 +20,10 @@ if (!process.env.LLM_API_KEY) {
 // Middleware
 app.use(cors());
 app.use(express.json({ limit: "1kb" }));
+
+// Serve static frontend (production: /app/public, dev: ../preview.html)
+const publicDir = path.resolve(__dirname, "../../public");
+app.use(express.static(publicDir));
 
 // Health check
 app.get("/api/health", (_req, res) => {
@@ -71,6 +79,12 @@ app.use(
     res.status(500).json({ error: "服务器内部错误" });
   }
 );
+
+// Fallback: serve index.html for non-API routes (SPA)
+app.get("*", (_req, res) => {
+  const indexPath = path.join(publicDir, "index.html");
+  res.sendFile(indexPath);
+});
 
 app.listen(PORT, () => {
   console.log(`🧱 Breakout Maker server running on http://localhost:${PORT}`);

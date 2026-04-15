@@ -1,0 +1,17 @@
+.git/
+.claude/
+.harness/
+node_modules/
+dist/
+.env
+*.log
+.DS_Store
+screenshots/
+test/
+server/node_modules/
+server/dist/
+server/.env
+deploy/certbot/
+preview.html
+README.md
+.impeccable.md
