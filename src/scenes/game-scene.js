@@ -322,6 +322,9 @@ class GameScene {
   // ---- Input ----
 
   onTap(x, y) {
+    // Ensure audio is active (iOS may suspend AudioContext)
+    if (typeof audio !== 'undefined') audio.init();
+
     // Tap on HUD area → pause
     if (y < C.PLAY_TOP) {
       this._game.stateMachine.transition('PAUSED');

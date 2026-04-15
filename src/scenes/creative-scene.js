@@ -334,7 +334,7 @@ class CreativeScene {
 
     ctx.font = '10px "Avenir Next", "Segoe UI", sans-serif';
     ctx.fillStyle = Theme.textSecondary;
-    ctx.fillText('PREVIEW', C.SCREEN_W / 2, 125);
+    ctx.fillText('\u9884\u89c8', C.SCREEN_W / 2, 125);
 
     if (this._previewLevel) this._renderPreview(ctx, 140);
 

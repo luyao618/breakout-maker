@@ -73,7 +73,7 @@ const C = {
   BASE_SCORE: 10,             // Base score per brick
 
   PLAY_TOP: 80,               // Top of play area (px from canvas top)
-  PLAY_BOTTOM_MARGIN: 60,     // Bottom margin for paddle area
+  PLAY_BOTTOM_MARGIN: 100,     // Bottom margin for paddle area
 
   SCREEN_W: 375,              // Reference screen width
   SCREEN_H: 667,              // Reference screen height
@@ -967,9 +967,22 @@ class AudioManager {
   // to satisfy browser autoplay policies and unlock the AudioContext.
   // --------------------------------------------------------------------------
   init() {
-    if (this._initialized) return;
+    if (this._initialized) {
+      // On iOS, AudioContext may get suspended when the page loses focus.
+      // Resume it on every user interaction to ensure audio keeps working.
+      if (this.ctx && this.ctx.state === 'suspended') {
+        this.ctx.resume();
+      }
+      return;
+    }
 
     this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+
+    // iOS Safari: AudioContext starts in 'suspended' state.
+    // Must be resumed from a user gesture.
+    if (this.ctx.state === 'suspended') {
+      this.ctx.resume();
+    }
 
     // Master gain for background music — kept low so it doesn't overpower SFX
     this.musicGain = this.ctx.createGain();
@@ -1894,7 +1907,30 @@ class Renderer {
       ctx.font = 'bold 11px "Avenir Next", "Segoe UI", sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(this._powerUpIcon(drop.type), 0, 1);
+
+      if (drop.type === 'widePaddle') {
+        // Draw a custom wide-paddle icon: ◀━━━━▶
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(-6, 0);
+        ctx.lineTo(6, 0);
+        ctx.stroke();
+        // Left arrow head
+        ctx.beginPath();
+        ctx.moveTo(-3, -3);
+        ctx.lineTo(-6, 0);
+        ctx.lineTo(-3, 3);
+        ctx.stroke();
+        // Right arrow head
+        ctx.beginPath();
+        ctx.moveTo(3, -3);
+        ctx.lineTo(6, 0);
+        ctx.lineTo(3, 3);
+        ctx.stroke();
+      } else {
+        ctx.fillText(this._powerUpIcon(drop.type), 0, 1);
+      }
 
       ctx.restore();
     }
@@ -1905,7 +1941,7 @@ class Renderer {
       case 'split':       return '\u00f7';
       case 'multiShot':   return '\u21d1';
       case 'fireball':    return '\u2605';
-      case 'widePaddle':  return '\u2194';
+      case 'widePaddle':  return 'W';
       case 'extraLife':   return '+';
       default:            return '?';
     }
@@ -2918,6 +2954,9 @@ class GameScene {
   // ---- Input ----
 
   onTap(x, y) {
+    // Ensure audio is active (iOS may suspend AudioContext)
+    if (typeof audio !== 'undefined') audio.init();
+
     // Tap on HUD area → pause
     if (y < C.PLAY_TOP) {
       this._game.stateMachine.transition('PAUSED');
@@ -3470,7 +3509,7 @@ class ImageUploadScene {
     ctx.textAlign = 'center';
     ctx.font = '10px "Avenir Next", "Segoe UI", sans-serif';
     ctx.fillStyle = Theme.textSecondary;
-    ctx.fillText('PREVIEW', C.SCREEN_W / 2, previewY - 10);
+    ctx.fillText('\u9884\u89c8', C.SCREEN_W / 2, previewY - 10);
 
     // Border with corner brackets
     const r = this._game.renderer;
@@ -3863,7 +3902,7 @@ class CreativeScene {
 
     ctx.font = '10px "Avenir Next", "Segoe UI", sans-serif';
     ctx.fillStyle = Theme.textSecondary;
-    ctx.fillText('PREVIEW', C.SCREEN_W / 2, 125);
+    ctx.fillText('\u9884\u89c8', C.SCREEN_W / 2, 125);
 
     if (this._previewLevel) this._renderPreview(ctx, 140);
 

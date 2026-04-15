@@ -32,7 +32,7 @@ const C = {
   BASE_SCORE: 10,             // Base score per brick
 
   PLAY_TOP: 80,               // Top of play area (px from canvas top)
-  PLAY_BOTTOM_MARGIN: 60,     // Bottom margin for paddle area
+  PLAY_BOTTOM_MARGIN: 100,     // Bottom margin for paddle area
 
   SCREEN_W: 375,              // Reference screen width
   SCREEN_H: 667,              // Reference screen height

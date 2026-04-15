@@ -642,7 +642,30 @@ class Renderer {
       ctx.font = 'bold 11px "Avenir Next", "Segoe UI", sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(this._powerUpIcon(drop.type), 0, 1);
+
+      if (drop.type === 'widePaddle') {
+        // Draw a custom wide-paddle icon: ◀━━━━▶
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(-6, 0);
+        ctx.lineTo(6, 0);
+        ctx.stroke();
+        // Left arrow head
+        ctx.beginPath();
+        ctx.moveTo(-3, -3);
+        ctx.lineTo(-6, 0);
+        ctx.lineTo(-3, 3);
+        ctx.stroke();
+        // Right arrow head
+        ctx.beginPath();
+        ctx.moveTo(3, -3);
+        ctx.lineTo(6, 0);
+        ctx.lineTo(3, 3);
+        ctx.stroke();
+      } else {
+        ctx.fillText(this._powerUpIcon(drop.type), 0, 1);
+      }
 
       ctx.restore();
     }
@@ -653,7 +676,7 @@ class Renderer {
       case 'split':       return '\u00f7';
       case 'multiShot':   return '\u21d1';
       case 'fireball':    return '\u2605';
-      case 'widePaddle':  return '\u2194';
+      case 'widePaddle':  return 'W';
       case 'extraLife':   return '+';
       default:            return '?';
     }

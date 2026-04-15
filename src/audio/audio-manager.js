@@ -19,9 +19,22 @@ class AudioManager {
   // to satisfy browser autoplay policies and unlock the AudioContext.
   // --------------------------------------------------------------------------
   init() {
-    if (this._initialized) return;
+    if (this._initialized) {
+      // On iOS, AudioContext may get suspended when the page loses focus.
+      // Resume it on every user interaction to ensure audio keeps working.
+      if (this.ctx && this.ctx.state === 'suspended') {
+        this.ctx.resume();
+      }
+      return;
+    }
 
     this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+
+    // iOS Safari: AudioContext starts in 'suspended' state.
+    // Must be resumed from a user gesture.
+    if (this.ctx.state === 'suspended') {
+      this.ctx.resume();
+    }
 
     // Master gain for background music — kept low so it doesn't overpower SFX
     this.musicGain = this.ctx.createGain();

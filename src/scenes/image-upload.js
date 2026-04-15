@@ -191,7 +191,7 @@ class ImageUploadScene {
     ctx.textAlign = 'center';
     ctx.font = '10px "Avenir Next", "Segoe UI", sans-serif';
     ctx.fillStyle = Theme.textSecondary;
-    ctx.fillText('PREVIEW', C.SCREEN_W / 2, previewY - 10);
+    ctx.fillText('\u9884\u89c8', C.SCREEN_W / 2, previewY - 10);
 
     // Border with corner brackets
     const r = this._game.renderer;
