@@ -926,7 +926,9 @@ export default function App() {
                     data-difficulty={level.difficulty || 1}
                   >
                     {index === selected && <Check size={12} />}
-                    {difficultyNames[level.difficulty || 1]}
+                    {index === 12
+                      ? "彩蛋"
+                      : difficultyNames[level.difficulty || 1]}
                   </span>
                 </div>
                 <BrickPreview
@@ -942,7 +944,10 @@ export default function App() {
           </div>
           <div className="level-briefing" aria-live="polite">
             <span className="eyebrow">
-              破局提示 / {difficultyNames[selectedLevel.difficulty || 1]}
+              破局提示 /{" "}
+              {selected === 12
+                ? "彩蛋"
+                : difficultyNames[selectedLevel.difficulty || 1]}
             </span>
             <p>{selectedLevel.briefing}</p>
             <BrickLegend />

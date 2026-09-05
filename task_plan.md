@@ -27,7 +27,7 @@ Complete
 - Browser playtest and desktop/mobile visual review, address findings.
 
 ## Next Step
-Tactical release is live at https://luyao.blog/games/breakout/. All implementation, calibration, browser checks and deployment validation are complete.
+Restored 鹿原加油 / 必胜 dedication is live at https://luyao.blog/games/breakout/ as stage13. Preserve its canonical source in future campaign changes.
 
 ## Design decisions
 - Palette: void #090b16, titanium #81869e, pearl #edf0ff, lavender #b7a1ff, ion #8ee7f0, ember #f8b78c.
@@ -37,6 +37,7 @@ Tactical release is live at https://luyao.blog/games/breakout/. All implementati
 - Original `.impeccable.md` provides accessibility/product context; user explicitly authorizes replacing its old visual implementation.
 
 ## Errors
+- The restored 778-brick dedication exceeded the tactical campaign test’s 600-second cutoff. A longer control-only run cleared all three seeds in493–663s; preserve the original artwork/settings and allow1200 simulated seconds for this stage only.
 - Difficulty pass: a pre-existing media-query spacing error surfaced during CSS minification; corrected and rebuilt without that warning. Immediate post-reload browser clicks ran before mount; waited for the next DOM snapshot, then verified controls.
 - Goal creation reported an existing active goal; verified the existing goal already matches this request.
 - Browser test helper `wait` became stuck after an HMR component replacement during upload; isolated final browser checks from editing, stopped only the task-owned stalled daemon, and created a fresh QA session.
@@ -84,3 +85,9 @@ Tactical release is live at https://luyao.blog/games/breakout/. All implementati
 - Bound multi-ball, penetration, life income and skill charge so aiming and survival matter.
 - Compare control-only simulated skill tiers, retain expert feasibility checks and verify mobile presentation.
 - Deploy frontend release without changing blog, API credentials, trial state, unlocked stages or header notifications.
+
+### Phase 11 — Preserve Lu Yuan dedication
+**Status:** complete
+- Restore the original 鹿原加油 / 必胜 brick bitmap and starting settings, retaining the modern engine.
+- Protect the authored dedication as a separate source asset that the campaign generator preserves.
+- Keep stages 1–12 unchanged; verify playability and mobile text rendering, then deploy frontend only.

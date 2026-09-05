@@ -16,7 +16,10 @@ describe("authored campaign playability", () => {
       let pulses = 0;
       let finite = true;
       let frames = 0;
-      while (frames < 36000 && e.status !== "won" && e.status !== "lost") {
+      // The preserved dedication has 778 multi-HP text pixels; keep the normal
+      // campaign's 10-minute bound but allow 20 simulated minutes for this bitmap.
+      const maxFrames = index === 12 ? 72000 : 36000;
+      while (frames < maxFrames && e.status !== "won" && e.status !== "lost") {
         if (e.status === "ready") e.launch();
         if (e.getSnapshot().pulseReady && e.activatePulse()) pulses++;
         if (e.status !== "playing") break;

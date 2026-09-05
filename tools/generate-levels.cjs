@@ -260,26 +260,22 @@ const campaign = [];
   campaign.push(l.finish());
 }
 
-// 13: Three interrupted collectors, four weak points, a narrow equator and an armored heart.
-{
-  const l = level(13, '戴森天幕', 5, '利用外环缺口逐层拆解；四枚金色弱点能削开装甲，最后收束角度击穿核心。', 405, 76, 26, 22);
-  const cx = 12.5, cy = 10;
-  l.paint((x, y) => ring(x, y, cx, cy, 11.8, 9.5, 0.065), VIOLET);
-  l.paint((x, y) => ring(x, y, cx, cy, 8, 7, 0.09), CYAN);
-  l.paint((x, y) => ring(x, y, cx, cy, 11.8, 3.3, 0.13), ROSE);
-  l.role((x, y) => y >= 11 || (x >= 8 && x <= 17 && y <= 4), 'armor');
-  l.cut((x, y) => (x >= 5 && x <= 6 || x >= 19 && x <= 20) && (y < 5 || y > 15));
-  l.cut((x, y) => y >= 10 && y <= 11 && (x < 7 || x > 18));
-  l.cut((x, y) => x >= 12 && x <= 13 && y >= 15);
-  rect(l, 10, 8, 15, 12, BLUE, 'armor');
-  for (const [x, y] of [[8, 7], [17, 7], [8, 13], [17, 13]]) reactor(l, x, y, ROSE);
-  for (const [x, y] of [[2, 6], [23, 6], [5, 16], [20, 16], [12, 3], [13, 17]]) l.add(x, y, MINT, 'accelerator');
-  for (const x of [11, 14]) l.add(x, 12, ARMOR, 'armor', 3);
-  campaign.push(l.finish());
-}
+// 13 is a personal dedication to the author's brother, Lu Yuan. Preserve the
+// original Songti brick bitmap (鹿原加油 / 必胜), HP and starting settings.
+// Never replace it with a procedural challenge when redesigning the campaign.
+const easterEgg = JSON.parse(fs.readFileSync(
+  path.join(__dirname, '..', 'levels', 'preserved', 'lu-yuan-easter-egg.json'), 'utf8',
+));
+campaign.push({
+  ...easterEgg,
+  name: '关卡13 - 鹿原加油',
+  difficulty: 1,
+  briefing: '这一关的星光，送给鹿原。加油，必胜！',
+});
 
 const outputDirectory = path.join(__dirname, '..', 'levels');
 for (const [index, stage] of campaign.entries()) {
+  const preservedDedication = index === 12;
   const positions = new Set();
   let totalHP = 0;
   for (const brick of stage.bricks) {
@@ -287,14 +283,14 @@ for (const [index, stage] of campaign.entries()) {
     if (positions.has(key)) throw new Error(`${stage.name}: duplicate ${key}`);
     positions.add(key);
     if (brick.row < 0 || brick.row >= stage.gridHeight || brick.col < 0 || brick.col >= stage.gridWidth) throw new Error(`${stage.name}: out-of-bounds ${key}`);
-    if (![1, 2, 3].includes(brick.hp) || !(brick.kind in KIND_HP)) throw new Error(`${stage.name}: invalid brick ${key}`);
-    if (brick.kind !== 'armor' && brick.hp !== KIND_HP[brick.kind]) throw new Error(`${stage.name}: incorrect role HP ${key}`);
-    if (!/^#[a-f0-9]{6}$/i.test(brick.color)) throw new Error(`${stage.name}: invalid color`);
+    if (![1, 2, 3].includes(brick.hp) || (!preservedDedication && !(brick.kind in KIND_HP))) throw new Error(`${stage.name}: invalid brick ${key}`);
+    if (!preservedDedication && brick.kind !== 'armor' && brick.hp !== KIND_HP[brick.kind]) throw new Error(`${stage.name}: incorrect role HP ${key}`);
+    if (!preservedDedication && !/^#[a-f0-9]{6}$/i.test(brick.color)) throw new Error(`${stage.name}: invalid color`);
     if (90 + (brick.row + 1) * 357 / stage.gridWidth - 2 > 400) throw new Error(`${stage.name}: brick field too low`);
     totalHP += brick.hp;
   }
-  if (totalHP / stage.bricks.length > 1.72 || totalHP / stage.bricks.length < 1.25) throw new Error(`${stage.name}: HP distribution outside tactical budget`);
-  if (stage.bricks.length < 90 || stage.bricks.length > 220) throw new Error(`${stage.name}: inappropriate brick count ${stage.bricks.length}`);
+  if (!preservedDedication && (totalHP / stage.bricks.length > 1.72 || totalHP / stage.bricks.length < 1.25)) throw new Error(`${stage.name}: HP distribution outside tactical budget`);
+  if (!preservedDedication && (stage.bricks.length < 90 || stage.bricks.length > 220)) throw new Error(`${stage.name}: inappropriate brick count ${stage.bricks.length}`);
   const filename = `level-${String(index + 1).padStart(2, '0')}.json`;
   const header = JSON.stringify({ ...stage, bricks: undefined }, null, 2).slice(0, -2);
   const encodedBricks = stage.bricks.map((brick) => `    ${JSON.stringify(brick)}`).join(',\n');

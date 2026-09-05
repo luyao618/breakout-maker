@@ -29,3 +29,4 @@
 
 - Independent untouched baseline calibration: all 156 seeded control-only attempts won (four synthetic skill tiers ×13 stages ×3 seeds), 14.1–16.4s mean times, each run reached24 balls. Across all runs only one life lost. These synthetic models are sensitivity checks, not measured player win rates.
 - Final balance uses eight-cell reactor splash (also triggerable by direct pulse hits), bounded to one collateral wave. Stage briefings, help and renderer legend describe that final rule consistently. Six viewport checks retain the previous top-header notification guarantee.
+- Stage13 is a protected personal dedication for the author’s brother, 鹿原. Preserve 鹿原加油 and the original lower 必胜 text during all future campaign redesigns. Original source Git blob5c377a9d16a519c71e89a3e50c6d081e3fab80c7; 60×44, 778 bricks, rows4–40, 526hp2 and252hp3.

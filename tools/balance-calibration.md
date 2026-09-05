@@ -63,3 +63,9 @@ The same four controller profiles and three seeds per stage were replayed agains
 Interpretation: the runaway loop is removed; no run exceeds four balls or starting lives. The early stages leave room to practice angles, and later stages combine smaller paddles, armor gates and speed hazards. Successful synthetic clears commonly take one to three minutes, rather than around fifteen seconds. Some cleanup runs are longer; this is a first calibrated release, with human feedback still needed for fine tuning.
 
 Physics was also corrected: brick sweep tests now use the movement actually advanced, and departing balls do not re-hit the same armor face. This correction is included in the comparison alongside changed campaign geometry and powers, so the comparison does not isolate a single balance parameter.
+
+## Preserved dedication
+
+The table above records the tactical release before the stage13 dedication was restored. The original 鹿原加油 / 必胜 bitmap is now preserved separately (778 bricks, speed300, paddle100, lives5), so those stage13 metrics do not describe the current dedication. Stages1–12 and all shared mechanics remain unchanged.
+
+The restored dedication cleared with all three ideal-controller seeds in 492.9–662.4 simulated seconds (mean603.7), with no life loss. These are feasibility timings, not measured player sessions. Its high-resolution original lettering and HP naturally make it longer than the smaller tactical stages. The campaign test permits20 simulated minutes for this preserved stage, retaining the existing10-minute bounds for stages1–12.
