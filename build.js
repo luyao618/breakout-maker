@@ -74,7 +74,7 @@ const levels = levelFiles.map(f => {
 // array while keeping the top-level fields readable.
 function levelToJS(level) {
   const bricksStr = level.bricks
-    .map(b => `{row:${b.row},col:${b.col},hp:${b.hp}}`)
+    .map(b => JSON.stringify(b))
     .join(',');
 
   return [

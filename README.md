@@ -12,6 +12,11 @@
 
 ### 超新星街机版
 
+![全部开放的新星图关卡](screenshots/campaign-open-selection.png)
+
+- **全新星图关卡**：13 张不同结构的星图，184–522 块砖，涵盖星环、双子反应堆、矩阵、涡旋、迷宫、分形圣殿与戴森天幕。全部关卡从开始即可任选，旧存档不会锁关。
+- **手机清晰视野**：拾取提示和道具倒计时固定在球场上方；手机不再显示遮挡挡板的大卡片和拾取爆发光圈。
+
 ![超新星脉冲实机画面](screenshots/arcade-supernova.png)
 
 - **主动技能**：击碎砖块积蓄能量，满格后按 **E**（手机点击底部按钮）释放超新星，冲击暴露砖块并获得 5 秒火球穿透。技能期间不回充能量。
@@ -22,7 +27,7 @@
 
 在星空中的立体球场里打砖块。新版以 React 19、Three.js 和 React Three Fiber 重建界面与 3D 渲染，把梦幻星尘、发光砖块与工业仪器般的操作面板融为一体。
 
-原有玩法继续保留：13 个内置关卡、图片转砖块、AI 创造关卡，以及连击计分、生命、关卡解锁和五种道具。3D 场景呈现原有平面打砖块规则；球、挡板、碰撞和计分复用原游戏逻辑。
+原有玩法继续保留：13 个内置关卡、图片转砖块、AI 创造关卡，以及连击计分、生命和五种道具；全部关卡从一开始即可自由选择。3D 场景呈现原有平面打砖块规则；球、挡板、碰撞和计分复用原游戏逻辑。
 
 ### 本地运行
 
@@ -46,7 +51,7 @@ npm run test:legacy
 
 ### 三种模式与操作
 
-- **关卡模式**：选择已解锁关卡，控制挡板反弹小球，清除砖块并推进到下一关。
+- **关卡模式**：自由选择任意关卡，控制挡板反弹小球，清除砖块并推进到下一关。
 - **图片模式**：选择本地图片，以原有中值切割配色和砖块映射算法生成关卡。
 - **创造模式**：输入图案描述，调用 AI 服务生成关卡；常见图案可以命中服务端模板。
 - **控制挡板**：在球场内移动鼠标或拖动手指，也可使用方向键或 `A` / `D`。
@@ -143,7 +148,7 @@ npm run test:legacy
 
 ### Modes and controls
 
-- **Level mode:** select an unlocked level, bounce the ball with your paddle, and clear the bricks to progress.
+- **Level mode:** select any level freely, bounce the ball with your paddle, and clear the bricks to progress.
 - **Image mode:** choose a local image and convert it into a level using the original median-cut palette and brick-mapping algorithms.
 - **Create mode:** describe a pattern and request a level from the AI server; common patterns can use server-side templates.
 - **Move:** move your mouse or drag a finger across the court, or use the arrow keys / `A` and `D`.

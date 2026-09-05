@@ -181,7 +181,7 @@ describe("reactor charge and exposed-field pulse", () => {
       PROGRESS_KEY,
       expect.anything(),
     );
-    expect(loadProgress().unlockedLevels).toBe(6);
+    expect(loadProgress().unlockedLevels).toBe(13);
     const won = engine.getSnapshot();
     engine.update(10);
     expect(engine.activatePulse()).toBe(false);

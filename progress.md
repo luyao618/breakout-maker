@@ -42,3 +42,13 @@
 - Real Kolors requests succeeded with the new key (shared and personal); public forwarded-IP spoof test still reports the real visitor's untouched 3/3 allowance.
 - Restarted production service and confirmed the reserved test IP remains at 3 used / 0 remaining. Public visitor allowance remains 3/3, and the blog homepage/feed hashes are unchanged.
 - The new model generated successfully with the new service key; invalid own keys do not fall back to shared credentials. Quota state survives outside versioned release folders.
+- Mobile HUD fix: reserved 32px power status row above the arena; old pickup card and bottom timer strip are hidden only on mobile. The row exists continuously so catching powers cannot move the canvas or paddle.
+- Removed React level locks and all partial-save access gates; the legacy Canvas edition also opens every level.
+- Existing physics tests were coupled to the old first-stage empty areas; switched wall/paddle/movement fixtures to an empty field so authored levels cannot accidentally interfere with isolated physics assertions.
+- Final campaign rebuilt from deterministic geometry; first stage was opened up to 224 bricks, and all 13 final patterns retain entrance routes and moderate HP budgets.
+- Added 13 full simulation tests using only legal paddle movement, launch and Supernova controls. Every final level clears with finite physics. Total test count is now 162 (106 legacy + 56 modern).
+- Suppressed mobile-only powerCollect burst effects after stress-testing five simultaneous catches; sound, falling-power auras and the new outside-board status remain intact.
+- Frontend-only release staged at /opt/breakout-maker/releases/20260905-campaign and activated by an atomic current symlink switch. Existing API binaries copied unchanged; no API service restart or environment/secret changes.
+- Before/after checks: API PID remains 538453, persistent trial JSON SHA256 remains 94f48dc776d569a93f6d90e4632bd784f305df0b4893182de829ccf38fdd314f, and blog homepage/feed hashes remain unchanged.
+- Hosted verification: seeded an old unlockedLevels=1 save, reloaded, and confirmed all 13 cards enabled. Directly selected and launched level 13 (戴森天幕) at 390×844; status row remains outside the arena and no horizontal overflow occurs.
+- Final screenshots: screenshots/campaign-open-selection.png and screenshots/mobile-clear-power-hud.png. All isolated QA browsers closed.

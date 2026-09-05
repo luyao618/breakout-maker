@@ -182,7 +182,10 @@ export function ImpactEffects({
     const latest = engine.feedback.filter(
       (event) => engine.elapsed - event.time < duration(event),
     );
+    const compact = typeof window !== "undefined" && window.innerWidth <= 600;
     for (const e of latest) {
+      // Pickup confirmation is outside the board on phones; avoid masking the paddle with stacked bursts.
+      if (compact && e.kind === "powerCollect") continue;
       const age = Math.max(0, engine.elapsed - e.time);
       const life = duration(e);
       const progress = age / life;

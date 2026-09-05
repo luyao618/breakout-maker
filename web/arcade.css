@@ -909,3 +909,65 @@
     inset: 33px -6px 24px;
   }
 }
+
+/* Mobile power feedback lives above the arena, outside all ball trajectories. */
+.mobile-power-status {
+  display: none;
+}
+.level-difficulty {
+  font-size: 8px;
+  font-weight: 400;
+  color: #9fa9c5;
+}
+@media (max-width: 600px) {
+  .arcade-edition .pickup-announcement,
+  .arcade-edition .active-power-strip {
+    display: none;
+  }
+  .mobile-power-status {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    width: 100%;
+    max-width: 440px;
+    height: 32px;
+    min-height: 32px;
+    padding: 0 7px 7px;
+    flex-shrink: 0;
+    pointer-events: none;
+  }
+  .mobile-pickup-message {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    min-width: 0;
+    font-size: 9px;
+    line-height: 1.5;
+    color: #8897b5;
+    white-space: nowrap;
+  }
+  .mobile-pickup-message.has-pickup {
+    color: var(--pickup-color);
+  }
+  .mobile-power-timers {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    flex-shrink: 0;
+  }
+  .mobile-power-timers > span {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .mobile-power-timers b {
+    font-family: "JetBrains Mono";
+    font-weight: 400;
+    font-size: 9px;
+  }
+  .arcade-edition .game-stage {
+    height: calc(100svh - 291px);
+    min-height: 280px;
+  }
+}

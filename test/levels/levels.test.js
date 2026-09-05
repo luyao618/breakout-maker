@@ -73,23 +73,23 @@ suite.test('all levels have required fields', () => {
 // Bricks Have Color Applied (from _applyColors)
 // =============================================================================
 
-suite.test('bricks have color applied by _applyColors', () => {
+suite.test('authored colors are preserved and missing colors receive a palette', () => {
   for (let i = 0; i < getTotalLevels(); i++) {
     const level = getPresetLevel(i);
-    for (const brick of level.bricks) {
-      assert(brick.color !== undefined && brick.color !== null, `Level ${i} brick should have color`);
-      assert(Array.isArray(brick.color), `Level ${i} brick color should be an array (gradient pair)`);
-      assertEqual(brick.color.length, 2, `Level ${i} brick color should have 2 entries (gradient pair)`);
+    for (let j = 0; j < level.bricks.length; j++) {
+      const brick = level.bricks[j];
+      const original = LEVEL_DATA[i].bricks[j];
+      assert(brick.color !== undefined && brick.color !== null, 'Every brick has a render color');
+      if (original.color) assertEqual(JSON.stringify(brick.color), JSON.stringify(original.color), 'Keep authored colors');
+      else assert(Array.isArray(brick.color) && brick.color.length === 2, 'Missing colors get theme gradients');
     }
   }
 });
 
 suite.test('_applyColors does not modify the original LEVEL_DATA', () => {
-  const originalBrick = LEVEL_DATA[0].bricks[0];
-  const level = getPresetLevel(0);
-  // Original should not have color (colors are applied at runtime)
-  assert(originalBrick.color === undefined || originalBrick.color === null || originalBrick.color === undefined,
-    'Original LEVEL_DATA brick should not have color mutated');
+  const before = JSON.stringify(LEVEL_DATA);
+  for (let i = 0; i < getTotalLevels(); i++) getPresetLevel(i);
+  assertEqual(JSON.stringify(LEVEL_DATA), before, 'Original authored levels remain immutable');
 });
 
 // =============================================================================

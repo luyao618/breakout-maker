@@ -61,3 +61,10 @@ Game is live at https://luyao.blog/games/breakout/; gameplay, AI and blog coexis
 - Interpret 3 attempts/IP as a lifetime allowance, persisted across restarts/deployments; malformed/busy requests do not spend it.
 - Enforce quota on server with trusted proxy IP handling; personal keys bypass shared quota, never fall back to shared credentials on errors.
 - Add quota indicator and personal API key input; verify boundaries, spoof resistance, persistence, and redeploy without affecting the blog.
+
+### Phase 8 — Clear mobile HUD and redesigned open campaign
+**Status:** complete
+- Move mobile pickup announcements and ongoing power timers into a reserved strip outside the playfield; protect the paddle/ball approach area.
+- Redesign all 13 campaign layouts with richer geometry, entry channels and varied brick toughness, then test feasibility and mobile rendering.
+- Remove campaign locks for fresh and existing players, including legacy saves.
+- Redeploy while retaining server secrets, persistent IP trial usage and blog routing.

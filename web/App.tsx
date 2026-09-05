@@ -11,7 +11,6 @@ import {
   Heart,
   ImagePlus,
   Layers3,
-  LockKeyhole,
   Maximize2,
   MousePointer2,
   Music2,
@@ -24,16 +23,15 @@ import {
   WandSparkles,
   Zap,
 } from "lucide-react";
-import {
-  GameEngine,
-  levels,
-  loadProgress,
-  saveProgress,
-  setMuted,
-} from "./game/engine";
+import { GameEngine, levels, setMuted } from "./game/engine";
 import type { GameSnapshot } from "./game/types";
 import { sound } from "./audio/sound-engine";
-import { ArcadeOverlay, PulseControl, AudioDeck } from "./components/ArcadeHUD";
+import {
+  ArcadeOverlay,
+  PulseControl,
+  AudioDeck,
+  MobilePowerStatus,
+} from "./components/ArcadeHUD";
 import BrickPreview from "./components/BrickPreview";
 import ModalFrame from "./components/ModalFrame";
 import Maker from "./components/Maker";
@@ -61,7 +59,6 @@ const formatScore = (value: number) => String(value).padStart(6, "0");
 export default function App() {
   const [modal, setModal] = useState<Modal>(null);
   const [selected, setSelected] = useState(0);
-  const [unlocked, setUnlocked] = useState(() => loadProgress().unlockedLevels);
   const [muted, updateMuted] = useState(() => {
     try {
       return localStorage.getItem("astral-forge-muted") === "true";
@@ -199,17 +196,6 @@ export default function App() {
       sound.setPaused(true);
     };
   }, [engine]);
-
-  useEffect(() => {
-    if (snapshot?.status === "won" && snapshot.levelIndex >= 0) {
-      const next = Math.min(
-        levels.length,
-        Math.max(unlocked, snapshot.levelIndex + 2),
-      );
-      setUnlocked(next);
-      saveProgress({ ...loadProgress(), unlockedLevels: next });
-    }
-  }, [snapshot?.status, snapshot?.levelIndex, unlocked]);
 
   useEffect(() => {
     if (!engine || modal) return;
@@ -492,7 +478,9 @@ export default function App() {
               >
                 <div className="mode-meta">
                   <span className="mono">01 / EXPLORE</span>
-                  <span className="mode-pill">{unlocked} / 13 已解锁</span>
+                  <span className="mode-pill">
+                    {levels.length} 个星域 · 全部开放
+                  </span>
                 </div>
                 <div className="mode-content">
                   <div className="mode-icon">
@@ -650,6 +638,9 @@ export default function App() {
               </span>
             </div>
           </aside>
+          {snapshot && (
+            <MobilePowerStatus engine={engine} snapshot={snapshot} />
+          )}
           <section
             className={`game-stage ${(snapshot?.pulseTime ?? 0) > 0 ? "overdriving" : ""} ${snapshot?.pulseReady ? "pulse-armed" : ""}`}
             aria-label="打砖块游戏区域"
@@ -912,25 +903,32 @@ export default function App() {
           wide
         >
           <p className="modal-intro">
-            前六关已为你点亮。完成挑战，解锁更远的风景。
+            所有星域自由进入。从轨道穿梭到核心攻坚，选择你想挑战的阵列。
           </p>
           <div className="level-grid">
             {levels.map((level, index) => (
               <button
                 className={`level-card ${index === selected ? "selected" : ""}`}
                 key={level.name}
-                disabled={index >= unlocked}
                 onClick={() => setSelected(index)}
               >
                 <div className="level-card-top">
                   <span className="mono">
                     {String(index + 1).padStart(2, "0")}
                   </span>
-                  {index >= unlocked ? (
-                    <LockKeyhole size={13} />
-                  ) : index === selected ? (
+                  {index === selected ? (
                     <Check size={15} />
-                  ) : null}
+                  ) : (
+                    <span className="level-difficulty">
+                      {index < 3
+                        ? "探索"
+                        : index < 7
+                          ? "进阶"
+                          : index < 11
+                            ? "挑战"
+                            : "极限"}
+                    </span>
+                  )}
                 </div>
                 <BrickPreview
                   level={level}
@@ -938,9 +936,7 @@ export default function App() {
                 />
                 <strong>{shortName(level.name)}</strong>
                 <small>
-                  {index >= unlocked
-                    ? "完成前一关解锁"
-                    : `${level.bricks.length} 块砖 · ${level.lives} 次机会`}
+                  {level.bricks.length} 块砖 · {level.lives} 次机会
                 </small>
               </button>
             ))}

@@ -124,49 +124,18 @@ export function validateLevel(value: unknown): Level {
   };
 }
 
-function normalizeUnlocked(value: unknown): number {
-  return typeof value === "number" && Number.isFinite(value)
-    ? Math.min(
-        levels.length,
-        Math.max(Math.min(6, levels.length), Math.floor(value)),
-      )
-    : Math.min(6, levels.length);
-}
-
-/** Uses the original key and version, so existing players retain their campaign. */
+/** Campaign access is open; legacy saves can no longer lock any stage. */
 export function loadProgress(): GameProgress {
-  const initial: GameProgress = {
-    unlockedLevels: Math.min(6, levels.length),
-    levelVersion: LEVEL_VERSION,
-  };
-  try {
-    const stored: unknown = JSON.parse(
-      localStorage.getItem(PROGRESS_KEY) || "null",
-    );
-    if (isObject(stored) && stored.levelVersion === LEVEL_VERSION) {
-      return {
-        unlockedLevels: normalizeUnlocked(stored.unlockedLevels),
-        levelVersion: LEVEL_VERSION,
-      };
-    }
-  } catch {
-    // Storage can be disabled, full, or left with a malformed older save.
-  }
-  return initial;
+  return { unlockedLevels: levels.length, levelVersion: LEVEL_VERSION };
 }
 
-export function saveProgress(progress: GameProgress): GameProgress {
-  const next: GameProgress = {
-    unlockedLevels: Math.max(
-      loadProgress().unlockedLevels,
-      normalizeUnlocked(progress.unlockedLevels),
-    ),
-    levelVersion: LEVEL_VERSION,
-  };
+/** Keep the original persistence API compatible without restoring level gates. */
+export function saveProgress(_progress: GameProgress): GameProgress {
+  const next = loadProgress();
   try {
     localStorage.setItem(PROGRESS_KEY, JSON.stringify(next));
   } catch {
-    /* Offline play still works. */
+    /* Optional storage. */
   }
   return next;
 }

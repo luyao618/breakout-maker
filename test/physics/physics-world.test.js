@@ -11,9 +11,10 @@ const { Ball, Paddle, Brick, BrickField, PhysicsWorld, C } = ctx;
 
 const suite = new TestRunner('PhysicsWorld');
 
-// Helper: create a standard game state for testing
+// Isolate wall/paddle/movement tests from authored campaign layouts.
 function createGameState() {
-  const level = ctx.getPresetLevel(0);
+  const level = { name: "Physics fixture", gridWidth: 16, gridHeight: 8,
+    ballSpeed: 300, paddleWidth: 100, lives: 3, bricks: [] };
   const bf = new BrickField(level, C.SCREEN_W);
   const paddleY = C.SCREEN_H - C.PLAY_BOTTOM_MARGIN;
   const paddle = new Paddle(C.SCREEN_W / 2, paddleY, level.paddleWidth);

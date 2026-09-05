@@ -200,6 +200,61 @@ export function ArcadeOverlay({
   );
 }
 
+/** Reserved mobile status row outside the game canvas: never covers the paddle. */
+export function MobilePowerStatus({
+  engine,
+  snapshot,
+}: {
+  engine: GameEngine;
+  snapshot: GameSnapshot;
+}) {
+  const pickup =
+    snapshot.lastPickup && engine.elapsed - snapshot.lastPickup.time < 2.6
+      ? snapshot.lastPickup
+      : null;
+  const info = pickup ? powerInfo[pickup.type] : null;
+  const Icon = info?.icon ?? Sparkles;
+  return (
+    <div className="mobile-power-status" aria-label="道具状态">
+      <div
+        className={`mobile-pickup-message ${pickup ? "has-pickup" : ""}`}
+        role="status"
+        style={
+          pickup
+            ? ({
+                "--pickup-color": POWER_COLORS[pickup.type],
+              } as React.CSSProperties)
+            : undefined
+        }
+      >
+        <Icon size={13} />
+        <span>
+          {info
+            ? `获得${info.title}`
+            : snapshot.activePowerUps.length
+              ? "道具效果持续中"
+              : "接住补给，获得强化"}
+        </span>
+      </div>
+      <div className="mobile-power-timers" aria-label="持续效果倒计时">
+        {snapshot.activePowerUps.map((power) => {
+          const PowerIcon = powerInfo[power.type].icon;
+          return (
+            <span
+              key={power.type}
+              title={powerInfo[power.type].title}
+              style={{ color: POWER_COLORS[power.type] }}
+            >
+              <PowerIcon size={12} />
+              <b>{Math.ceil(power.timer)}s</b>
+            </span>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export function AudioDeck({
   muted,
   music,
