@@ -4,7 +4,7 @@
 Create a new React + TypeScript + Three.js edition on `codex/astral-forge-3d`, preserving the original breakout rules, 13 levels, image conversion, AI generation, powers, scoring, and progress.
 
 ## Current Phase
-Complete
+Phase 12 — Archive and promote to main
 
 ### Phase 1 — Audit and direction
 **Status:** complete
@@ -27,7 +27,7 @@ Complete
 - Browser playtest and desktop/mobile visual review, address findings.
 
 ## Next Step
-Restored 鹿原加油 / 必胜 dedication is live at https://luyao.blog/games/breakout/ as stage13. Preserve its canonical source in future campaign changes.
+Push signed archive tags and the approved branch, merge its PR into main, then synchronize and verify the local checkout.
 
 ## Design decisions
 - Palette: void #090b16, titanium #81869e, pearl #edf0ff, lavender #b7a1ff, ion #8ee7f0, ember #f8b78c.
@@ -37,6 +37,7 @@ Restored 鹿原加油 / 必胜 dedication is live at https://luyao.blog/games/br
 - Original `.impeccable.md` provides accessibility/product context; user explicitly authorizes replacing its old visual implementation.
 
 ## Errors
+- Integrating origin/main caused a README conflict because its prior documentation change was squash-merged. Confirmed origin/main and our documentation ancestor have identical trees; retained the current README and verified the resulting merge tree exactly matches the approved version.
 - The restored 778-brick dedication exceeded the tactical campaign test’s 600-second cutoff. A longer control-only run cleared all three seeds in493–663s; preserve the original artwork/settings and allow1200 simulated seconds for this stage only.
 - Difficulty pass: a pre-existing media-query spacing error surfaced during CSS minification; corrected and rebuilt without that warning. Immediate post-reload browser clicks ran before mount; waited for the next DOM snapshot, then verified controls.
 - Goal creation reported an existing active goal; verified the existing goal already matches this request.
@@ -91,3 +92,10 @@ Restored 鹿原加油 / 必胜 dedication is live at https://luyao.blog/games/br
 - Restore the original 鹿原加油 / 必胜 brick bitmap and starting settings, retaining the modern engine.
 - Protect the authored dedication as a separate source asset that the campaign generator preserves.
 - Keep stages 1–12 unchanged; verify playability and mobile text rendering, then deploy frontend only.
+
+### Phase 12 — Archive and promote to main
+**Status:** in_progress
+- Preserve old main and all superseded 3D milestones with signed archive tags.
+- Reconcile remote main, which contains the squash-equivalent README ancestor, without changing deployed game content.
+- Document archived versions; push, create and merge the personal-repository PR.
+- Verify remote main and signature, synchronize local main, retain the deployed version and pre-existing untracked files.
