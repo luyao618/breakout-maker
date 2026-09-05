@@ -54,3 +54,10 @@ Game is live at https://luyao.blog/games/breakout/; gameplay, AI and blog coexis
 - Inspect existing nginx/blog and use the existing HTTPS certificate with a dedicated /games/breakout/ path.
 - Build locally, stage a versioned release, configure a separate loopback API process, back up nginx config, validate before reload.
 - Verify live game assets/API and unchanged blog endpoints; keep rollback instructions.
+
+### Phase 7 — Shared API trial quota and personal keys
+**Status:** complete
+- User requests cheapest SiliconFlow image model and replaces the service key (secret must stay outside source, logs, public assets).
+- Interpret 3 attempts/IP as a lifetime allowance, persisted across restarts/deployments; malformed/busy requests do not spend it.
+- Enforce quota on server with trusted proxy IP handling; personal keys bypass shared quota, never fall back to shared credentials on errors.
+- Add quota indicator and personal API key input; verify boundaries, spoof resistance, persistence, and redeploy without affecting the blog.

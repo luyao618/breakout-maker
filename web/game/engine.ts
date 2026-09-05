@@ -791,10 +791,49 @@ export async function imageToLevel(file: File): Promise<Level> {
   }
 }
 
+export interface GenerationQuota {
+  limit: number;
+  used: number;
+  remaining: number;
+  defaultModel?: string;
+  models?: { id: string; label: string }[];
+}
+export interface GenerationCredentials {
+  apiKey: string;
+  model?: string;
+}
+export class GenerationError extends Error {
+  constructor(
+    message: string,
+    readonly code?: string,
+    readonly quota?: GenerationQuota,
+  ) {
+    super(message);
+  }
+}
+export async function getGenerationQuota(
+  signal?: AbortSignal,
+): Promise<GenerationQuota> {
+  const response = await fetch(
+    `${import.meta.env.BASE_URL}api/generation-quota`,
+    { signal, cache: "no-store" },
+  );
+  if (!response.ok) throw new Error("暂时无法读取体验次数，请稍后重试");
+  const data = await response.json();
+  if (
+    !data ||
+    !Number.isInteger(data.remaining) ||
+    !Number.isInteger(data.limit)
+  )
+    throw new Error("体验次数返回异常");
+  return data;
+}
+
 /** Calls the existing creative service; network and validation failures stay visible. */
 export async function generateLevel(
   prompt: string,
   signal?: AbortSignal,
+  credentials?: GenerationCredentials,
 ): Promise<Level> {
   const description = prompt.trim();
   if (!description) throw new Error("请先描述你想创造的关卡。");
@@ -815,7 +854,12 @@ export async function generateLevel(
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: description }),
+        body: JSON.stringify({
+          prompt: description,
+          ...(credentials
+            ? { apiKey: credentials.apiKey.trim(), model: credentials.model }
+            : {}),
+        }),
         signal: controller.signal,
       },
     );
@@ -824,10 +868,16 @@ export async function generateLevel(
       !response.ok ||
       (isObject(payload) && typeof payload.error === "string")
     ) {
-      throw new Error(
+      throw new GenerationError(
         isObject(payload) && typeof payload.error === "string"
           ? payload.error
           : "创作服务暂时不可用，请稍后重试。",
+        isObject(payload) && typeof payload.code === "string"
+          ? payload.code
+          : undefined,
+        isObject(payload) && isObject(payload.quota)
+          ? (payload.quota as unknown as GenerationQuota)
+          : undefined,
       );
     }
     return _applyColors(validateLevel(payload));

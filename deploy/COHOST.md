@@ -7,7 +7,7 @@ The blog remains rooted at `/var/www/blog`. Only dedicated `/games/breakout/` lo
 ## Layout
 
 - Runtime: `/opt/breakout-maker/runtime/node` (verified Node 22.23.2 Linux x64).
-- Versioned release: `/opt/breakout-maker/releases/20260905-arcade/{public,server}`.
+- Versioned release: `/opt/breakout-maker/releases/20260905-quota/{public,server}`.
 - Active release symlink: `/opt/breakout-maker/current`.
 - Static symlink: `/var/www/games/breakout` → active release `/public`.
 - API: `breakout-maker.service`, listening on `127.0.0.1:3107` only.
@@ -42,7 +42,7 @@ Check the game in a browser, including sound toggle, E-key skill, mobile control
 
 ## Roll back
 
-To roll back game code, switch `/opt/breakout-maker/current` to the previous release and restart `breakout-maker.service`.
+To roll back, use a release that still enforces the persistent quota. Do not restore the pre-quota generation API; if its frontend is needed, keep the quota-enforcing API or temporarily disable generation. Never remove the usage state file.
 
 To remove the game routes and return to the original blog configuration:
 
@@ -53,3 +53,15 @@ systemctl disable --now breakout-maker.service
 ```
 
 No blog files, posts, feed, TLS certificate or DNS records need to change.
+
+## Shared generation allowance
+
+The current release is `/opt/breakout-maker/releases/20260905-quota`. The shared model is `Kwai-Kolors/Kolors`, listed as free on SiliconFlow's official pricing page when checked on 2026-09-05. The service key stays in `/etc/breakout-maker.env` and is never part of the frontend bundle.
+
+Each client IP gets three lifetime attempts. Valid accepted generation requests reserve an attempt durably before generation; provider failures count, malformed/busy requests do not. Quota records are salted hashes of canonical IPs in `/var/lib/breakout-maker/trial-quota.json`. `StateDirectory=breakout-maker` keeps this file across service restarts and code releases. Do not delete it when deploying or rolling back.
+
+Nginx overwrites `X-Forwarded-For` with its actual client address. Express trusts only loopback proxies. The quota read endpoint is excluded from the short-term burst limiter.
+
+Visitors can supply their own SiliconFlow key after exhaustion (or earlier). It is used only for that request, not persisted or logged, and never falls back to the shared key. Personal requests keep shared usage unchanged; rate and concurrency protections still apply. The UI offers Kolors and Qwen-Image for personal keys.
+
+When rolling back this release, keep the quota-enforcing backend or temporarily disable generation. Rolling back to a pre-quota API would remove the requested usage boundary.

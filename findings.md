@@ -17,3 +17,5 @@
 - Browser QA uses a temporary in-page paddle-follow helper, derived from the live React game instance, to exercise real simulation continuously; helper is not in application source/build.
 - Production cohost layout: existing /etc/nginx/sites-available/blog uses /var/www/blog; certificate is already valid for luyao.blog. The chosen game locations use ^~ so existing blog asset regex cannot steal game assets.
 - Predeploy blog index SHA256: 3336fc2b6d3383c25ef1249401cb274178eb3a9c2eefffe058ab2b2bd63a2482. Feed SHA256: 50ae8d00afd3645ccf67a704630576b88b6603abbcbec79dcb1e980212637191.
+- Official SiliconFlow pricing page https://siliconflow.cn/pricing (checked 2026-09-05) lists current image models: Kolors is marked free; Z-Image-Turbo ¥0.10/image, ERNIE-Image-Turbo ¥0.11, Qwen-Image/Edit variants ¥0.30. The official image guide uses model ID Kwai-Kolors/Kolors. Select Kolors as the cheapest currently listed available image model; preserve 3-attempt/IP policy even while upstream pricing is free.
+- Source: https://docs.siliconflow.cn/cn/userguide/capabilities/images and live pricing DOM. Outdated /zh-cn/pricing redirected to home; corrected to /pricing.

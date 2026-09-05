@@ -6,3 +6,5 @@ web/game/legacy.js
 *.local
 
 dist-live/
+
+server/data/

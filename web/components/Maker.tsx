@@ -1,6 +1,12 @@
 import { useState, useRef, useEffect } from "react";
 import { ImagePlus, WandSparkles, ArrowRight, Play } from "lucide-react";
-import { imageToLevel, generateLevel } from "../game/engine";
+import {
+  imageToLevel,
+  generateLevel,
+  getGenerationQuota,
+  GenerationError,
+  type GenerationQuota,
+} from "../game/engine";
 import type { Level } from "../game/types";
 import BrickPreview from "./BrickPreview";
 import { shortName } from "../lib/display";
@@ -13,6 +19,24 @@ export default function Maker({
   onPlay: (level: Level) => void;
 }) {
   const [prompt, setPrompt] = useState("");
+  const [quota, setQuota] = useState<GenerationQuota | null>(null);
+  const [quotaError, setQuotaError] = useState("");
+  const [ownKey, setOwnKey] = useState(false);
+  const [apiKey, setApiKey] = useState("");
+  const [model, setModel] = useState("Kwai-Kolors/Kolors");
+  const refreshQuota = async (signal?: AbortSignal) => {
+    try {
+      const next = await getGenerationQuota(signal);
+      if (alive.current) {
+        setQuota(next);
+        setQuotaError("");
+        if (next.remaining === 0) setOwnKey(true);
+      }
+    } catch {
+      if (alive.current && !signal?.aborted)
+        setQuotaError("暂时无法读取体验次数，请重试");
+    }
+  };
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [preview, setPreview] = useState<Level | null>(null);
@@ -28,6 +52,12 @@ export default function Maker({
       controller.current?.abort();
     };
   }, []);
+  useEffect(() => {
+    if (mode !== "create") return;
+    const request = new AbortController();
+    void refreshQuota(request.signal);
+    return () => request.abort();
+  }, [mode]);
   const convert = async (file?: File) => {
     if (!file || busy) return;
     setError("");
@@ -59,13 +89,22 @@ export default function Maker({
       const level = await generateLevel(
         prompt.trim(),
         controller.current.signal,
+        ownKey ? { apiKey, model } : undefined,
       );
       if (alive.current) setPreview(level);
     } catch (e) {
-      if (alive.current)
+      if (alive.current) {
         setError(e instanceof Error ? e.message : "暂时无法生成，请稍后重试。");
+        if (e instanceof GenerationError && e.quota)
+          setQuota((q) => ({ ...q, ...e.quota! }));
+        if (e instanceof GenerationError && e.code === "TRIAL_EXHAUSTED")
+          setOwnKey(true);
+      }
     } finally {
-      if (alive.current) setBusy(false);
+      if (alive.current) {
+        setBusy(false);
+        void refreshQuota();
+      }
     }
   };
   return (
@@ -112,6 +151,101 @@ export default function Maker({
         </>
       ) : (
         <>
+          <div
+            className={`generation-quota ${quota?.remaining === 0 ? "exhausted" : ""}`}
+            role="status"
+          >
+            <span>
+              <strong>
+                {quota
+                  ? `共享体验剩余 ${quota.remaining} / ${quota.limit} 次`
+                  : "正在读取体验次数…"}
+              </strong>
+              <small>每个 IP 累计 3 次，刷新不会重置</small>
+            </span>
+            <div className="quota-dots" aria-hidden="true">
+              {[0, 1, 2].map((i) => (
+                <i
+                  key={i}
+                  className={i < (quota?.remaining ?? 0) ? "available" : ""}
+                />
+              ))}
+            </div>
+          </div>
+          {quotaError && (
+            <div className="quota-error">
+              {quotaError}
+              <button onClick={() => void refreshQuota()}>重新读取</button>
+            </div>
+          )}
+          <div className="personal-api">
+            <label className="own-key-toggle">
+              <input
+                type="checkbox"
+                checked={ownKey}
+                disabled={busy || quota?.remaining === 0}
+                onChange={(e) => setOwnKey(e.target.checked)}
+              />
+              <span>
+                {quota?.remaining === 0
+                  ? "体验已用完，使用自己的 API Key 继续"
+                  : "使用自己的 API Key，不消耗共享体验"}
+              </span>
+            </label>
+            {ownKey && (
+              <div className="key-settings">
+                <label htmlFor="personal-api-key">硅基流动 API Key</label>
+                <div className="key-input-row">
+                  <input
+                    id="personal-api-key"
+                    type="password"
+                    autoComplete="off"
+                    spellCheck={false}
+                    maxLength={203}
+                    value={apiKey}
+                    onChange={(e) => setApiKey(e.target.value)}
+                    placeholder="sk-…"
+                    disabled={busy}
+                  />
+                  <button
+                    type="button"
+                    disabled={busy || !apiKey}
+                    onClick={() => setApiKey("")}
+                  >
+                    清除
+                  </button>
+                </div>
+                <label htmlFor="personal-model">生图模型</label>
+                <select
+                  id="personal-model"
+                  value={model}
+                  onChange={(e) => setModel(e.target.value)}
+                  disabled={busy}
+                >
+                  {(
+                    quota?.models || [
+                      { id: "Kwai-Kolors/Kolors", label: "Kolors · 经济生图" },
+                      { id: "Qwen/Qwen-Image", label: "Qwen-Image · 精细生图" },
+                    ]
+                  ).map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.label}
+                    </option>
+                  ))}
+                </select>
+                <p>
+                  密钥仅在当前窗口用于生成请求，不写入持久存储；关闭窗口即清除。费用与额度由你的硅基流动账户承担。
+                  <a
+                    href="https://cloud.siliconflow.cn/account/ak"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    获取 API Key ↗
+                  </a>
+                </p>
+              </div>
+            )}
+          </div>
           <label className="prompt-label" htmlFor="creation-prompt">
             你的灵感
           </label>
@@ -140,7 +274,13 @@ export default function Maker({
           </div>
           <button
             className="button primary full-width"
-            disabled={!prompt.trim() || busy}
+            disabled={
+              !prompt.trim() ||
+              busy ||
+              (ownKey
+                ? !/^sk-[A-Za-z0-9_-]{20,200}$/.test(apiKey.trim())
+                : quota?.remaining === 0)
+            }
             onClick={() => void generate()}
           >
             {busy ? <span className="spinner" /> : <WandSparkles size={18} />}
@@ -148,7 +288,11 @@ export default function Maker({
             {!busy && <ArrowRight size={18} />}
           </button>
           <p className="privacy-note">
-            由已连接的 AI 服务生成，复杂图案可能需要一些时间。
+            {ownKey
+              ? apiKey.trim()
+                ? "使用个人密钥生成；不会回退到共享密钥。"
+                : "填写自己的 API Key 后，即可继续生成。"
+              : "共享模型：Kolors · 发起生成即计次，生成失败也会计次。"}
           </p>
         </>
       )}

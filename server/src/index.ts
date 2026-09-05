@@ -1,102 +1,24 @@
 import "dotenv/config";
-import path from "path";
-import { fileURLToPath } from "url";
-import express from "express";
-import cors from "cors";
-import { generateLevel } from "./generate-level.js";
-import type { GenerateRequest } from "./types.js";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { createApp } from "./app.js";
+import { TrialQuotaStore } from "./trial-quota.js";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-
-const app = express();
-let activeGenerations = 0;
+const directory = path.dirname(fileURLToPath(import.meta.url));
 const PORT = parseInt(process.env.PORT || "3001", 10);
 const HOST = process.env.HOST || "0.0.0.0";
-
-// Startup check
-if (!process.env.LLM_API_KEY) {
-  console.error("ERROR: LLM_API_KEY environment variable is required");
+if (!process.env.IMAGE_API_KEY && !process.env.LLM_API_KEY) {
+  console.error("ERROR: IMAGE_API_KEY or LLM_API_KEY must be configured");
   process.exit(1);
 }
-
-// Middleware
-app.use(cors());
-app.use(express.json({ limit: "1kb" }));
-
-// Serve static frontend (production: /app/public, dev: ../preview.html)
-const publicDir = path.resolve(__dirname, "../../public");
-app.use(express.static(publicDir));
-
-// Health check
-app.get("/api/health", (_req, res) => {
-  res.json({ status: "ok", timestamp: new Date().toISOString() });
-});
-
-// Generate level
-app.post("/api/generate-level", async (req, res) => {
-  try {
-    const body = req.body as Partial<GenerateRequest>;
-
-    // Validate prompt
-    if (!body.prompt || typeof body.prompt !== "string") {
-      res.status(400).json({ error: "请提供关卡描述 (prompt)" });
-      return;
-    }
-
-    const prompt = body.prompt.trim();
-    if (prompt.length === 0 || prompt.length > 140) {
-      res.status(400).json({ error: "描述长度需要在 1-140 字之间" });
-      return;
-    }
-
-    if (activeGenerations >= 1) {
-      res.status(429).json({ error: "工坊正在铸造另一份灵感，请稍后再试" });
-      return;
-    }
-    activeGenerations++;
-    try {
-      const level = await generateLevel(prompt);
-      res.json(level);
-    } finally {
-      activeGenerations--;
-    }
-  } catch (err) {
-    console.error("[generate-level] Error:", err);
-    const isTimeout = err instanceof Error && (err as any).isTimeout;
-    const status = isTimeout ? 504 : 500;
-    // Always return a user-friendly Chinese message
-    let message = "生成失败，请重试";
-    if (isTimeout) {
-      message = "AI 生成超时，请重试";
-    } else if (err instanceof Error) {
-      // Keep our own Chinese messages, translate others
-      if (/[\u4e00-\u9fa5]/.test(err.message)) {
-        message = err.message;
-      }
-    }
-    res.status(status).json({ error: message });
-  }
-});
-
-// Global error handler
-app.use(
-  (
-    err: Error,
-    _req: express.Request,
-    res: express.Response,
-    _next: express.NextFunction
-  ) => {
-    console.error("[server] Unhandled error:", err);
-    res.status(500).json({ error: "服务器内部错误" });
-  }
+const quota = new TrialQuotaStore(
+  process.env.QUOTA_STORE_PATH ||
+    path.resolve(directory, "../data/trial-quota.json"),
 );
-
-// Fallback: serve index.html for non-API routes (SPA)
-app.get("*", (_req, res) => {
-  const indexPath = path.join(publicDir, "index.html");
-  res.sendFile(indexPath);
+const app = createApp({
+  quota,
+  publicDir: path.resolve(directory, "../../public"),
 });
-
-app.listen(PORT, HOST, () => {
-  console.log(`🧱 Breakout Maker server running on http://localhost:${PORT}`);
-});
+app.listen(PORT, HOST, () =>
+  console.log(`Breakout Maker listening on ${HOST}:${PORT}`),
+);

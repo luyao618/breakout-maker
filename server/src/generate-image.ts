@@ -21,7 +21,11 @@ import { GRID_W, GRID_H } from "./templates.js";
 // Configuration
 // ---------------------------------------------------------------------------
 
-const IMAGE_MODEL = process.env.IMAGE_MODEL || "Qwen/Qwen-Image";
+export const DEFAULT_IMAGE_MODEL = process.env.IMAGE_MODEL || "Kwai-Kolors/Kolors";
+export interface ImageGenerationOptions { apiKey?: string; model?: string }
+export class ImageProviderError extends Error {
+  constructor(readonly status: number) { super(`Image provider HTTP ${status}`); }
+}
 const IMAGE_API_URL =
   process.env.IMAGE_API_URL ||
   "https://api.siliconflow.cn/v1/images/generations";
@@ -65,8 +69,10 @@ function buildImagePrompt(userPrompt: string): string {
 /**
  * Call the SiliconFlow image generation API and return the image URL.
  */
-async function callImageAPI(prompt: string): Promise<string> {
-  if (!IMAGE_API_KEY) {
+async function callImageAPI(prompt: string, options: ImageGenerationOptions = {}): Promise<string> {
+  const apiKey = options.apiKey ?? IMAGE_API_KEY;
+  const model = options.model ?? DEFAULT_IMAGE_MODEL;
+  if (!apiKey) {
     throw new Error("IMAGE_API_KEY (or LLM_API_KEY) is required for image generation");
   }
 
@@ -78,22 +84,20 @@ async function callImageAPI(prompt: string): Promise<string> {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${IMAGE_API_KEY}`,
+        Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: IMAGE_MODEL,
+        model,
         prompt,
-        image_size: "1024x768",
+        image_size: model === "Kwai-Kolors/Kolors" ? "1024x1024" : "1024x768",
         num_inference_steps: 20,
       }),
       signal: controller.signal,
     });
 
     if (!response.ok) {
-      const errText = await response.text().catch(() => "");
-      throw new Error(
-        `Image API returned HTTP ${response.status}: ${errText.slice(0, 200)}`
-      );
+      await response.body?.cancel();
+      throw new ImageProviderError(response.status);
     }
 
     const data = (await response.json()) as {
@@ -340,14 +344,14 @@ function rgbToHex(r: number, g: number, b: number): string {
  *   5. Convert dark cells to bricks with colour + HP
  *   6. Return a complete Level object
  */
-export async function generateFromImage(prompt: string): Promise<Level> {
+export async function generateFromImage(prompt: string, options: ImageGenerationOptions = {}): Promise<Level> {
   // Step 1: Build the pixel-art prompt
   const imagePrompt = buildImagePrompt(prompt);
   console.log(`[generate-image] Prompt: "${imagePrompt}"`);
 
   // Step 2: Call image API
-  const imageUrl = await callImageAPI(imagePrompt);
-  console.log(`[generate-image] Got image URL: ${imageUrl.slice(0, 80)}...`);
+  const imageUrl = await callImageAPI(imagePrompt, options);
+  console.log("[generate-image] Image response received");
 
   // Step 3: Download image
   const imageBuffer = await downloadImage(imageUrl);

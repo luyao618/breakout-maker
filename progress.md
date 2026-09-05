@@ -34,3 +34,11 @@
 - Local root build remains available at localhost:4173; hosted build uses an independent dist-live output. Deployment/rollback documented in deploy/COHOST.md.
 - Final live E-key test consumed 100 energy, cleared exposed bricks, and entered 5-second fireball; captured screenshots/arcade-supernova.png directly from the hosted build. Hosted mobile ready state captured in screenshots/arcade-mobile.png.
 - Public blog list and original CSS also return 200. All task-owned live test helpers were removed by closing their isolated QA browser sessions.
+- Quota update: 149 tests now pass, including exact 3-attempt enforcement, persisted reload, IPv6 normalization, fail-closed storage, invalid/busy request handling, personal-key separation and spoofed-forwarding checks.
+- Browser QA: 3→2→1→0 counter, automatic own-key form on exhaustion, own-key requests retain zero shared balance, no key in local/session storage, and closing the dialog clears the key.
+- New supplied key was validated against the SiliconFlow models API (HTTP 200); Kolors and Qwen-Image are available. Key contents are not in repository files or output.
+- Live quota release installed at /opt/breakout-maker/releases/20260905-quota. Service key rotated using a private transfer, shared model set to Kwai-Kolors/Kolors, and usage file moved into systemd-managed persistent state.
+- Production end-to-end tests used a reserved documentation IP over the trusted local proxy interface so visitor trials remain untouched: shared 3→2→1→0, fourth request 403, invalid personal key 401, valid personal key succeeds after exhaustion without changing shared balance.
+- Real Kolors requests succeeded with the new key (shared and personal); public forwarded-IP spoof test still reports the real visitor's untouched 3/3 allowance.
+- Restarted production service and confirmed the reserved test IP remains at 3 used / 0 remaining. Public visitor allowance remains 3/3, and the blog homepage/feed hashes are unchanged.
+- The new model generated successfully with the new service key; invalid own keys do not fall back to shared credentials. Quota state survives outside versioned release folders.

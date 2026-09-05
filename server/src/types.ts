@@ -54,6 +54,8 @@ export function buildLevel(
 
 export interface GenerateRequest {
   prompt: string;
+  apiKey?: string;
+  model?: string;
 }
 
 export type GenerateResponse = Level | { error: string };
