@@ -90,118 +90,17 @@ export function PulseControl({
   );
 }
 
-export function ArcadeOverlay({
-  engine,
-  snapshot,
-}: {
-  engine: GameEngine;
-  snapshot: GameSnapshot;
-}) {
-  const pickup =
-    snapshot.lastPickup && engine.elapsed - snapshot.lastPickup.time < 2.6
-      ? snapshot.lastPickup
-      : null;
-  const latestCombo = [...engine.feedback]
-    .reverse()
-    .find(
-      (event) =>
-        event.kind === "brick" &&
-        (event.points ?? 0) > 0 &&
-        (event.combo ?? 0) >= 3,
-    );
-  const comboRecent =
-    latestCombo &&
-    engine.elapsed - latestCombo.time < 1.4 &&
-    snapshot.status === "playing";
-  const pulseEvent = [...engine.feedback]
-    .reverse()
-    .find((event) => event.kind === "pulse");
-  const pulseRecent = pulseEvent && engine.elapsed - pulseEvent.time < 1.6;
-  const info = pickup ? powerInfo[pickup.type] : null;
-  const Icon = info?.icon ?? Sparkles;
-  return (
-    <div
-      className={`arcade-overlay ${snapshot.pulseTime > 0 ? "overdrive-active" : ""}`}
-      aria-hidden="true"
-    >
-      {snapshot.pulseTime > 0 && <div className="overdrive-frame" />}
-      {pulseRecent && (
-        <div className="nova-title" key={pulseEvent.id}>
-          <span>SUPERNOVA</span>
-          <strong>超 新 星</strong>
-        </div>
-      )}
-      {comboRecent && !pulseRecent && (
-        <div
-          className={`combo-flash combo-tier-${Math.min(3, Math.floor((latestCombo.combo ?? 0) / 5))}`}
-          key={latestCombo.id}
-        >
-          <span className="combo-number">
-            {latestCombo.combo}
-            <i>×</i>
-          </span>
-          <div>
-            <strong>
-              {(latestCombo.combo ?? 0) >= 10
-                ? "势不可挡"
-                : (latestCombo.combo ?? 0) >= 5
-                  ? "连锁反应"
-                  : "漂亮连击"}
-            </strong>
-            <span>CHAIN REACTION</span>
-          </div>
-        </div>
-      )}
-      {info && pickup && (
-        <div
-          className="pickup-announcement"
-          key={pickup.id}
-          style={
-            {
-              "--pickup-color": POWER_COLORS[pickup.type],
-            } as React.CSSProperties
-          }
-        >
-          <span className="pickup-symbol">
-            <Icon size={24} />
-          </span>
-          <span>
-            <strong>{info.title}</strong>
-            <small>{info.subtitle}</small>
-          </span>
-        </div>
-      )}
-      <div className="active-power-strip">
-        {snapshot.activePowerUps.map((power) => {
-          const p = powerInfo[power.type];
-          const PowerIcon = p.icon;
-          return (
-            <div
-              key={power.type}
-              style={
-                {
-                  "--pickup-color": POWER_COLORS[power.type],
-                } as React.CSSProperties
-              }
-            >
-              <PowerIcon size={13} />
-              <span>{p.title}</span>
-              <b>{Math.ceil(power.timer)}s</b>
-              <i
-                style={{
-                  transform: `scaleX(${Math.min(1, power.timer / (power.type === "fireball" ? 8 : 10))})`,
-                }}
-              />
-            </div>
-          );
-        })}
-      </div>
+/** Only a border treatment remains on the playfield; all status text is outside it. */
+export function ArcadeOverlay({ snapshot }: { snapshot: GameSnapshot }) {
+  return snapshot.pulseTime > 0 ? (
+    <div className="arcade-overlay overdrive-active" aria-hidden="true">
+      <div className="overdrive-frame" />
     </div>
-  );
+  ) : null;
 }
 
-/** Reserved mobile status row outside the game canvas: never covers the paddle. */
-export function MobilePowerStatus({
+/** One universal status area inside the page header, outside every playfield. */
+export function PowerStatusBar({
   engine,
   snapshot,
 }: {
@@ -213,12 +112,13 @@ export function MobilePowerStatus({
       ? snapshot.lastPickup
       : null;
   const info = pickup ? powerInfo[pickup.type] : null;
-  const Icon = info?.icon ?? Sparkles;
+  const pulseActive = snapshot.pulseTime > 0;
+  const Icon = info?.icon ?? (pulseActive ? Zap : Sparkles);
   return (
-    <div className="mobile-power-status" aria-label="道具状态">
+    <div className="power-status-bar" aria-label="道具状态">
       <div
-        className={`mobile-pickup-message ${pickup ? "has-pickup" : ""}`}
-        role="status"
+        className={`power-status-message ${pickup ? "has-pickup" : ""}`}
+        role={pickup ? "status" : undefined}
         style={
           pickup
             ? ({
@@ -231,12 +131,16 @@ export function MobilePowerStatus({
         <span>
           {info
             ? `获得${info.title}`
-            : snapshot.activePowerUps.length
-              ? "道具效果持续中"
-              : "接住补给，获得强化"}
+            : pulseActive
+              ? "超新星 · 穿透模式"
+              : snapshot.combo >= 3
+                ? `连锁反应 · ×${snapshot.combo}`
+                : snapshot.activePowerUps.length
+                  ? "道具效果持续中"
+                  : "接住补给，获得强化"}
         </span>
       </div>
-      <div className="mobile-power-timers" aria-label="持续效果倒计时">
+      <div className="power-status-timers" aria-label="持续效果倒计时">
         {snapshot.activePowerUps.map((power) => {
           const PowerIcon = powerInfo[power.type].icon;
           return (

@@ -52,3 +52,8 @@
 - Before/after checks: API PID remains 538453, persistent trial JSON SHA256 remains 94f48dc776d569a93f6d90e4632bd784f305df0b4893182de829ccf38fdd314f, and blog homepage/feed hashes remain unchanged.
 - Hosted verification: seeded an old unlockedLevels=1 save, reloaded, and confirmed all 13 cards enabled. Directly selected and launched level 13 (戴森天幕) at 390×844; status row remains outside the arena and no horizontal overflow occurs.
 - Final screenshots: screenshots/campaign-open-selection.png and screenshots/mobile-clear-power-hud.png. All isolated QA browsers closed.
+- Universal header fix: removed in-field pickup cards, active-power strip and combo/Supernova title text instead of hiding them at a mobile breakpoint. All status now uses the existing page header; the arena no longer moves when a pickup occurs.
+- Disabled pickup burst VFX and pickup camera shake at every viewport. Retained sounds, falling drops, ball appearance and gameplay effects.
+- Browser caught all five power types: each notification stayed inside the header and above the arena; old overlay nodes count 0 and stage geometry stayed unchanged.
+- Verified 320×640, 390×844, 600×850, 768×1024, 844×390 and 1440×1000: notification stays in the page header above the playfield, no horizontal overflow, no old overlay DOM, no geometry shift on pickup.
+- 162 tests pass. Frontend-only top-hud release deployed with unchanged API PID and unchanged quota/blog checksums; existing backend and settings remain intact.

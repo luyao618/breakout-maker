@@ -130,17 +130,10 @@ function CameraRig({
     if (!reducedMotion)
       for (const event of engine.feedback) {
         const age = engine.elapsed - event.time;
-        if (
-          age >= 0 &&
-          age < 0.35 &&
-          ["pulse", "powerCollect", "brick"].includes(event.kind)
-        ) {
+        if (age >= 0 && age < 0.35 && ["pulse", "brick"].includes(event.kind)) {
           impulse +=
-            (event.kind === "pulse"
-              ? 0.065
-              : event.kind === "powerCollect"
-                ? 0.018
-                : 0.006) * Math.pow(1 - age / 0.35, 2);
+            (event.kind === "pulse" ? 0.065 : 0.006) *
+            Math.pow(1 - age / 0.35, 2);
         }
       }
     camera.position.x =

@@ -377,207 +377,6 @@
   box-shadow: inset 0 0 70px #f5784b15;
   border-radius: inherit;
 }
-.combo-flash {
-  display: flex;
-  align-items: center;
-  gap: 13px;
-  position: absolute;
-  left: 8%;
-  top: 49%;
-  transform: rotate(-6deg);
-  color: #b5eaff;
-  animation: combo-arrive 1.4s cubic-bezier(0.16, 1, 0.3, 1) both;
-  text-shadow:
-    0 2px 0 #0b1538,
-    0 0 25px #4fbee740;
-}
-.combo-number {
-  font-family: "Space Grotesk";
-  font-size: 57px;
-  font-weight: 600;
-  line-height: 1;
-  letter-spacing: -4px;
-}
-.combo-number i {
-  font-size: 27px;
-  font-style: normal;
-  margin-left: 3px;
-}
-.combo-flash > div {
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
-}
-.combo-flash strong {
-  font-size: 15px;
-  letter-spacing: 2px;
-  font-weight: 500;
-}
-.combo-flash > div > span {
-  font-family: "JetBrains Mono";
-  font-size: 6px;
-  letter-spacing: 2px;
-  opacity: 0.65;
-}
-.combo-tier-1 {
-  color: #b5ffef;
-}
-.combo-tier-2,
-.combo-tier-3 {
-  color: #ffcd95;
-  text-shadow: 0 0 30px #ffb76550;
-}
-@keyframes combo-arrive {
-  0% {
-    opacity: 0;
-    scale: 1.25;
-    translate: -10px 8px;
-  }
-  15%,
-  65% {
-    opacity: 1;
-    scale: 1;
-    translate: 0 0;
-  }
-  100% {
-    opacity: 0;
-    translate: 0 -14px;
-  }
-}
-.pickup-announcement {
-  position: absolute;
-  left: 50%;
-  top: 69%;
-  transform: translateX(-50%);
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 20px 12px 13px;
-  background: linear-gradient(90deg, #0a172dee, #191831d9);
-  border: 1px solid color-mix(in srgb, var(--pickup-color) 45%, transparent);
-  box-shadow: 0 0 40px color-mix(in srgb, var(--pickup-color) 10%, transparent);
-  border-radius: 10px;
-  white-space: nowrap;
-  color: var(--pickup-color);
-  animation: pickup-arrive 0.3s ease-out both;
-}
-.pickup-symbol {
-  width: 43px;
-  height: 43px;
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-  border: 1px solid color-mix(in srgb, var(--pickup-color) 35%, transparent);
-  box-shadow: inset 0 0 16px
-    color-mix(in srgb, var(--pickup-color) 10%, transparent);
-}
-.pickup-announcement > span:last-child {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.pickup-announcement strong {
-  font-size: 14px;
-  font-weight: 500;
-  letter-spacing: 3px;
-}
-.pickup-announcement small {
-  font-size: 8px;
-  letter-spacing: 0.5px;
-  color: #a3aec9;
-}
-@keyframes pickup-arrive {
-  from {
-    opacity: 0;
-    translate: 0 12px;
-  }
-  to {
-    opacity: 1;
-    translate: 0 0;
-  }
-}
-.nova-title {
-  position: absolute;
-  top: 44%;
-  left: 0;
-  right: 0;
-  text-align: center;
-  color: #ffe4b8;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  animation: nova-arrive 1.6s ease-out both;
-  text-shadow:
-    0 0 35px #ff9a5890,
-    0 0 80px #ff79466a;
-}
-.nova-title > span {
-  font-family: "JetBrains Mono";
-  font-size: 10px;
-  letter-spacing: 8px;
-  color: #fcca9e;
-}
-.nova-title > strong {
-  font-size: 36px;
-  font-weight: 500;
-  letter-spacing: 12px;
-}
-@keyframes nova-arrive {
-  0% {
-    opacity: 0;
-    scale: 1.2;
-    filter: blur(6px);
-  }
-  18%,
-  65% {
-    opacity: 1;
-    scale: 1;
-    filter: blur(0);
-  }
-  100% {
-    opacity: 0;
-    scale: 1.05;
-    filter: blur(2px);
-  }
-}
-.active-power-strip {
-  position: absolute;
-  left: 22px;
-  right: 22px;
-  bottom: 8%;
-  display: flex;
-  gap: 7px;
-  flex-wrap: wrap;
-  justify-content: center;
-}
-.active-power-strip > div {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 7px 9px 8px;
-  position: relative;
-  border-radius: 5px;
-  background: #0b142be6;
-  color: var(--pickup-color);
-  font-size: 8px;
-  border: 1px solid color-mix(in srgb, var(--pickup-color) 30%, transparent);
-  overflow: hidden;
-}
-.active-power-strip b {
-  font-family: "JetBrains Mono";
-  font-size: 8px;
-  font-weight: 400;
-}
-.active-power-strip i {
-  position: absolute;
-  left: 0;
-  bottom: 0;
-  height: 2px;
-  width: 100%;
-  background: var(--pickup-color);
-  transform-origin: left;
-  transition: transform 0.1s linear;
-}
 .mobile-action-dock {
   display: none;
 }
@@ -802,68 +601,6 @@
     border-color: #7fe8e655;
     box-shadow: 0 0 20px #74f1ff0b;
   }
-  .combo-flash {
-    left: 8%;
-    top: 48%;
-    gap: 8px;
-  }
-  .combo-number {
-    font-size: 40px;
-    letter-spacing: -3px;
-  }
-  .combo-number i {
-    font-size: 21px;
-  }
-  .combo-flash strong {
-    font-size: 11px;
-    letter-spacing: 1px;
-  }
-  .combo-flash > div > span {
-    font-size: 5px;
-    letter-spacing: 1px;
-  }
-  .pickup-announcement {
-    top: 69%;
-    padding: 8px 12px 8px 8px;
-    gap: 8px;
-  }
-  .pickup-symbol {
-    width: 32px;
-    height: 32px;
-  }
-  .pickup-symbol svg {
-    width: 18px;
-  }
-  .pickup-announcement strong {
-    font-size: 11px;
-    letter-spacing: 2px;
-  }
-  .pickup-announcement small {
-    font-size: 6px;
-  }
-  .nova-title > strong {
-    font-size: 26px;
-    letter-spacing: 7px;
-  }
-  .nova-title > span {
-    font-size: 7px;
-    letter-spacing: 5px;
-  }
-  .active-power-strip {
-    bottom: 7%;
-    gap: 4px;
-  }
-  .active-power-strip > div {
-    font-size: 6px;
-    gap: 4px;
-    padding: 5px 7px;
-  }
-  .active-power-strip svg {
-    width: 11px;
-  }
-  .active-power-strip b {
-    font-size: 6px;
-  }
   .arcade-edition .launch-overlay {
     padding: 16px 18px;
   }
@@ -872,20 +609,9 @@
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .combo-flash,
-  .pickup-announcement,
-  .nova-title {
-    animation: none !important;
-  }
-  .nova-title {
-    opacity: 0.85;
-  }
   .pulse-control,
   .reactor-fill {
     transition: none;
-  }
-  .nova-title {
-    filter: none;
   }
 }
 
@@ -911,63 +637,96 @@
 }
 
 /* Mobile power feedback lives above the arena, outside all ball trajectories. */
-.mobile-power-status {
-  display: none;
-}
 .level-difficulty {
   font-size: 8px;
   font-weight: 400;
   color: #9fa9c5;
 }
 @media (max-width: 600px) {
-  .arcade-edition .pickup-announcement,
-  .arcade-edition .active-power-strip {
+  .arcade-edition .game-stage {
+    height: calc(100svh - 259px);
+    min-height: 280px;
+  }
+}
+
+/* Notifications use existing header space on every device; never an overlay. */
+.arcade-edition .site-header {
+  gap: 24px;
+}
+.power-status-bar {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  min-width: 0;
+  height: 36px;
+  pointer-events: none;
+}
+.power-status-message {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  font-size: 11px;
+  line-height: 1.5;
+  color: #8897b5;
+}
+.power-status-message span {
+  white-space: nowrap;
+}
+.power-status-message.has-pickup {
+  color: var(--pickup-color);
+}
+.power-status-timers {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+.power-status-timers > span {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.power-status-timers b {
+  font-family: "JetBrains Mono";
+  font-size: 10px;
+  font-weight: 400;
+}
+.arcade-edition .header-tools {
+  margin-left: 0;
+}
+.arcade-edition .header-tools .edition {
+  display: none;
+}
+@media (max-width: 1000px) {
+  .arcade-edition .site-header nav {
     display: none;
   }
-  .mobile-power-status {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+  .power-status-bar {
+    justify-content: flex-start;
+  }
+}
+@media (max-width: 600px) {
+  .arcade-edition .site-header {
+    gap: 9px;
+  }
+  .arcade-edition .brand .brand-name {
+    display: none;
+  }
+  .power-status-bar {
     gap: 8px;
-    width: 100%;
-    max-width: 440px;
-    height: 32px;
-    min-height: 32px;
-    padding: 0 7px 7px;
-    flex-shrink: 0;
-    pointer-events: none;
+    justify-content: space-between;
   }
-  .mobile-pickup-message {
-    display: flex;
-    gap: 6px;
-    align-items: center;
-    min-width: 0;
+  .power-status-message {
     font-size: 9px;
-    line-height: 1.5;
-    color: #8897b5;
-    white-space: nowrap;
+    gap: 5px;
   }
-  .mobile-pickup-message.has-pickup {
-    color: var(--pickup-color);
-  }
-  .mobile-power-timers {
-    display: flex;
-    align-items: center;
+  .power-status-timers {
     gap: 7px;
-    flex-shrink: 0;
   }
-  .mobile-power-timers > span {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-  }
-  .mobile-power-timers b {
-    font-family: "JetBrains Mono";
-    font-weight: 400;
+  .power-status-timers b {
     font-size: 9px;
-  }
-  .arcade-edition .game-stage {
-    height: calc(100svh - 291px);
-    min-height: 280px;
   }
 }

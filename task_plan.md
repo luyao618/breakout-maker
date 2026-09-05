@@ -68,3 +68,10 @@ Game is live at https://luyao.blog/games/breakout/; gameplay, AI and blog coexis
 - Redesign all 13 campaign layouts with richer geometry, entry channels and varied brick toughness, then test feasibility and mobile rendering.
 - Remove campaign locks for fresh and existing players, including legacy saves.
 - Redeploy while retaining server secrets, persistent IP trial usage and blog routing.
+
+### Phase 9 — Universal top-header notifications
+**Status:** complete
+- Prior fix only hid in-field pickup overlays below 600px. Remove those elements structurally on all viewports.
+- Move pickup messages and timed effects into the existing page header; no game geometry shift on collection.
+- Remove pickup bursts/camera shake on all screens and move combo/pulse text out of the live playfield too.
+- Verify portrait, landscape, tablet and desktop; redeploy frontend only, preserving API/quota/blog.

@@ -182,23 +182,20 @@ export function ImpactEffects({
     const latest = engine.feedback.filter(
       (event) => engine.elapsed - event.time < duration(event),
     );
-    const compact = typeof window !== "undefined" && window.innerWidth <= 600;
     for (const e of latest) {
-      // Pickup confirmation is outside the board on phones; avoid masking the paddle with stacked bursts.
-      if (compact && e.kind === "powerCollect") continue;
+      // Pickup confirmation belongs to the page header, never the playfield.
+      if (e.kind === "powerCollect") continue;
       const age = Math.max(0, engine.elapsed - e.time);
       const life = duration(e);
       const progress = age / life;
       if (e.kind === "wall" || (e.kind === "brick" && !e.points)) continue;
-      const special = ["pulse", "powerCollect", "win"].includes(e.kind);
+      const special = ["pulse", "win"].includes(e.kind);
       const scale =
         e.kind === "pulse"
           ? 0.6 + progress * 11
           : e.kind === "win"
             ? progress * 10
-            : e.kind === "powerCollect"
-              ? 0.25 + progress * 2.8
-              : 0.12 + progress * 0.95;
+            : 0.12 + progress * 0.95;
       color.set(e.color).multiplyScalar((1 - progress) * (special ? 3 : 2.2));
       if (rings.current && ringCount < 80) {
         obj.position.set(px(e.x), py(e.y), 0.35);
@@ -209,38 +206,6 @@ export function ImpactEffects({
         rings.current.setColorAt(ringCount++, color);
       }
       if (reducedMotion) continue;
-      if (e.kind === "powerCollect" && e.power === "split" && rings.current) {
-        for (let branch = -1; branch <= 1 && ringCount < 80; branch++) {
-          obj.position.set(
-            px(e.x) + branch * progress * 2.2,
-            py(e.y) + progress * 1.6,
-            0.4,
-          );
-          obj.rotation.set(0, 0, 0);
-          obj.scale.setScalar(0.14 + progress * 0.35);
-          obj.updateMatrix();
-          rings.current.setMatrixAt(ringCount, obj.matrix);
-          rings.current.setColorAt(ringCount++, color);
-        }
-      }
-      if (
-        e.kind === "powerCollect" &&
-        e.power === "multiShot" &&
-        beams.current
-      ) {
-        for (let branch = -1; branch <= 1 && beamCount < 12; branch++) {
-          obj.position.set(
-            px(e.x) + branch * progress,
-            py(e.y) + progress * 2,
-            0.3,
-          );
-          obj.rotation.set(0, 0, -branch * 0.3);
-          obj.scale.set(0.02 * (1 - progress), 1.5 + progress * 3, 1);
-          obj.updateMatrix();
-          beams.current.setMatrixAt(beamCount, obj.matrix);
-          beams.current.setColorAt(beamCount++, color);
-        }
-      }
       const count = special ? 48 : e.kind === "brick" ? 12 : 6;
       for (let i = 0; i < count && sparkCount < 1400; i++) {
         const seed = e.id * 97 + i * 13;

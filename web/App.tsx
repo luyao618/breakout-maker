@@ -30,7 +30,7 @@ import {
   ArcadeOverlay,
   PulseControl,
   AudioDeck,
-  MobilePowerStatus,
+  PowerStatusBar,
 } from "./components/ArcadeHUD";
 import BrickPreview from "./components/BrickPreview";
 import ModalFrame from "./components/ModalFrame";
@@ -313,6 +313,9 @@ export default function App() {
             </span>
           </span>
         </button>
+        {engine && snapshot && (
+          <PowerStatusBar engine={engine} snapshot={snapshot} />
+        )}
         <nav aria-label="主导航">
           <button
             className={!modal ? "active" : ""}
@@ -638,9 +641,6 @@ export default function App() {
               </span>
             </div>
           </aside>
-          {snapshot && (
-            <MobilePowerStatus engine={engine} snapshot={snapshot} />
-          )}
           <section
             className={`game-stage ${(snapshot?.pulseTime ?? 0) > 0 ? "overdriving" : ""} ${snapshot?.pulseReady ? "pulse-armed" : ""}`}
             aria-label="打砖块游戏区域"
@@ -686,7 +686,7 @@ export default function App() {
                 />
               </Suspense>
             </div>
-            {snapshot && <ArcadeOverlay engine={engine} snapshot={snapshot} />}
+            {snapshot && <ArcadeOverlay snapshot={snapshot} />}
             {snapshot?.status === "ready" && (
               <button
                 className="launch-overlay"
