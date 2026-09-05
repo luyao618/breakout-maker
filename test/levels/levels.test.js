@@ -12,8 +12,8 @@ const suite = new TestRunner('Level Loading');
 // getTotalLevels
 // =============================================================================
 
-suite.test('getTotalLevels: returns 12', () => {
-  assertEqual(getTotalLevels(), 12, 'Should have 12 levels');
+suite.test('getTotalLevels: returns 13', () => {
+  assertEqual(getTotalLevels(), 13, 'Should have 13 levels');
 });
 
 // =============================================================================
@@ -26,8 +26,8 @@ suite.test('getPresetLevel(0): returns first level with correct name', () => {
   assert(typeof level.name === 'string' && level.name.length > 0, 'Should have a name');
 });
 
-suite.test('getPresetLevel(11): returns last level (level 12)', () => {
-  const level = getPresetLevel(11);
+suite.test('getPresetLevel(12): returns last level (level 13)', () => {
+  const level = getPresetLevel(12);
   assert(level !== null, 'Should return a level');
   assert(typeof level.name === 'string' && level.name.length > 0, 'Should have a name');
 });
@@ -46,9 +46,9 @@ suite.test('getPresetLevel(99): returns null', () => {
   assertEqual(level, null, 'Out-of-range index should return null');
 });
 
-suite.test('getPresetLevel(12): returns null (one past last)', () => {
-  const level = getPresetLevel(12);
-  assertEqual(level, null, 'Index 12 should return null');
+suite.test('getPresetLevel(13): returns null (one past last)', () => {
+  const level = getPresetLevel(13);
+  assertEqual(level, null, 'Index 13 should return null');
 });
 
 // =============================================================================
@@ -99,7 +99,7 @@ suite.test('_applyColors does not modify the original LEVEL_DATA', () => {
 suite.test('level 1 has expected brick count', () => {
   const level = getPresetLevel(0);
   assert(level.bricks.length > 0, 'Level 1 should have bricks');
-  // Level 1 (关卡1) has 84 bricks based on the JSON
+  // Level 1 keeps its original authored brick layout.
   assertEqual(level.bricks.length, LEVEL_DATA[0].bricks.length, 'Brick count should match LEVEL_DATA');
 });
 

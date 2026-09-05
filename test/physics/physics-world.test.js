@@ -47,7 +47,8 @@ suite.test('wall bounce: ball reflects off right wall', () => {
 
 suite.test('wall bounce: ball reflects off top wall', () => {
   const { bf, paddle, physics } = createGameState();
-  const ball = new Ball(100, C.PLAY_TOP + 2);
+  // Aim through an empty column so this test isolates the top wall.
+  const ball = new Ball(C.SCREEN_W / 2, C.PLAY_TOP + 2);
   ball.vy = -200;
   ball.vx = 100;
 

@@ -1,32 +1,38 @@
 # ==============================================================================
 # Multi-stage Dockerfile for Breakout Maker (造砖厂)
-# Stage 1: Build frontend (preview.html) + compile server TypeScript
-# Stage 2: Lean production image
+# Build the React / Three.js frontend and the existing AI server separately.
+# The production server serves Vite's output from /app/public.
 # ==============================================================================
 
-# --- Stage 1: Build ---
-FROM node:20-alpine AS builder
+# --- Frontend build ---
+FROM node:22-alpine AS frontend-builder
 
 WORKDIR /app
 
-# Copy everything needed for build
+COPY package.json package-lock.json ./
+RUN npm ci
+
+COPY index.html vite.config.ts tsconfig.json ./
+COPY web/ web/
 COPY src/ src/
 COPY levels/ levels/
-COPY build.js .
+COPY public/ public/
+RUN npm run build
 
-# Build frontend → preview.html
-RUN node build.js
+# --- Server build ---
+FROM node:22-alpine AS server-builder
 
-# Build server
-COPY server/package.json server/package-lock.json server/
-RUN cd server && npm ci
+WORKDIR /app/server
 
-COPY server/src/ server/src/
-COPY server/tsconfig.json server/
-RUN cd server && npm run build
+COPY server/package.json server/package-lock.json ./
+RUN npm ci
 
-# --- Stage 2: Production ---
-FROM node:20-alpine
+COPY server/src/ src/
+COPY server/tsconfig.json ./
+RUN npm run build
+
+# --- Production ---
+FROM node:22-alpine
 
 WORKDIR /app
 
@@ -35,10 +41,10 @@ COPY server/package.json server/package-lock.json ./server/
 RUN cd server && npm ci --omit=dev
 
 # Copy compiled server
-COPY --from=builder /app/server/dist/ ./server/dist/
+COPY --from=server-builder /app/server/dist/ ./server/dist/
 
-# Copy built frontend
-COPY --from=builder /app/preview.html ./public/index.html
+# Include index.html, hashed JavaScript/CSS, fonts, and other static assets.
+COPY --from=frontend-builder /app/dist/ ./public/
 
 ENV NODE_ENV=production
 ENV PORT=3001
