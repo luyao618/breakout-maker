@@ -1,0 +1,23 @@
+[Unit]
+Description=Breakout Maker generation API
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+DynamicUser=yes
+WorkingDirectory=/opt/breakout-maker/current/server
+EnvironmentFile=/etc/breakout-maker.env
+ExecStart=/usr/bin/env HOST=127.0.0.1 PORT=3107 NODE_ENV=production /opt/breakout-maker/runtime/node/bin/node --max-old-space-size=192 /opt/breakout-maker/current/server/dist/index.js
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+MemoryMax=384M
+TasksMax=64
+Nice=10
+
+[Install]
+WantedBy=multi-user.target

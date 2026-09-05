@@ -17,6 +17,12 @@ import { Environment, Lightformer } from "@react-three/drei";
 import * as THREE from "three";
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
 import type { GameEngine } from "./game/engine";
+import {
+  ArcadeBloom,
+  ReactorField,
+  ImpactEffects,
+  PowerAuras,
+} from "./effects/ArcadeEffects";
 
 interface ArenaProps {
   engine: GameEngine | null;
@@ -99,7 +105,11 @@ const xWorld = (x: number) => (x - 187.5) / 40;
 const yWorld = (y: number) => (333.5 - y) / 40;
 
 /** An orthographic camera keeps the original collision plane readable at every size. */
-function CameraRig({ variant }: Pick<ArenaProps, "variant">) {
+function CameraRig({
+  variant,
+  engine,
+  reducedMotion,
+}: Pick<ArenaProps, "variant" | "engine" | "reducedMotion">) {
   const { camera, size } = useThree();
   useEffect(() => {
     const cam = camera as THREE.OrthographicCamera;
@@ -114,6 +124,31 @@ function CameraRig({ variant }: Pick<ArenaProps, "variant">) {
     }
     cam.updateProjectionMatrix();
   }, [camera, size, variant]);
+  useFrame(() => {
+    if (variant !== "play" || !engine) return;
+    let impulse = 0;
+    if (!reducedMotion)
+      for (const event of engine.feedback) {
+        const age = engine.elapsed - event.time;
+        if (
+          age >= 0 &&
+          age < 0.35 &&
+          ["pulse", "powerCollect", "brick"].includes(event.kind)
+        ) {
+          impulse +=
+            (event.kind === "pulse"
+              ? 0.065
+              : event.kind === "powerCollect"
+                ? 0.018
+                : 0.006) * Math.pow(1 - age / 0.35, 2);
+        }
+      }
+    camera.position.x =
+      Math.sin(engine.elapsed * 91) * Math.min(0.075, impulse);
+    camera.position.y =
+      -4.8 + Math.cos(engine.elapsed * 73) * Math.min(0.035, impulse);
+    camera.lookAt(0, -1, 0);
+  });
   return null;
 }
 
@@ -741,7 +776,7 @@ function brickColor(brick: BrickView): string {
   if (brick.maxHp >= 10) return "#8b94aa";
   if (brick.maxHp >= 3) return COLORS.peach;
   if (brick.maxHp >= 2) return COLORS.cyan;
-  return COLORS.lavender;
+  return ["#8b6dff", "#6f94ff", "#60c2ff", "#72e6ec"][brick.row % 4];
 }
 
 function DropLabelLayer({
@@ -811,6 +846,7 @@ function Playfield({
   const [ballCapacity, setBallCapacity] = useState(MAX_BALLS);
   const [dropCapacity, setDropCapacity] = useState(MAX_DROPS);
   const bricks = useRef<THREE.InstancedMesh>(null);
+  const cores = useRef<THREE.InstancedMesh>(null);
   const balls = useRef<THREE.InstancedMesh>(null);
   const trails = useRef<THREE.InstancedMesh>(null);
   const particles = useRef<THREE.InstancedMesh>(null);
@@ -870,6 +906,7 @@ function Playfield({
             };
           });
         bricks.current.count = scratch.entries.length;
+        if (cores.current) cores.current.count = scratch.entries.length;
       }
       let colorChanged = false;
       scratch.entries.forEach((entry, index) => {
@@ -889,16 +926,36 @@ function Playfield({
         );
         obj.updateMatrix();
         bricks.current!.setMatrixAt(index, obj.matrix);
+        if (cores.current) {
+          obj.position.set(
+            entry.x + shake,
+            entry.y - entry.h * 0.22,
+            depth + 0.005,
+          );
+          obj.scale.set(b.alive ? entry.w * 0.65 : 0, entry.h * 0.052, 0.025);
+          obj.updateMatrix();
+          cores.current.setMatrixAt(index, obj.matrix);
+        }
         if (entry.hp !== b.hp) {
           scratch.color.set(entry.color);
           if (b.hp < b.maxHp)
             scratch.color.lerp(scratch.white, (1 - b.hp / b.maxHp) * 0.34);
           bricks.current!.setColorAt(index, scratch.color);
+          if (cores.current)
+            cores.current.setColorAt(
+              index,
+              scratch.color.clone().multiplyScalar(2.8),
+            );
           entry.hp = b.hp;
           colorChanged = true;
         }
       });
       bricks.current.instanceMatrix.needsUpdate = true;
+      if (cores.current) {
+        cores.current.instanceMatrix.needsUpdate = true;
+        if (colorChanged && cores.current.instanceColor)
+          cores.current.instanceColor.needsUpdate = true;
+      }
       if (colorChanged && bricks.current.instanceColor)
         bricks.current.instanceColor.needsUpdate = true;
     }
@@ -973,11 +1030,11 @@ function Playfield({
         .slice(0, dropCapacity);
       drops.current.count = liveDrops.length;
       const dropColors: Record<string, string> = {
-        split: COLORS.lavender,
-        multiShot: COLORS.cyan,
+        split: "#71f9ff",
+        multiShot: "#b791ff",
         fireball: "#ff955e",
-        widePaddle: "#8bdac9",
-        extraLife: "#f3a9cb",
+        widePaddle: "#8fffc5",
+        extraLife: "#ff86b5",
       };
       liveDrops.forEach((drop, i) => {
         obj.position.set(xWorld(drop.x), yWorld(drop.y), 0.3);
@@ -1002,6 +1059,22 @@ function Playfield({
   return (
     <group>
       <Chassis showcase={false} />
+      {engine && (
+        <>
+          <ReactorField engine={engine} reducedMotion={reducedMotion} />
+          <ImpactEffects engine={engine} reducedMotion={reducedMotion} />
+          <PowerAuras engine={engine} reducedMotion={reducedMotion} />
+        </>
+      )}
+      <instancedMesh
+        ref={cores}
+        args={[undefined, undefined, brickCapacity]}
+        count={0}
+        frustumCulled={false}
+      >
+        <boxGeometry args={[1, 1, 1]} />
+        <meshBasicMaterial toneMapped={false} />
+      </instancedMesh>
       <instancedMesh
         ref={bricks}
         args={[bodyGeometry, undefined, brickCapacity]}
@@ -1010,11 +1083,16 @@ function Playfield({
         receiveShadow
         frustumCulled={false}
       >
-        <meshStandardMaterial
-          metalness={0.32}
-          roughness={0.25}
-          emissive="#d6c8f9"
-          emissiveIntensity={0.055}
+        <meshPhysicalMaterial
+          color="#9ba2c8"
+          metalness={0.42}
+          roughness={0.13}
+          clearcoat={1}
+          clearcoatRoughness={0.08}
+          iridescence={0.45}
+          emissive="#365987"
+          emissiveIntensity={0.17}
+          envMapIntensity={1.3}
         />
       </instancedMesh>
       <group ref={paddle}>
@@ -1025,7 +1103,7 @@ function Playfield({
             metalness={0.72}
             roughness={0.2}
             emissive={COLORS.peach}
-            emissiveIntensity={0.15}
+            emissiveIntensity={0.45}
           />
         </mesh>
         <mesh position={[0, 0.11, 0.144]}>
@@ -1058,7 +1136,7 @@ function Playfield({
           roughness={0.08}
           metalness={0.05}
           emissive="#ffeddb"
-          emissiveIntensity={0.55}
+          emissiveIntensity={1.35}
         />
       </instancedMesh>
       <instancedMesh
@@ -1380,8 +1458,15 @@ export default function Arena(props: ArenaProps) {
           display: "block",
         }}
       >
-        <CameraRig variant={variant} />
+        <CameraRig
+          variant={variant}
+          engine={engine}
+          reducedMotion={reducedMotion}
+        />
         <StudioLighting quality={quality} />
+        <ArcadeBloom
+          enabled={variant === "play" && quality === "high" && !reducedMotion}
+        />
         {variant === "showcase" ? (
           <Showcase reducedMotion={reducedMotion} />
         ) : (

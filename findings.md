@@ -13,3 +13,7 @@
 - Docker daemon unavailable; Dockerfile prepared but no image build/deployment performed.
 - Desktop browser screenshot confirms the 3D lobby and in-game smile layout render correctly without console/page errors.
 - Visual identity uses a pastel ceramic / titanium instrument against a restrained violet starfield; game camera preserves board readability.
+- Second-pass browser successfully creates the WebGL bloom scene, live starfield and charged-ability HUD. Existing original audio is muted while the new procedural engine receives non-consuming feedback events.
+- Browser QA uses a temporary in-page paddle-follow helper, derived from the live React game instance, to exercise real simulation continuously; helper is not in application source/build.
+- Production cohost layout: existing /etc/nginx/sites-available/blog uses /var/www/blog; certificate is already valid for luyao.blog. The chosen game locations use ^~ so existing blog asset regex cannot steal game assets.
+- Predeploy blog index SHA256: 3336fc2b6d3383c25ef1249401cb274178eb3a9c2eefffe058ab2b2bd63a2482. Feed SHA256: 50ae8d00afd3645ccf67a704630576b88b6603abbcbec79dcb1e980212637191.

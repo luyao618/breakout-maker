@@ -2,11 +2,23 @@
 
 **Breakout Maker — a dimensional edition.**
 
+[在线体验 · Play now](https://luyao.blog/games/breakout/) · [服务器部署与回滚](deploy/COHOST.md)
+
 [简体中文](#简体中文) | [English](#english)
 
 ![Astral Forge desktop](screenshots/astral-desktop.png)
 
 ## 简体中文
+
+### 超新星街机版
+
+![超新星脉冲实机画面](screenshots/arcade-supernova.png)
+
+- **主动技能**：击碎砖块积蓄能量，满格后按 **E**（手机点击底部按钮）释放超新星，冲击暴露砖块并获得 5 秒火球穿透。技能期间不回充能量。
+- **掉落节奏**：首次道具最迟在第 4 次击碎后出现，之后连续 7 次未掉落触发保底；靠近挡板的道具会轻微吸附。
+- **视听反馈**：星云球场、发光晶体、冲击波、碎片、道具轨道光环、连击提示和空间音效；可选星际电台默认关闭。
+- **稳定运行**：多球上限 24，声音并发上限 48；暂停会冻结技能和道具计时并停止声音。
+
 
 在星空中的立体球场里打砖块。新版以 React 19、Three.js 和 React Three Fiber 重建界面与 3D 渲染，把梦幻星尘、发光砖块与工业仪器般的操作面板融为一体。
 
@@ -99,6 +111,11 @@ open preview.html
 `preview.html` 是旧版界面；新版请使用 `npm run dev` 或 `npm run build`。
 
 ## English
+
+### Supernova arcade edition
+
+Destroy bricks to charge **Supernova**, then press **E** or tap the mobile skill button to blast exposed bricks and gain five seconds of piercing fireballs. Overdrive cannot recharge itself. Early and dry-streak drop protection plus gentle paddle attraction make all five powers easier to encounter. Spatial crystal impacts, bloom, shockwaves and combo callouts accompany play; the optional synthwave radio is off by default. Balls are capped at 24 and audio voices at 48. Pause freezes effect timers and silences audio.
+
 
 A brick-breaker set on a three-dimensional court in a field of stars. This edition rebuilds the interface and rendering with React 19, Three.js, and React Three Fiber, pairing luminous bricks and atmospheric particles with precise instrument-style controls.
 

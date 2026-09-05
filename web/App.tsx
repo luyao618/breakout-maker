@@ -14,6 +14,7 @@ import {
   LockKeyhole,
   Maximize2,
   MousePointer2,
+  Music2,
   Pause,
   Play,
   RotateCcw,
@@ -31,6 +32,8 @@ import {
   setMuted,
 } from "./game/engine";
 import type { GameSnapshot } from "./game/types";
+import { sound } from "./audio/sound-engine";
+import { ArcadeOverlay, PulseControl, AudioDeck } from "./components/ArcadeHUD";
 import BrickPreview from "./components/BrickPreview";
 import ModalFrame from "./components/ModalFrame";
 import Maker from "./components/Maker";
@@ -66,6 +69,13 @@ export default function App() {
       return false;
     }
   });
+  const [music, updateMusic] = useState(() => {
+    try {
+      return localStorage.getItem("astral-forge-music") === "true";
+    } catch {
+      return false;
+    }
+  });
   const [quality, setQuality] = useState<"high" | "low">("high");
   const [engine, setEngine] = useState<GameEngine | null>(null);
   const [snapshot, setSnapshot] = useState<GameSnapshot | null>(null);
@@ -75,13 +85,22 @@ export default function App() {
   const returnFocus = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
-    setMuted(muted);
+    setMuted(true); // The modern sound engine owns all audible feedback.
+    sound.setMuted(muted);
     try {
       localStorage.setItem("astral-forge-muted", String(muted));
     } catch {
       /* Optional preference. */
     }
   }, [muted]);
+  useEffect(() => {
+    sound.setMusic(music);
+    try {
+      localStorage.setItem("astral-forge-music", String(music));
+    } catch {
+      /* Optional preference. */
+    }
+  }, [music]);
   useEffect(() => {
     const media = matchMedia("(prefers-reduced-motion: reduce)");
     const change = () => setReducedMotion(media.matches);
@@ -96,7 +115,23 @@ export default function App() {
     return () => clearTimeout(timer);
   }, [toast]);
 
+  const wakeAudio = () => {
+    sound.unlock();
+    sound.setMuted(muted);
+    sound.setMusic(music);
+  };
+  const toggleMute = () => {
+    sound.unlock();
+    updateMuted(!muted);
+  };
+  const toggleMusic = () => {
+    sound.unlock();
+    if (muted && !music) updateMuted(false);
+    updateMusic(!music);
+  };
   const start = (level = levels[selected], index = selected) => {
+    wakeAudio();
+    sound.setPaused(false);
     currentEngine.current?.dispose();
     const game = new GameEngine(level, index);
     currentEngine.current = game;
@@ -106,6 +141,7 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: "instant" });
   };
   const leave = () => {
+    sound.setPaused(true);
     currentEngine.current?.dispose();
     currentEngine.current = null;
     setEngine(null);
@@ -125,9 +161,23 @@ export default function App() {
     let frame = 0;
     let last = performance.now();
     let lastUi = 0;
+    let lastAudioId = 0;
     const tick = (now: number) => {
       engine.update(Math.min((now - last) / 1000, 0.1));
       last = now;
+      sound.setPaused(engine.status === "paused");
+      for (const event of engine.feedback) {
+        if (event.id > lastAudioId) {
+          sound.play(event);
+          lastAudioId = event.id;
+        }
+      }
+      const state = engine.getSnapshot();
+      sound.setIntensity(
+        state.pulseTime > 0
+          ? 1
+          : Math.min(0.85, state.combo / 12 + state.energy / 250),
+      );
       if (now - lastUi > 80) {
         setSnapshot(engine.getSnapshot());
         lastUi = now;
@@ -136,13 +186,17 @@ export default function App() {
     };
     frame = requestAnimationFrame(tick);
     const visibility = () => {
-      if (document.hidden) engine.pause();
+      if (document.hidden) {
+        engine.pause();
+        sound.setPaused(true);
+      }
       last = performance.now();
     };
     document.addEventListener("visibilitychange", visibility);
     return () => {
       cancelAnimationFrame(frame);
       document.removeEventListener("visibilitychange", visibility);
+      sound.setPaused(true);
     };
   }, [engine]);
 
@@ -173,15 +227,24 @@ export default function App() {
           "Space",
           "KeyA",
           "KeyD",
+          "KeyE",
           "Escape",
           "KeyP",
         ].includes(event.code)
       )
         event.preventDefault();
-      if (event.repeat && ["Space", "Escape", "KeyP"].includes(event.code))
+      if (
+        event.repeat &&
+        ["Space", "Escape", "KeyP", "KeyE"].includes(event.code)
+      )
         return;
       keys.add(event.code);
+      if (event.code === "KeyE") {
+        wakeAudio();
+        engine.activatePulse();
+      }
       if (event.code === "Space") {
+        wakeAudio();
         if (engine.status === "paused") engine.resume();
         else engine.launch();
       }
@@ -208,6 +271,7 @@ export default function App() {
     const blur = () => {
       keys.clear();
       engine.pause();
+      sound.setPaused(true);
     };
     frame = requestAnimationFrame(move);
     window.addEventListener("keydown", down);
@@ -219,7 +283,7 @@ export default function App() {
       window.removeEventListener("keyup", up);
       window.removeEventListener("blur", blur);
     };
-  }, [engine, modal]);
+  }, [engine, modal, muted, music]);
 
   const toggleFullscreen = async () => {
     try {
@@ -236,7 +300,9 @@ export default function App() {
     : 0;
 
   return (
-    <div className={`app ${playing ? "is-playing" : ""}`}>
+    <div
+      className={`app ${playing ? "is-playing arcade-edition" : ""} ${(snapshot?.pulseTime ?? 0) > 0 ? "nova-active" : ""}`}
+    >
       <div className="ambient" aria-hidden="true">
         <div className="ambient-cloud cloud-one" />
         <div className="ambient-cloud cloud-two" />
@@ -288,7 +354,7 @@ export default function App() {
             className="icon-button"
             aria-label={muted ? "开启声音" : "关闭声音"}
             aria-pressed={!muted}
-            onClick={() => updateMuted(!muted)}
+            onClick={toggleMute}
           >
             {muted ? <VolumeX size={18} /> : <Volume2 size={18} />}
           </button>
@@ -506,6 +572,12 @@ export default function App() {
         </main>
       ) : (
         <main className="play-layout">
+          <div className="orbital-scenery" aria-hidden="true">
+            <div className="orbital-planet" />
+            <i />
+            <i />
+            <span>BREAK THE ORDINARY</span>
+          </div>
           <aside className="mission-panel">
             <button
               className="text-button back-button"
@@ -514,7 +586,7 @@ export default function App() {
               <ArrowLeft size={15} />
               暂停 / 返回大厅
             </button>
-            <span className="eyebrow">CURRENT EXPEDITION</span>
+            <span className="eyebrow">REACTOR ONLINE / 当前星域</span>
             <div className="mission-number">
               {snapshot && snapshot.levelIndex >= 0
                 ? String(snapshot.levelIndex + 1).padStart(2, "0")
@@ -525,9 +597,9 @@ export default function App() {
             </div>
             <h1>{snapshot ? shortName(snapshot.levelName) : ""}</h1>
             <p>
-              接住每一束光。
+              让反弹成为连锁反应。
               <br />
-              直到最后一块砖，化作星尘。
+              蓄满能量，亲手引爆这片星空。
             </p>
             <div className="mission-preview">
               <BrickPreview
@@ -549,6 +621,15 @@ export default function App() {
                 {snapshot?.destroyed} / {snapshot?.total} BRICKS
               </small>
             </div>
+            {snapshot && (
+              <PulseControl
+                snapshot={snapshot}
+                onPulse={() => {
+                  wakeAudio();
+                  engine.activatePulse();
+                }}
+              />
+            )}
             <div className="play-control-help">
               <span>
                 <MousePointer2 size={15} />
@@ -562,16 +643,24 @@ export default function App() {
                 <kbd>SPACE</kbd>发射光球
               </span>
               <span>
+                <kbd>E</kbd>释放超新星
+              </span>
+              <span>
                 <kbd>ESC</kbd>暂停探索
               </span>
             </div>
           </aside>
-          <section className="game-stage" aria-label="打砖块游戏区域">
+          <section
+            className={`game-stage ${(snapshot?.pulseTime ?? 0) > 0 ? "overdriving" : ""} ${snapshot?.pulseReady ? "pulse-armed" : ""}`}
+            aria-label="打砖块游戏区域"
+          >
             <div className="stage-top">
               <span>
                 <i className="signal-dot" />
                 {snapshot?.status === "playing"
-                  ? "正在探索"
+                  ? snapshot.pulseTime > 0
+                    ? "超新星 · 穿透模式"
+                    : "引力场已启动"
                   : snapshot?.status === "ready"
                     ? "等待发射"
                     : "星界航行"}
@@ -597,20 +686,27 @@ export default function App() {
                   variant="play"
                   engine={engine}
                   onMove={(x) => engine.move(x)}
-                  onLaunch={() => engine.launch()}
+                  onLaunch={() => {
+                    wakeAudio();
+                    engine.launch();
+                  }}
                   quality={quality}
                   reducedMotion={reducedMotion}
                 />
               </Suspense>
             </div>
+            {snapshot && <ArcadeOverlay engine={engine} snapshot={snapshot} />}
             {snapshot?.status === "ready" && (
               <button
                 className="launch-overlay"
-                onClick={() => engine.launch()}
+                onClick={() => {
+                  wakeAudio();
+                  engine.launch();
+                }}
               >
                 <span className="launch-orb" />
                 <strong>点击发射</strong>
-                <span>或按空格，开启这段旅程</span>
+                <span>击碎砖块蓄能 · E 键释放超新星</span>
               </button>
             )}
             {snapshot &&
@@ -642,7 +738,7 @@ export default function App() {
                   <p>
                     {snapshot.status === "paused"
                       ? "你的探索进度已保留。"
-                      : `本次得分 ${snapshot.score.toLocaleString()} · 击碎 ${snapshot.destroyed} 块砖`}
+                      : `得分 ${snapshot.score.toLocaleString()} · 最高 ${snapshot.bestCombo} 连击 · ${Math.floor(snapshot.elapsed)} 秒`}
                   </p>
                   <div className="overlay-actions">
                     {snapshot.status === "paused" ? (
@@ -682,8 +778,8 @@ export default function App() {
                 </div>
               )}
             <div className="stage-bottom">
-              <span className="mono">ASTRAL FORGE / BREAKOUT MAKER</span>
-              <span className="mono">375 × 667</span>
+              <span className="mono">REACTOR CORE · LIVE</span>
+              <span className="mono">{snapshot?.bestCombo ?? 0} MAX COMBO</span>
             </div>
           </section>
           <aside className="telemetry-panel">
@@ -704,15 +800,21 @@ export default function App() {
                 )}
               </div>
             </div>
-            <div className="combo-readout">
+            <div
+              className={`combo-readout ${(snapshot?.combo ?? 0) >= 5 ? "combo-hot" : ""}`}
+            >
               <span className="eyebrow">当前连击 / COMBO</span>
               <strong>
                 ×{snapshot?.combo || 0}
                 <Zap size={20} />
               </strong>
             </div>
+            <div className="run-best">
+              <span>本局最高连击</span>
+              <strong className="mono">{snapshot?.bestCombo ?? 0}×</strong>
+            </div>
             <div className="power-guide">
-              <span className="eyebrow">接住意外之喜</span>
+              <span className="eyebrow">接住星际补给</span>
               {Object.entries(powerNames).map(([key, label], i) => (
                 <div key={key}>
                   <span className={`power-token power-${i}`}>
@@ -742,6 +844,12 @@ export default function App() {
                 </div>
               ))}
             </div>
+            <AudioDeck
+              muted={muted}
+              music={music}
+              onMute={toggleMute}
+              onMusic={toggleMusic}
+            />
             <button
               className="quality-toggle"
               onClick={() => setQuality(quality === "high" ? "low" : "high")}
@@ -751,6 +859,26 @@ export default function App() {
               <span>切换</span>
             </button>
           </aside>
+          {snapshot && (
+            <div className="mobile-action-dock">
+              <PulseControl
+                compact
+                snapshot={snapshot}
+                onPulse={() => {
+                  wakeAudio();
+                  engine.activatePulse();
+                }}
+              />
+              <button
+                className={`mobile-radio ${music ? "enabled" : ""}`}
+                aria-label={music ? "关闭星际电台" : "开启星际电台"}
+                aria-pressed={music}
+                onClick={toggleMusic}
+              >
+                <Music2 size={18} />
+              </button>
+            </div>
+          )}
         </main>
       )}
       <footer className="site-footer">
@@ -876,7 +1004,8 @@ export default function App() {
               <Sparkles />
               <h3>接住掉落的惊喜</h3>
               <p>
-                五种道具随机掉落：分裂球、多重发射、火球穿透、加宽挡板和额外生命。
+                五种道具随机掉落，靠近挡板会轻微吸附。击碎砖块还能蓄能，满格后按
+                E 或点击「释放超新星」清场，并获得 5 秒火球。
               </p>
             </div>
           </div>

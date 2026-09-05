@@ -18,3 +18,19 @@
 - Three rendering includes dynamic instance capacity, labeled drops and a verified functional Canvas fallback when WebGL is unavailable.
 - Final screenshots saved in screenshots/astral-desktop.png and screenshots/astral-mobile-play.png. Production preview remains at http://localhost:4173.
 - README and Dockerfile updated for the new Vite frontend; no external deployment. Docker image build remains unverified because the daemon is unavailable.
+- Second pass requested: user finds first version too restrained and authorizes stronger sound, drop effects, and gameplay improvements. Work remains on the existing new branch.
+- Arcade contract: simulation-stamped feedback drives sound/VFX/UI; charged Supernova damages exposed bricks then grants 5 seconds of fireball. Early/pity drops keep powers present in short sessions.
+- Deployment authorized mid-work. Server inspected read-only: Ubuntu 24.04, existing nginx on 80/443, blog in /var/www/blog; no Docker. Use a dedicated path under existing HTTPS rather than changing blog routes or DNS.
+- Server deployment prepared for /games/breakout/: Vite asset base and API requests now respect the subpath. Backend accepts an explicit bind host, and limits generation concurrency on the 1 GB VPS.
+- Original blog checksums recorded before changes. Dedicated Node 22.23.2 runtime downloaded and SHA256 verified under /opt/breakout-maker/runtime; no system Node or blog files replaced.
+- Live deployment activated with a validated graceful nginx reload. Public game HTML, JS/CSS and API health all return 200.
+- Blog homepage and RSS feed SHA256 match their predeploy values exactly. Both nginx and the isolated API service are active; API is loopback-only.
+- Versioned release is /opt/breakout-maker/releases/20260905-arcade; nginx backup and rollback documentation are prepared.
+- Real production AI call succeeded: "紫色水母" returned a valid 56×40, 480-brick level in 11.5 seconds using the existing configured provider.
+- Hosted browser successfully launches play; mobile at 390×844 has no horizontal overflow and visible score/ability controls. No page errors.
+- Final visual adjustment restores a dark bloom backdrop; hashed assets are copied before atomically replacing the HTML entry, retaining previous assets for open tabs.
+- Final hosted build rechecked after visual polish; game plays from its HTTPS subpath with no browser errors. Real provider generation succeeded and API service has zero restarts after testing (about 45 MB resident accounting).
+- Desktop/mobile skill controls, opt-in radio, mute cancellation and pause behavior verified. Existing blog index/feed files and public response checksums remain unchanged.
+- Local root build remains available at localhost:4173; hosted build uses an independent dist-live output. Deployment/rollback documented in deploy/COHOST.md.
+- Final live E-key test consumed 100 energy, cleared exposed bricks, and entered 5-second fireball; captured screenshots/arcade-supernova.png directly from the hosted build. Hosted mobile ready state captured in screenshots/arcade-mobile.png.
+- Public blog list and original CSS also return 200. All task-owned live test helpers were removed by closing their isolated QA browser sessions.

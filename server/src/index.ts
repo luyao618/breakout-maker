@@ -9,7 +9,9 @@ import type { GenerateRequest } from "./types.js";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const app = express();
+let activeGenerations = 0;
 const PORT = parseInt(process.env.PORT || "3001", 10);
+const HOST = process.env.HOST || "0.0.0.0";
 
 // Startup check
 if (!process.env.LLM_API_KEY) {
@@ -47,8 +49,17 @@ app.post("/api/generate-level", async (req, res) => {
       return;
     }
 
-    const level = await generateLevel(prompt);
-    res.json(level);
+    if (activeGenerations >= 1) {
+      res.status(429).json({ error: "工坊正在铸造另一份灵感，请稍后再试" });
+      return;
+    }
+    activeGenerations++;
+    try {
+      const level = await generateLevel(prompt);
+      res.json(level);
+    } finally {
+      activeGenerations--;
+    }
   } catch (err) {
     console.error("[generate-level] Error:", err);
     const isTimeout = err instanceof Error && (err as any).isTimeout;
@@ -86,6 +97,6 @@ app.get("*", (_req, res) => {
   res.sendFile(indexPath);
 });
 
-app.listen(PORT, () => {
+app.listen(PORT, HOST, () => {
   console.log(`🧱 Breakout Maker server running on http://localhost:${PORT}`);
 });

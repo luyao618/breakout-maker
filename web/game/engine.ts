@@ -5,13 +5,20 @@ import {
   BrickMapper,
   _applyColors,
   audio,
+  PowerUpDrop,
+  PowerUpType,
+  POWER_UP_WEIGHTS,
 } from "./legacy.js";
+import type { Ball, PhysicsWorld } from "./legacy.js";
+import { FeedbackStream, POWER_COLORS } from "./feedback";
 import type {
+  GameFeedback,
   GameProgress,
   GameSnapshot,
   GameStatus,
   Level,
   LevelBrick,
+  PowerUpKind,
 } from "./types";
 
 export type {
@@ -20,6 +27,7 @@ export type {
   GameProgress,
   GameSnapshot,
   GameStatus,
+  GameFeedback,
   Level,
   LevelBrick,
   PowerUpKind,
@@ -191,6 +199,16 @@ export class GameEngine {
   readonly level: Level;
   readonly levelIndex: number;
   status: GameStatus = "ready";
+  elapsed = 0;
+  private energy = 0;
+  private pulseTime = 0;
+  private bestCombo = 0;
+  private lastComboTime = -Infinity;
+  private lastPickup: GameSnapshot["lastPickup"] = null;
+  private readonly feedbackStream = new FeedbackStream();
+  private applyingPulse = false;
+  private hasDroppedPower = false;
+  private bricksWithoutDrop = 0;
   private accumulator = 0;
   private disposed = false;
   private resumeStatus: "ready" | "playing" = "ready";
@@ -219,12 +237,17 @@ export class GameEngine {
       level: _applyColors(this.level),
       levelIndex: this.levelIndex,
     });
+    this.installFeedback();
     this.lastSnapshot = this.snapshot();
     this.publish(true);
   }
 
   get phase(): GameStatus {
     return this.status;
+  }
+
+  get feedback(): readonly GameFeedback[] {
+    return this.feedbackStream.recent;
   }
 
   update(dt: number): void {
@@ -238,7 +261,23 @@ export class GameEngine {
       this.accumulator + Number.EPSILON >= C.FIXED_DT &&
       steps < C.MAX_STEPS
     ) {
+      const running = this.scene._launched;
+      if (running) {
+        this.elapsed += C.FIXED_DT;
+        this.attractDrops(C.FIXED_DT);
+      }
+      const waitingPaddle = !running
+        ? {
+            width: this.scene.paddle.width,
+            wideTimer: this.scene.paddle.wideTimer,
+            isWide: this.scene.paddle.isWide,
+          }
+        : null;
       this.scene.update(C.FIXED_DT);
+      // Legacy pre-launch movement also ticks the paddle effect; keep all effect
+      // durations on the same simulation clock while waiting to relaunch.
+      if (waitingPaddle) Object.assign(this.scene.paddle, waitingPaddle);
+      if (running) this.pulseTime = Math.max(0, this.pulseTime - C.FIXED_DT);
       this.accumulator = Math.max(0, this.accumulator - C.FIXED_DT);
       steps++;
       // Legacy callbacks may have changed status during the tick.
@@ -267,7 +306,87 @@ export class GameEngine {
       ball.launch();
     }
     this.status = "playing";
+    this.feedbackStream.emit(this.elapsed, {
+      kind: "launch",
+      x: this.scene.paddle.x,
+      y: this.scene.balls[0]?.y ?? this.scene.paddle.y,
+      color: "#b9fbff",
+      strength: 0.7,
+    });
     this.publish(true);
+  }
+
+  /** Discharge a charged reactor into the exposed edge of the remaining field. */
+  activatePulse(): boolean {
+    if (this.disposed || this.status !== "playing" || this.energy < 100)
+      return false;
+    const field = this.scene.brickField;
+    const exposed = [];
+    for (let col = 0; col < field.gridW; col++) {
+      for (let row = field.gridH - 1; row >= 0; row--) {
+        const brick = field.bricks[row][col];
+        if (!brick?.alive) continue;
+        const rect = field.getBrickRect(row, col);
+        exposed.push({ brick, x: rect.x + rect.w / 2, y: rect.y + rect.h / 2 });
+        break;
+      }
+    }
+    // Anchor the blast to an actual brick, including sparse image/custom grids.
+    exposed.sort(
+      (a, b) =>
+        b.y - a.y ||
+        Math.abs(a.x - this.scene.paddle.x) -
+          Math.abs(b.x - this.scene.paddle.x),
+    );
+    const anchor = exposed[0];
+    if (!anchor) return false;
+    const targets = exposed
+      .filter(
+        (target) => Math.hypot(target.x - anchor.x, target.y - anchor.y) <= 140,
+      )
+      .sort(
+        (a, b) =>
+          Math.hypot(a.x - anchor.x, a.y - anchor.y) -
+          Math.hypot(b.x - anchor.x, b.y - anchor.y),
+      )
+      .slice(0, 10);
+
+    this.energy = 0;
+    this.pulseTime = 5;
+    for (const ball of this.scene.balls) {
+      ball.isFireball = true;
+      ball.fireballTimer = Math.max(ball.fireballTimer, 5);
+    }
+    const fire = this.scene.activePowerUps.find(
+      (power) => power.type === "fireball",
+    );
+    if (fire) fire.timer = Math.max(fire.timer, 5);
+    else this.scene.activePowerUps.push({ type: "fireball", timer: 5 });
+    this.feedbackStream.emit(this.elapsed, {
+      kind: "pulse",
+      x: anchor.x,
+      y: anchor.y,
+      color: "#c5a5ff",
+      strength: 1,
+    });
+    this.applyingPulse = true;
+    try {
+      for (const { brick } of targets) {
+        const destroyed = brick.hit(true);
+        if (destroyed) field.destroyed++;
+        this.scene.physics.onBrickHit?.(brick.row, brick.col, destroyed, brick);
+      }
+    } finally {
+      this.applyingPulse = false;
+    }
+    // Skill damage can clear the final brick outside the regular physics tick.
+    if (this.scene._pendingTransition) {
+      const pending = this.scene._pendingTransition;
+      this.scene._pendingTransition = null;
+      this.transition(pending.state);
+    }
+    this.publish(true);
+    return true;
   }
 
   pause(): void {
@@ -292,9 +411,20 @@ export class GameEngine {
       level: _applyColors(this.level),
       levelIndex: this.levelIndex,
     });
+    this.elapsed = 0;
+    this.energy = 0;
+    this.pulseTime = 0;
+    this.bestCombo = 0;
+    this.lastComboTime = -Infinity;
+    this.lastPickup = null;
+    this.hasDroppedPower = false;
+    this.bricksWithoutDrop = 0;
+    this.feedbackStream.clear();
+    this.installFeedback();
     this.status = "ready";
     this.resumeStatus = "ready";
     this.accumulator = 0;
+    this.secondsSinceNotification = 0;
     this.publish(true);
   }
 
@@ -309,6 +439,9 @@ export class GameEngine {
           activePowerUps: this.lastSnapshot.activePowerUps.map((p) => ({
             ...p,
           })),
+          lastPickup: this.lastSnapshot.lastPickup
+            ? { ...this.lastSnapshot.lastPickup }
+            : null,
         }
       : this.snapshot();
   }
@@ -321,6 +454,206 @@ export class GameEngine {
     this.accumulator = 0;
   }
 
+  private installFeedback(): void {
+    const scene = this.scene;
+    const physics = scene.physics as PhysicsWorld & {
+      _wallCollision(ball: Ball): void;
+    };
+    const originalBrickHit = physics.onBrickHit;
+    const originalPaddleHit = physics.onPaddleHit;
+    const originalBallLost = physics.onBallLost;
+    const originalWallCollision = physics._wallCollision.bind(physics);
+
+    // Preserve the original score formula while making its timeout pause-safe.
+    scene.scoreSystem.onBrickHit = (destroyed) => {
+      if (!destroyed) return;
+      const score = scene.scoreSystem;
+      score._combo =
+        (this.elapsed - this.lastComboTime) * 1000 < C.COMBO_TIMEOUT
+          ? score._combo + 1
+          : 1;
+      this.lastComboTime = this.elapsed;
+      score._lastHit = this.elapsed * 1000;
+      const points = Math.round(
+        C.BASE_SCORE * (1 + (score._combo - 1) * C.COMBO_MULT),
+      );
+      score.score += points;
+      this.bestCombo = Math.max(this.bestCombo, score._combo);
+      if (score._combo >= 2) {
+        score.comboTexts.push({
+          text: `${score._combo}x Combo! +${points}`,
+          timer: 1,
+        });
+      }
+    };
+
+    physics.onBrickHit = (row, col, destroyed, brick) => {
+      const priorDrops = scene.powerUpDrops.length;
+      const priorScore = scene.scoreSystem.score;
+      originalBrickHit?.(row, col, destroyed, brick);
+      const rect = scene.brickField.getBrickRect(row, col);
+      const x = rect.x + rect.w / 2;
+      const y = rect.y + rect.h / 2;
+      const color = Array.isArray(brick.color)
+        ? brick.color[0]
+        : brick.color || "#b0a6ff";
+      const combo = scene.scoreSystem._combo;
+      this.feedbackStream.emit(this.elapsed, {
+        kind: "brick",
+        x,
+        y,
+        color,
+        combo,
+        points: scene.scoreSystem.score - priorScore,
+        strength: destroyed ? Math.min(1.5, 0.9 + combo * 0.06) : 0.32,
+      });
+      if (!destroyed) return;
+
+      // Direct pulse strikes and its fireballs cannot immediately recharge it.
+      if (!this.applyingPulse && this.pulseTime <= 0) {
+        this.energy = Math.min(
+          100,
+          this.energy + 9 + Math.min(3, Math.max(0, combo - 1)),
+        );
+      }
+
+      if (scene.powerUpDrops.length === priorDrops) {
+        this.bricksWithoutDrop++;
+        const firstDropDue =
+          !this.hasDroppedPower && scene.brickField.destroyed >= 4;
+        if (firstDropDue || this.bricksWithoutDrop >= 7) {
+          let kind: PowerUpKind = PowerUpType.SPLIT;
+          if (!firstDropDue) {
+            let roll =
+              Math.random() *
+              POWER_UP_WEIGHTS.reduce((sum, entry) => sum + entry.weight, 0);
+            for (const entry of POWER_UP_WEIGHTS) {
+              roll -= entry.weight;
+              if (roll <= 0) {
+                kind = entry.type;
+                break;
+              }
+            }
+          }
+          scene.powerUpDrops.push(new PowerUpDrop(x, y, kind));
+        }
+      }
+      const spawned = scene.powerUpDrops.slice(priorDrops);
+      if (spawned.length > 0) {
+        this.hasDroppedPower = true;
+        this.bricksWithoutDrop = 0;
+        for (const drop of spawned) {
+          this.feedbackStream.emit(this.elapsed, {
+            kind: "powerSpawn",
+            x: drop.x,
+            y: drop.y,
+            color: POWER_COLORS[drop.type],
+            power: drop.type,
+            strength: 0.65,
+          });
+        }
+      }
+    };
+
+    physics._wallCollision = (ball) => {
+      const x = ball.x;
+      const y = ball.y;
+      originalWallCollision(ball);
+      if (ball.x !== x || ball.y !== y) {
+        this.feedbackStream.emit(this.elapsed, {
+          kind: "wall",
+          x: ball.x,
+          y: ball.y,
+          color: ball.isFireball ? "#ffb978" : "#85eaff",
+          strength: 0.2,
+        });
+      }
+    };
+    physics.onPaddleHit = (ball) => {
+      originalPaddleHit?.(ball);
+      this.feedbackStream.emit(this.elapsed, {
+        kind: "paddle",
+        x: ball.x,
+        y: ball.y,
+        color: "#9bfff5",
+        strength: 0.5,
+      });
+    };
+    physics.onBallLost = (ball) => {
+      originalBallLost?.(ball);
+      if (scene.balls.every((candidate) => candidate._dead)) {
+        this.lastComboTime = -Infinity;
+        this.feedbackStream.emit(this.elapsed, {
+          kind: "lifeLost",
+          x: ball.x,
+          y: C.SCREEN_H - 50,
+          color: "#ff789d",
+          strength: 1,
+        });
+      }
+    };
+
+    scene._activatePowerUp = (type) => {
+      GameScene.prototype._activatePowerUp.call(scene, type);
+      // A life caught on the exact final-ball frame is still a successful rescue.
+      if (
+        type === "extraLife" &&
+        scene.lives > 0 &&
+        scene.balls.length === 0 &&
+        scene._pendingTransition?.state === "LOSE"
+      ) {
+        scene._pendingTransition = null;
+        scene._spawnBallOnPaddle();
+      }
+      // Repeated split drops stay spectacular without unbounded exponential work.
+      if (scene.balls.length > 24) scene.balls.length = 24;
+      if (this.pulseTime > 0) {
+        for (const ball of scene.balls) {
+          ball.isFireball = true;
+          ball.fireballTimer = Math.max(ball.fireballTimer, this.pulseTime);
+        }
+      }
+      const longest = new Map<PowerUpKind, number>();
+      for (const power of scene.activePowerUps) {
+        longest.set(
+          power.type,
+          Math.max(longest.get(power.type) ?? 0, power.timer),
+        );
+      }
+      scene.activePowerUps = [...longest].map(([powerType, timer]) => ({
+        type: powerType,
+        timer,
+      }));
+      const event = this.feedbackStream.emit(this.elapsed, {
+        kind: "powerCollect",
+        x: scene.paddle.x,
+        y: scene.paddle.y,
+        power: type,
+        color: POWER_COLORS[type],
+        strength: 1,
+      });
+      this.lastPickup = { id: event.id, type, time: this.elapsed };
+    };
+  }
+
+  private attractDrops(dt: number): void {
+    const paddle = this.scene.paddle;
+    for (const drop of this.scene.powerUpDrops) {
+      const dy = paddle.y - drop.y;
+      const dx = paddle.x - drop.x;
+      if (
+        !drop.alive ||
+        dy < 0 ||
+        dy > 130 ||
+        Math.abs(dx) > paddle.width / 2 + 55
+      )
+        continue;
+      // A gentle final approach assists near catches, while steering still matters.
+      const movement = Math.min(Math.abs(dx), (28 + 70 * (1 - dy / 130)) * dt);
+      drop.x += Math.sign(dx) * movement;
+    }
+  }
+
   private transition(state: string): void {
     if (state === "PAUSED") {
       this.pause();
@@ -328,6 +661,13 @@ export class GameEngine {
     }
     if (state !== "WIN" && state !== "LOSE") return;
     this.status = state === "WIN" ? "won" : "lost";
+    this.feedbackStream.emit(this.elapsed, {
+      kind: state === "WIN" ? "win" : "lose",
+      x: C.SCREEN_W / 2,
+      y: state === "WIN" ? 270 : this.scene.paddle.y,
+      color: state === "WIN" ? "#b1ffe2" : "#ff869e",
+      strength: 1,
+    });
     this.accumulator = 0;
     if (
       state === "WIN" &&
@@ -348,7 +688,7 @@ export class GameEngine {
       score: this.scene.scoreSystem.score,
       lives: this.scene.lives,
       combo:
-        performance.now() - this.scene.scoreSystem._lastHit < C.COMBO_TIMEOUT
+        (this.elapsed - this.lastComboTime) * 1000 < C.COMBO_TIMEOUT
           ? this.scene.scoreSystem._combo
           : 0,
       destroyed: this.scene.brickField.destroyed,
@@ -359,6 +699,12 @@ export class GameEngine {
         type,
         timer,
       })),
+      energy: this.energy,
+      pulseReady: this.energy >= 100,
+      pulseTime: this.pulseTime,
+      bestCombo: this.bestCombo,
+      elapsed: this.elapsed,
+      lastPickup: this.lastPickup ? { ...this.lastPickup } : null,
     };
   }
 
@@ -464,12 +810,15 @@ export async function generateLevel(
     controller.abort();
   }, 180_000);
   try {
-    const response = await fetch("/api/generate-level", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt: description }),
-      signal: controller.signal,
-    });
+    const response = await fetch(
+      `${import.meta.env.BASE_URL}api/generate-level`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt: description }),
+        signal: controller.signal,
+      },
+    );
     const payload: unknown = await response.json().catch(() => null);
     if (
       !response.ok ||
