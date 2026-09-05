@@ -57,3 +57,10 @@
 - Browser caught all five power types: each notification stayed inside the header and above the arena; old overlay nodes count 0 and stage geometry stayed unchanged.
 - Verified 320×640, 390×844, 600×850, 768×1024, 844×390 and 1440×1000: notification stays in the page header above the playfield, no horizontal overflow, no old overlay DOM, no geometry shift on pickup.
 - 162 tests pass. Frontend-only top-hud release deployed with unchanged API PID and unchanged quota/blog checksums; existing backend and settings remain intact.
+
+- Difficulty redesign requested. Started bounded gameplay/level redesign and independent baseline vs skill-tier simulations; previous notifications, open access, blog and quota constraints retained.
+- Added shared engraved armor/reactor/accelerator symbols for Three, Canvas and previews; added selected-level briefings, difficulty labels and help rules outside live play. Baseline simulator/report prepared.
+- Integrated numeric 1–5 difficulty metadata and aligned reactor rules across UI/catalogue: direct ball or pulse destroys a reactor and splashes eight adjacent cells once; collateral never cascades or generates drops/energy. Mobile legend moved out of compact telemetry row after visual QA.
+- Full seeded calibration: casual28/39 wins, skilled/expert/ideal39/39 each; means171/150/116/79s. All runs max4 balls/max3 lives. All172 tests passed; actual browser launch, marked brick rendering and mobile layout verified.
+- Verified six viewport sizes320×640 through1440×1000: notifications inside header above stage, no horizontal overflow or obsolete overlays. Actual browser controller caught a natural wide-paddle drop; direct all-power QA confirmed4-ball/1-fireball limits and unchanged stage geometry.
+- Deployed frontend-only tactical release to /opt/breakout-maker/releases/20260905-tactical. Hosted stage13 launches at405px/s with205 bricks and3 lives, all13 cards selectable, no browser errors. Public HTML/assets/API return200. API PID538453 and quota/blog index/feed SHA256 unchanged. Retained old assets/release for rollback; no backend, secret or quota changes.

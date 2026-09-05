@@ -12,17 +12,17 @@
 
 ### 超新星街机版
 
-![全部开放的新星图关卡](screenshots/campaign-open-selection.png)
+![全部开放的新星图关卡](screenshots/tactical-level-selection.png)
 
-- **全新星图关卡**：13 张不同结构的星图，184–522 块砖，涵盖星环、双子反应堆、矩阵、涡旋、迷宫、分形圣殿与戴森天幕。全部关卡从开始即可任选，旧存档不会锁关。
+- **全新星图关卡**：13 张围绕入口与弱点重做的星图，128–205 块砖，涵盖星环、双子反应堆、矩阵、涡旋、迷宫、分形圣殿与戴森天幕。全部关卡从开始即可任选，旧存档不会锁关。
 - **手机清晰视野**：拾取提示、连击和道具倒计时统一显示在页面最上方的导航栏，所有屏幕都不再在球场中显示文字弹层或拾取爆发光圈。
 
-![超新星脉冲实机画面](screenshots/arcade-supernova.png)
+![战术版本手机实机画面](screenshots/tactical-mobile-play.png)
 
-- **主动技能**：击碎砖块积蓄能量，满格后按 **E**（手机点击底部按钮）释放超新星，冲击暴露砖块并获得 5 秒火球穿透。技能期间不回充能量。
-- **掉落节奏**：首次道具最迟在第 4 次击碎后出现，之后连续 7 次未掉落触发保底；靠近挡板的道具会轻微吸附。
+- **主动技能**：击碎砖块积蓄能量，满格后按 **E**（手机点击底部按钮）释放超新星，朝挡板上方最近的外层砖冲击，最多直接命中 5 块、每块 1 点伤害；反应堆弱点会额外爆破近邻。技能不再附赠火球，冲击不会回充能量。
+- **掉落节奏**：自然击碎有 7% 概率掉落，连续 18 次未掉落触发保底（仍受 5 秒冷却与最多 2 个在场补给限制）；取消吸附，接球与抢补给需要取舍。
 - **视听反馈**：星云球场、发光晶体、冲击波、碎片、道具轨道光环、连击提示和空间音效；可选星际电台默认关闭。
-- **稳定运行**：多球上限 24，声音并发上限 48；暂停会冻结技能和道具计时并停止声音。
+- **稳定运行**：多球上限 4，声音并发上限 48；暂停会冻结技能和道具计时并停止声音。
 
 
 在星空中的立体球场里打砖块。新版以 React 19、Three.js 和 React Three Fiber 重建界面与 3D 渲染，把梦幻星尘、发光砖块与工业仪器般的操作面板融为一体。
@@ -56,7 +56,7 @@ npm run test:legacy
 - **创造模式**：输入图案描述，调用 AI 服务生成关卡；常见图案可以命中服务端模板。
 - **控制挡板**：在球场内移动鼠标或拖动手指，也可使用方向键或 `A` / `D`。
 - **发球与暂停**：点击球场或按空格发球，`Esc` / `P` 暂停或继续，也可使用界面按钮；球掉落后消耗生命并重新发球。
-- **道具**：分裂球、多重发射、火球穿透、加宽挡板、额外生命；连击会提高得分倍率。
+- **道具**：分裂与齐射各增加两球；火球仅强化一球，限 4 秒或 6 次碰砖；加宽 25% 持续 7 秒；每局最多修复一次生命，不超过初始生命。连击得分倍率最高 4 倍。
 
 ### AI 服务配置（可选）
 
@@ -97,7 +97,7 @@ Docker 运行原有 AI 服务，因此也需要配置 `LLM_API_KEY`。浏览器�
 web/                       React 界面、Three.js 场景与游戏适配层
   game/build-legacy.cjs    共享原有游戏逻辑的生成脚本
 src/                       原有物理、实体、计分、音效与图片转换逻辑
-levels/                    13 个原有关卡 JSON
+levels/                    13 个战术关卡 JSON
 public/                    前端静态资源
 server/                    Express + TypeScript AI 关卡服务
 test/                      原有游戏回归测试
@@ -119,7 +119,7 @@ open preview.html
 
 ### Supernova arcade edition
 
-Destroy bricks to charge **Supernova**, then press **E** or tap the mobile skill button to blast exposed bricks and gain five seconds of piercing fireballs. Overdrive cannot recharge itself. Early and dry-streak drop protection plus gentle paddle attraction make all five powers easier to encounter. Spatial crystal impacts, bloom, shockwaves and combo callouts accompany play; the optional synthwave radio is off by default. Balls are capped at 24 and audio voices at 48. Pause freezes effect timers and silences audio.
+Destroy bricks to charge **Supernova**, then aim with the paddle and press **E** or tap the mobile skill button. It damages up to five exposed bricks by one HP each; a destroyed reactor splashes the eight neighboring cells without cascading. Armor reflects fireballs; accelerator bricks raise the striking ball’s speed up to 130%. Split and multishot add two ordinary balls with a four-ball cap. Fire strengthens one ball for four seconds or six contacts; wide paddle lasts seven seconds; one life repair is allowed per run. Drops have a five-second cooldown, two-drop limit and 18-kill pity. All 13 stages remain open. Pause freezes effect timers and silences audio.
 
 
 A brick-breaker set on a three-dimensional court in a field of stars. This edition rebuilds the interface and rendering with React 19, Three.js, and React Three Fiber, pairing luminous bricks and atmospheric particles with precise instrument-style controls.

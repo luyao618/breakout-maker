@@ -1,407 +1,312 @@
 #!/usr/bin/env node
 /**
- * Authored, deterministic campaign geometry for Astral Forge.
- * Run from anywhere: node tools/generate-levels.cjs
- *
- * Positions are grid cells; the game renders square bricks. Negative space is
- * deliberate: every dense structure has shot lanes and breakable entrances.
- * Most bricks have one HP, so intricate silhouettes produce satisfying chains
- * instead of requiring players to chip away at several solid high-HP walls.
+ * Deterministic tactical campaign for Astral Forge.
+ * Every silhouette has intentional shot lanes; difficulty comes from angle
+ * control, guarded entrances and accelerator returns, never immortal bricks.
+ * Run: node tools/generate-levels.cjs
  */
 const fs = require('node:fs');
 const path = require('node:path');
 
-const CYAN = ['#45b9df', '#61e0ed', '#b4fcf3'];
-const VIOLET = ['#7760d9', '#aa8cf3', '#e3cbff'];
-const ROSE = ['#cd629b', '#f294c7', '#ffe0f3'];
-const GOLD = ['#d89848', '#f3c16f', '#fff1ba'];
-const BLUE = ['#427fcf', '#79b0f3', '#c2e5ff'];
-const MINT = ['#44b59b', '#72dfbd', '#c6ffe1'];
-const IRON = '#bacbdf';
-const TAU = Math.PI * 2;
+const CYAN = '#61dce9';
+const VIOLET = '#aa8cf3';
+const ROSE = '#ee8bc1';
+const BLUE = '#79b0f3';
+const GOLD = '#ffc971';
+const MINT = '#80efc8';
+const ARMOR = '#b8ccf4';
+const KIND_HP = { normal: 1, armor: 2, reactor: 2, accelerator: 1 };
 
-function level(index, title, width, height, ballSpeed, paddleWidth, lives) {
+function level(index, title, difficulty, briefing, ballSpeed, paddleWidth, width = 24, height = 20) {
   const bricks = new Map();
-  const result = {
-    name: `关卡${index} - ${title}`,
-    gridWidth: width, gridHeight: height, ballSpeed, paddleWidth, lives,
-  };
   const api = {
     width, height,
-    add(col, row, palette = CYAN, hp = 1, overwrite = true) {
+    add(col, row, color = CYAN, kind = 'normal', hp = KIND_HP[kind]) {
       col = Math.round(col); row = Math.round(row);
       if (col < 0 || col >= width || row < 0 || row >= height) return;
-      const key = `${row},${col}`;
-      if (!overwrite && bricks.has(key)) return;
-      bricks.set(key, {
-        row, col, hp,
-        color: hp >= 10 ? IRON : palette[Math.min(hp - 1, 2)],
-      });
+      bricks.set(`${row},${col}`, { row, col, hp, color: kind === 'armor' ? ARMOR : kind === 'reactor' ? GOLD : kind === 'accelerator' ? MINT : color, kind });
     },
-    paint(predicate, palette = CYAN, hp = 1, overwrite = true) {
-      for (let row = 0; row < height; row++) {
-        for (let col = 0; col < width; col++) {
-          if (!predicate(col, row)) continue;
-          const strength = typeof hp === 'function' ? hp(col, row) : hp;
-          const shades = typeof palette === 'function' ? palette(col, row) : palette;
-          api.add(col, row, shades, strength, overwrite);
-        }
+    paint(predicate, color = CYAN, kind = 'normal', hp) {
+      for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
+        if (predicate(x, y)) api.add(x, y, typeof color === 'function' ? color(x, y) : color,
+          typeof kind === 'function' ? kind(x, y) : kind, typeof hp === 'function' ? hp(x, y) : hp);
       }
     },
     cut(predicate) {
-      for (const [key, brick] of bricks) {
-        if (predicate(brick.col, brick.row)) bricks.delete(key);
-      }
+      for (const [key, brick] of bricks) if (predicate(brick.col, brick.row)) bricks.delete(key);
+    },
+    role(predicate, kind, hp = KIND_HP[kind]) {
+      for (const brick of [...bricks.values()]) if (predicate(brick.col, brick.row)) api.add(brick.col, brick.row, brick.color, kind, hp);
     },
     finish() {
-      result.bricks = [...bricks.values()].sort((a, b) => a.row - b.row || a.col - b.col);
-      return result;
+      return { name: `关卡${index} - ${title}`, difficulty, briefing, gridWidth: width, gridHeight: height,
+        ballSpeed, paddleWidth, lives: 3,
+        bricks: [...bricks.values()].sort((a, b) => a.row - b.row || a.col - b.col) };
     },
   };
   return api;
 }
 
-function ring(x, y, cx, cy, rx, ry, thickness = 0.13) {
-  const distance = Math.hypot((x - cx) / rx, (y - cy) / ry);
-  return distance >= 1 - thickness && distance <= 1 + thickness;
+function ring(x, y, cx, cy, rx, ry, thickness = 0.12) {
+  return Math.abs(Math.hypot((x - cx) / rx, (y - cy) / ry) - 1) <= thickness;
 }
-
-function diamond(x, y, cx, cy, radius) {
-  return Math.abs(x - cx) + Math.abs(y - cy) <= radius;
-}
-
-function diamondRing(x, y, cx, cy, radius, thickness = 1) {
+function diamondRing(x, y, cx, cy, radius, thickness = 0.6) {
   return Math.abs(Math.abs(x - cx) + Math.abs(y - cy) - radius) <= thickness;
 }
-
-function segmentDistance(x, y, ax, ay, bx, by) {
+function rect(l, x0, y0, x1, y1, color = CYAN, kind = 'normal', hp) {
+  l.paint((x, y) => x >= x0 && x <= x1 && y >= y0 && y <= y1, color, kind, hp);
+}
+function line(l, ax, ay, bx, by, color = CYAN, thickness = 0.55, kind = 'normal') {
   const dx = bx - ax; const dy = by - ay;
-  const t = Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / (dx * dx + dy * dy || 1)));
-  return Math.hypot(x - ax - t * dx, y - ay - t * dy);
-}
-
-function line(l, ax, ay, bx, by, palette, width = 0.7, hp = 1) {
-  l.paint((x, y) => segmentDistance(x, y, ax, ay, bx, by) <= width, palette, hp);
-}
-
-function star(l, cx, cy, radius, palette, hp = 1) {
   l.paint((x, y) => {
-    const dx = Math.abs(x - cx); const dy = Math.abs(y - cy);
-    return (dx + dy <= radius && Math.min(dx, dy) <= radius / 3);
-  }, palette, (x, y) => x === cx && y === cy ? Math.min(hp + 1, 3) : hp);
+    const t = Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / (dx * dx + dy * dy || 1)));
+    return Math.hypot(x - ax - t * dx, y - ay - t * dy) <= thickness;
+  }, color, kind);
+}
+function reactor(l, x, y, color = CYAN, surround = true) {
+  if (surround) for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) l.add(x + dx, y + dy, color);
+  l.add(x, y, GOLD, 'reactor');
+}
+function chamber(l, x0, y0, x1, y1, color, gate = 'bottom') {
+  l.paint((x, y) => x >= x0 && x <= x1 && y >= y0 && y <= y1 && (x === x0 || x === x1 || y === y0 || y === y1), color);
+  l.role((x, y) => y === y1 && x >= x0 && x <= x1, 'armor');
+  const cx = Math.floor((x0 + x1) / 2); const cy = Math.floor((y0 + y1) / 2);
+  if (gate === 'bottom') l.cut((x, y) => y === y1 && x >= cx && x <= cx + 1);
+  if (gate === 'left') l.cut((x, y) => x === x0 && y >= cy && y <= cy + 1);
+  if (gate === 'right') l.cut((x, y) => x === x1 && y >= cy && y <= cy + 1);
 }
 
 const campaign = [];
 
-// 01: Open orbital arcs welcome ricochets; two vertical light wells reach the core.
+// 01: Armored lower arcs reject brute force. Two open flanks lead to the soft backs.
 {
-  const l = level(1, '星环启航', 28, 24, 295, 112, 5);
-  l.paint((x, y) => ring(x, y, 13.5, 11, 12, 9, 0.085), VIOLET);
-  l.paint((x, y) => ring(x, y, 13.5, 11, 7.7, 5.8, 0.12), CYAN,
-    (x, y) => (x + y) % 4 === 0 ? 2 : 1);
-  l.paint((x, y) => diamond(x, y, 13.5, 10.5, 3), GOLD,
-    (x, y) => Math.abs(x - 13.5) < 1 ? 3 : 1);
-  for (const [x, y] of [[2, 2], [25, 2], [3, 21], [24, 21]]) star(l, x, y, 2, CYAN);
-  l.cut((x, y) => (x === 8 || x === 19) && y >= 14);
-  l.cut((x, y) => x >= 13 && x <= 14 && y >= 15);
+  const l = level(1, '星环启航', 1, '从星环两侧切入，绕到银色装甲背后；挡板边缘能打出更斜的回球。', 325, 96);
+  l.paint((x, y) => ring(x, y, 11.5, 8, 10, 7.2, 0.10), VIOLET);
+  l.paint((x, y) => ring(x, y, 11.5, 8, 5.8, 4.3, 0.15), CYAN);
+  l.role((x, y) => y >= 9, 'armor');
+  l.cut((x, y) => (x <= 3 || x >= 20) && y >= 7 && y <= 9);
+  rect(l, 10, 6, 13, 9, ROSE);
+  for (const [x, y] of [[1, 1], [20, 1], [1, 17], [20, 17]]) rect(l, x, y, x + 2, y + 1, BLUE);
   campaign.push(l.finish());
 }
 
-// 02: Six petals are separated by open radial sectors and flower into long chains.
+// 02: Four petals teach deliberate reactor shots. The bounded burst damages the eight neighboring cells.
 {
-  const l = level(2, '光子花园', 30, 26, 300, 110, 5);
-  const cx = 14.5; const cy = 12;
-  for (let petal = 0; petal < 6; petal++) {
-    const angle = petal * TAU / 6;
-    l.paint((x, y) => {
-      const dx = x - cx; const dy = y - cy;
-      const u = dx * Math.cos(angle) + dy * Math.sin(angle);
-      const v = -dx * Math.sin(angle) + dy * Math.cos(angle);
-      return ring(u, v, 7, 0, 5.4, 3.15, 0.25) && u > 3;
-    }, petal % 2 ? ROSE : CYAN,
-    (x, y) => (x * 3 + y) % 7 === 0 ? 2 : 1);
+  const l = level(2, '光子花园', 1, '金色反应芯需要两次命中；优先击破它，周围冲击会拆掉邻砖。', 332, 94);
+  for (const [x0, y0, color, gate] of [[1, 1, CYAN, 'right'], [15, 1, ROSE, 'left'], [1, 11, ROSE, 'right'], [15, 11, CYAN, 'left']]) {
+    chamber(l, x0, y0, x0 + 7, y0 + 6, color, gate);
+    l.role((x, y) => x >= x0 && x <= x0 + 7 && y === y0, 'armor');
+    reactor(l, x0 + 3, y0 + 3, color);
+    l.add(x0 + 4, y0 + 3, color, 'armor');
   }
-  l.paint((x, y) => diamond(x, y, cx, cy, 3.5), GOLD,
-    (x, y) => Math.abs(x - cx) + Math.abs(y - cy) < 1.6 ? 3 : 1);
-  for (const [x, y] of [[2, 2], [27, 2], [2, 23], [27, 23]]) star(l, x, y, 2, VIOLET);
-  l.cut((x, y) => (x === 14 || x === 15) && y >= 17);
+  rect(l, 11, 4, 12, 6, VIOLET);
+  rect(l, 11, 13, 12, 15, VIOLET);
   campaign.push(l.finish());
 }
 
-// 03: Separate chambers can be entered from the center channel or their lower gates.
+// 03: Opposite open gates, staggered shelves and two cores create a left/right commitment.
 {
-  const l = level(3, '双子脉冲', 30, 26, 310, 108, 4);
-  for (const [cx, palette] of [[7, CYAN], [22, ROSE]]) {
-    l.paint((x, y) => ring(x, y, cx, 12, 6.5, 9.1, 0.12), palette);
-    l.paint((x, y) => ring(x, y, cx, 12, 3.3, 5.4, 0.23), VIOLET,
-      (x, y) => y % 3 === 0 ? 2 : 1);
-    l.paint((x, y) => diamond(x, y, cx, 11, 2), GOLD, 2);
-    l.cut((x, y) => Math.abs(x - cx) <= 1 && y >= 17);
-  }
-  line(l, 3, 1, 11, 1, BLUE);
-  line(l, 18, 1, 26, 1, VIOLET);
-  line(l, 3, 24, 10, 22, CYAN);
-  line(l, 19, 22, 26, 24, ROSE);
-  l.cut((x) => x === 14 || x === 15);
-  campaign.push(l.finish());
-}
-
-// 04: Staggered chevrons make a navigable zigzag corridor rather than a solid wall.
-{
-  const l = level(4, '棱镜航道', 28, 24, 315, 106, 4);
-  const colors = [VIOLET, BLUE, CYAN, MINT, GOLD];
-  for (let band = 0; band < 5; band++) {
-    const y0 = 1 + band * 4;
-    const direction = band % 2 ? -1 : 1;
-    l.paint((x, y) => {
-      const centerline = y0 + Math.abs(x - 13.5) * 0.33 * direction + (direction < 0 ? 4.5 : 0);
-      return x >= 2 && x <= 25 && Math.abs(y - centerline) <= 0.95;
-    }, colors[band], (x, y) => (x + band) % 6 === 0 ? 2 : 1);
-    l.cut((x, y) => {
-      const centerline = y0 + Math.abs(x - 13.5) * 0.33 * direction + (direction < 0 ? 4.5 : 0);
-      const gate = band % 2 ? 7 : 20;
-      return Math.abs(x - gate) <= 1 && Math.abs(y - centerline) <= 1.1;
-    });
-  }
-  for (const x of [0, 27]) {
-    for (const y of [2, 8, 14, 20]) l.add(x, y, GOLD, 2);
-  }
-  campaign.push(l.finish());
-}
-
-// 05: Five pairs of swept feathers funnel shots into a luminous central spine.
-{
-  const l = level(5, '天穹之翼', 32, 27, 320, 104, 4);
-  for (const side of [-1, 1]) {
-    for (let feather = 0; feather < 5; feather++) {
-      const x0 = 15.5 + side * 2.5;
-      const y0 = 6 + feather * 3.5;
-      const x1 = 15.5 + side * (15 - feather * 1.4);
-      const y1 = 2 + feather * 3.9;
-      line(l, x0, y0, x1, y1, feather % 2 ? BLUE : CYAN, 1.05,
-        (x, y) => (x + y) % 7 === 0 ? 2 : 1);
+  const l = level(3, '双子脉冲', 2, '先清一座反应塔；中央通道便于转场，超新星留给塔底的装甲横梁。', 339, 92);
+  for (const [x0, color, gate] of [[1, CYAN, 'right'], [14, ROSE, 'left']]) {
+    chamber(l, x0, 1, x0 + 8, 18, color, gate);
+    for (const y of [5, 10, 15]) {
+      rect(l, x0 + 2, y, x0 + 6, y, VIOLET);
+      l.role((x, row) => row === y && x >= x0 + 2 && x <= x0 + 6, 'armor');
+      l.cut((x, row) => row === y && x === x0 + (y === 10 ? 2 : 6));
     }
+    reactor(l, x0 + 4, 3, color);
+    reactor(l, x0 + 4, 13, color);
+    l.role((x, y) => x === x0 + (gate === 'left' ? 8 : 0) && y >= 5 && y <= 14, 'armor');
   }
-  l.paint((x, y) => diamondRing(x, y, 15.5, 8, 6, 1.2), VIOLET);
-  l.paint((x, y) => diamond(x, y, 15.5, 8, 2.5), GOLD, 2);
-  l.paint((x, y) => Math.abs(x - 15.5) <= 0.5 && y >= 15 && y <= 24, ROSE);
-  l.cut((x, y) => (x === 11 || x === 20) && y >= 12 && y <= 22);
-  star(l, 15.5, 25, 2, GOLD);
   campaign.push(l.finish());
 }
 
-// 06: Nine open reactor pods reward hopping between chambers through wide alleys.
+// 04: Alternating three-cell apertures require repeated angle changes.
 {
-  const l = level(6, '回声矩阵', 30, 26, 325, 104, 4);
-  const palettes = [CYAN, VIOLET, ROSE];
-  for (let row = 0; row < 3; row++) {
-    for (let col = 0; col < 3; col++) {
-      const cx = 4.5 + col * 10; const cy = 4 + row * 8;
-      l.paint((x, y) => {
-        const dx = Math.abs(x - cx); const dy = Math.abs(y - cy);
-        return dx <= 3.5 && dy <= 3 && (dx >= 2.5 || dy >= 2);
-      }, palettes[(row + col) % 3], (x, y) => (x + 2 * y) % 9 === 0 ? 2 : 1);
-      l.cut((x, y) => Math.abs(x - cx) <= 1.5 && y === cy + 3);
-      l.paint((x, y) => Math.abs(x - cx) <= 0.5 && y === cy, GOLD, 2);
-    }
+  const l = level(4, '棱镜航道', 2, '缺口左右交错；薄荷色加速砖会催快回球，过弯后先准备接球。', 346, 90);
+  for (let band = 0; band < 6; band++) {
+    const y = 1 + band * 3; const gate = band % 2 ? 16 : 5;
+    rect(l, 1, y, 22, y, band % 2 ? VIOLET : CYAN);
+    rect(l, band % 2 ? 1 : 15, y + 1, band % 2 ? 8 : 22, y + 1, BLUE, 'armor');
+    l.cut((x, row) => row >= y && row <= y + 1 && x >= gate && x <= gate + 2);
+    l.add(gate - 1, y, MINT, 'accelerator');
+    l.add(gate + 3, y, BLUE, 'armor');
+    if (band === 1 || band === 4) reactor(l, band % 2 ? 4 : 19, y, VIOLET, false);
   }
-  for (const x of [4, 14, 24]) star(l, x, 25, 1, MINT);
   campaign.push(l.finish());
 }
 
-// 07: Interleaved eight-point shells, with diagonal vents reaching a soft core.
+// 05: Swept wings push the ball outward; the central rib rewards a precise vertical entry.
 {
-  const l = level(7, '超新星冠', 32, 27, 330, 102, 4);
-  const cx = 15.5; const cy = 12.5;
-  l.paint((x, y) => {
-    const dx = x - cx; const dy = y - cy;
-    const angle = Math.atan2(dy, dx);
-    const edge = 10.8 + 2.4 * Math.cos(8 * angle);
-    return Math.abs(Math.hypot(dx, dy) - edge) < 1.15;
-  }, (x, y) => (x < cx) === (y < cy) ? ROSE : VIOLET);
-  l.paint((x, y) => diamondRing(x, y, cx, cy, 9.5, 1.3), GOLD,
-    (x, y) => (x + y) % 5 === 0 ? 2 : 1);
-  l.paint((x, y) => ring(x, y, cx, cy, 4.4, 4.4, 0.25), CYAN, 2);
-  l.paint((x, y) => diamond(x, y, cx, cy, 1.5), GOLD, 3);
-  l.cut((x, y) => y > cy && Math.abs(Math.abs(x - cx) - (y - cy)) <= 0.8);
-  for (const x of [1, 30]) for (const y of [2, 23]) star(l, x, y, 1, CYAN);
+  const l = level(5, '天穹之翼', 2, '从翼片之间切入中央反应芯；外缘加速砖会把快球送向两侧。', 353, 88);
+  for (const side of [-1, 1]) for (let feather = 0; feather < 4; feather++) {
+    const x0 = 11.5 + side * 2.5, y0 = 4 + feather * 4;
+    const x1 = 11.5 + side * (10.5 - feather), y1 = 1 + feather * 4;
+    line(l, x0, y0, x1, y1, feather % 2 ? BLUE : CYAN, 0.9);
+    l.role((x, y) => y >= y0 - 1 && y <= y0 && Math.abs(x - x0) <= 3, 'armor');
+    l.add(x1, y1, MINT, 'accelerator');
+  }
+  chamber(l, 9, 2, 14, 10, VIOLET, 'bottom');
+  reactor(l, 11, 5, ROSE);
+  reactor(l, 12, 8, ROSE);
+  rect(l, 10, 13, 13, 17, ROSE, 'armor');
+  l.cut((x, y) => x === 11 && y >= 14);
   campaign.push(l.finish());
 }
 
-// 08: Three spiral arms leave continuous curved channels rather than sealed rings.
+// 06: Nine chambers rotate their entrances. Reactor crosses soften the nearest face.
 {
-  const l = level(8, '引力涡旋', 32, 27, 335, 102, 4);
-  const cx = 15.5; const cy = 12.5;
+  const l = level(6, '回声矩阵', 3, '九座反应舱的入口朝向不同；先打通一列，再利用横向通道逐舱拆解。', 360, 86, 26, 22);
+  for (let row = 0; row < 3; row++) for (let col = 0; col < 3; col++) {
+    const x0 = 1 + col * 8, y0 = 1 + row * 7;
+    chamber(l, x0, y0, x0 + 4, y0 + 4, [CYAN, VIOLET, ROSE][(col + row) % 3], ['bottom', 'right', 'left'][(row + col) % 3]);
+    reactor(l, x0 + 2, y0 + 2, CYAN);
+    l.role((x, y) => y === y0 && x >= x0 && x <= x0 + 4, 'armor');
+    if (row === 1 && col !== 1) l.add(x0 + 4, y0 + 1, MINT, 'accelerator');
+  }
+  campaign.push(l.finish());
+}
+
+// 07: Three interrupted diamonds funnel the player toward the defended stellar cross.
+{
+  const l = level(7, '超新星冠', 3, '星冠的斜向裂口通向内层；先破四枚金色弱点，再处理三层装甲尖端。', 367, 84, 26, 22);
+  for (const [radius, color] of [[11, VIOLET], [7, CYAN], [3, ROSE]]) {
+    l.paint((x, y) => diamondRing(x, y, 12.5, 10, radius, 0.65), color);
+    l.role((x, y) => diamondRing(x, y, 12.5, 10, radius, 0.65) && y > 10, 'armor');
+  }
+  l.cut((x, y) => (x === 8 || x === 17) && y >= 12 && y <= 16);
+  for (const [x, y] of [[12, 3], [6, 10], [19, 10], [12, 17]]) reactor(l, x, y, ROSE);
+  for (const [x, y] of [[2, 3], [22, 3], [2, 17], [22, 17]]) rect(l, x, y, x + 1, y + 1, BLUE, 'armor');
+  l.add(12, 20, ARMOR, 'armor', 3); l.add(13, 20, ARMOR, 'armor', 3);
+  campaign.push(l.finish());
+}
+
+// 08: Sparse pinwheel blades create long changing shot corridors.
+{
+  const l = level(8, '引力涡旋', 3, '顺着三条旋臂的空隙深入；加速点集中在臂尖，留出回板时间。', 374, 84, 26, 22);
+  const cx = 12.5, cy = 10;
   l.paint((x, y) => {
-    const dx = x - cx; const dy = (y - cy) * 1.1;
-    const radius = Math.hypot(dx, dy);
-    const angle = Math.atan2(dy, dx);
-    return radius > 2 && radius < 13.7 && Math.cos(3 * angle - radius * 0.71) > 0.08;
-  }, (x, y) => {
     const radius = Math.hypot(x - cx, (y - cy) * 1.1);
-    return radius > 10 ? VIOLET : radius > 6 ? BLUE : CYAN;
-  }, (x, y) => (x * 5 + y * 3) % 11 < 2 ? 2 : 1);
-  l.paint((x, y) => diamond(x, y, cx, cy, 1.5), GOLD, 3);
-  for (const [x, y] of [[2, 2], [29, 3], [3, 23], [28, 24]]) star(l, x, y, 1, ROSE);
+    return radius >= 3 && radius <= 11.5 && Math.cos(3 * Math.atan2((y - cy) * 1.1, x - cx) - radius * 0.6) > 0.38;
+  }, (x, y) => x < cx ? VIOLET : y < cy ? CYAN : ROSE);
+  l.role((x, y) => (x + 2 * y) % 5 <= 1, 'armor');
+  for (const [x, y] of [[5, 6], [20, 9], [10, 18]]) reactor(l, x, y, BLUE);
+  for (const [x, y] of [[2, 8], [21, 4], [17, 19]]) l.add(x, y, MINT, 'accelerator');
+  reactor(l, 12, 10, ROSE);
   campaign.push(l.finish());
 }
 
-// 09: Recursive division makes a real open maze with three-cell-wide doorways.
+// 09: A maze with explicit two- or three-cell doors; every partition has a route around it.
 {
-  const l = level(9, '霓虹迷城', 32, 27, 340, 100, 4);
-  function room(x0, y0, x1, y1, depth, vertical) {
-    if (depth === 0 || x1 - x0 < 7 || y1 - y0 < 6) return;
-    const palette = [CYAN, VIOLET, ROSE, BLUE][depth % 4];
-    if (vertical) {
-      const x = Math.round((x0 + x1) / 2);
-      const gap = Math.round(y0 + (y1 - y0) * (depth % 2 ? 0.3 : 0.7));
-      line(l, x, y0, x, y1, palette, 0.8);
-      l.cut((cx, cy) => cx === x && Math.abs(cy - gap) <= 1);
-      room(x0, y0, x - 1, y1, depth - 1, false);
-      room(x + 1, y0, x1, y1, depth - 1, false);
-    } else {
-      const y = Math.round((y0 + y1) / 2);
-      const gap = Math.round(x0 + (x1 - x0) * (depth % 2 ? 0.3 : 0.7));
-      line(l, x0, y, x1, y, palette, 0.8);
-      l.cut((cx, cy) => cy === y && Math.abs(cx - gap) <= 1);
-      room(x0, y0, x1, y - 1, depth - 1, true);
-      room(x0, y + 1, x1, y1, depth - 1, true);
-    }
+  const l = level(9, '霓虹迷城', 4, '先沿左右巷道绕过横墙；反应芯能拆薄门框，别在底部装甲上反复直撞。', 381, 82, 26, 22);
+  chamber(l, 1, 1, 24, 20, BLUE, 'bottom');
+  for (const x of [8, 17]) {
+    rect(l, x, 2, x, 19, CYAN);
+    l.role((col, y) => col === x && y % 4 <= 1, 'armor');
+    l.cut((col, y) => col === x && (y >= (x === 8 ? 5 : 13) && y <= (x === 8 ? 7 : 15)));
   }
-  l.paint((x, y) => x >= 1 && x <= 30 && y >= 1 && y <= 24
-    && (x <= 2 || x >= 29 || y <= 2 || y >= 23), BLUE,
-  (x, y) => (x + y) % 7 === 0 ? 2 : 1);
-  room(3, 3, 28, 22, 4, true);
-  l.cut((x, y) => (x >= 14 && x <= 17 && (y <= 2 || y >= 23))
-    || (y >= 11 && y <= 13 && (x <= 2 || x >= 29)));
-  for (const [x, y] of [[6, 6], [25, 6], [6, 19], [25, 19]]) star(l, x, y, 2, GOLD, 2);
+  for (const [x0, x1, y, gate] of [[2, 16, 8, 4], [9, 23, 13, 20], [2, 7, 15, 4], [18, 23, 6, 20]]) {
+    rect(l, x0, y, x1, y, VIOLET, 'armor');
+    l.cut((x, row) => row === y && x >= gate && x <= gate + 1);
+  }
+  for (const [x, y] of [[4, 4], [12, 4], [21, 10], [12, 17], [4, 18]]) reactor(l, x, y, ROSE);
+  for (const [x, y] of [[1, 10], [24, 16], [17, 4], [8, 18]]) l.add(x, y, MINT, 'accelerator');
+  l.cut((x, y) => (x === 1 || x === 24) && y >= 10 && y <= 12);
   campaign.push(l.finish());
 }
 
-// 10: Soft nebula islands linked by broken constellation lines; aim for clusters.
+// 10: Small separated islands discourage parking beneath one long ricochet chamber.
 {
-  const l = level(10, '星云群岛', 34, 29, 345, 100, 4);
-  const nodes = [[6, 6, 4.3, CYAN], [19, 4, 3.2, ROSE], [28, 11, 4.1, VIOLET],
-    [15, 14, 4.5, BLUE], [5, 22, 4.1, MINT], [26, 23, 3.9, ROSE]];
-  for (const [a, b] of [[0, 1], [1, 2], [0, 3], [3, 4], [3, 5], [2, 5]]) {
-    line(l, nodes[a][0], nodes[a][1], nodes[b][0], nodes[b][1], VIOLET, 0.4);
+  const l = level(10, '星云群岛', 4, '在六座孤岛之间调整落点；金色核心炸开周围邻砖，抢道具前先判断回球。', 388, 80, 26, 22);
+  for (const [cx, cy, color] of [[4, 4, CYAN], [13, 3, ROSE], [21, 7, VIOLET], [11, 11, BLUE], [4, 18, VIOLET], [20, 18, CYAN]]) {
+    l.paint((x, y) => Math.abs(x - cx) + Math.abs(y - cy) <= 3, color);
+    l.role((x, y) => Math.abs(x - cx) + Math.abs(y - cy) <= 3 && y >= cy + 1, 'armor');
+    reactor(l, cx, cy, color);
+    l.add(cx - 3, cy, MINT, 'accelerator');
+    l.cut((x, y) => x === cx && y === cy + 3);
   }
-  for (const [cx, cy, radius, palette] of nodes) {
-    l.paint((x, y) => {
-      const dx = x - cx; const dy = y - cy;
-      const distance = Math.hypot(dx, dy);
-      const angle = Math.atan2(dy, dx);
-      return distance <= radius + 0.65 * Math.cos(angle * 5)
-        && !(distance > 1.8 && Math.abs(dx - dy) < 0.6);
-    }, palette, (x, y) => (x * 7 + y) % 9 === 0 ? 2 : 1);
-    star(l, cx, cy, 1, GOLD, 2);
-  }
-  // Break the linking lines into actual star trails; the ball can pass between them.
-  l.cut((x, y) => x % 3 === 0 && !nodes.some(([cx, cy, r]) => Math.hypot(x - cx, y - cy) <= r + 1));
   campaign.push(l.finish());
 }
 
-// 11: A branching crystal cathedral, with diamonds connected through open trusses.
+// 11: A large diamond scaffold and two satellite shrines share diagonal access lanes.
 {
-  const l = level(11, '分形圣殿', 34, 29, 350, 98, 4);
-  const nodes = [[16.5, 13, 10.5], [5.5, 6, 4.5], [27.5, 6, 4.5],
-    [5.5, 22, 4.5], [27.5, 22, 4.5]];
-  for (const [cx, cy, radius] of nodes) {
-    l.paint((x, y) => diamondRing(x, y, cx, cy, radius, 1.0), VIOLET);
-    l.paint((x, y) => diamondRing(x, y, cx, cy, radius * 0.54, 0.65), CYAN,
-      (x, y) => (x + y) % 4 === 0 ? 2 : 1);
+  const l = level(11, '分形圣殿', 4, '中央圣殿与两侧晶室相连；从斜向裂口进入，避免一次同时激活多个加速点。', 394, 80, 26, 22);
+  l.paint((x, y) => diamondRing(x, y, 12.5, 10, 10.5, 0.7) || diamondRing(x, y, 12.5, 10, 6.5, 0.7), VIOLET);
+  for (const [x0, color, gate] of [[0, CYAN, 'right'], [20, ROSE, 'left']]) {
+    chamber(l, x0, 6, x0 + 5, 14, color, gate);
+    reactor(l, x0 + 2, 10, color);
   }
-  for (const side of [-1, 1]) {
-    line(l, 16.5, 2, 16.5 + side * 13, 15, BLUE, 0.75);
-    line(l, 16.5, 25, 16.5 + side * 13, 12, ROSE, 0.75);
-  }
-  l.paint((x, y) => diamond(x, y, 16.5, 13, 2.5), GOLD, 2);
-  l.cut((x, y) => x >= 16 && x <= 17 && y >= 18);
-  l.cut((x, y) => (x === 7 || x === 26) && y >= 14 && y <= 21);
+  l.role((x, y) => y >= 12 || (y <= 4 && x >= 8 && x <= 17), 'armor');
+  l.cut((x, y) => (x === 8 || x === 17) && y >= 13 && y <= 16);
+  for (const [x, y] of [[12, 6], [12, 14]]) reactor(l, x, y, BLUE);
+  rect(l, 11, 9, 14, 11, ROSE, 'armor');
+  for (const [x, y] of [[6, 10], [19, 10], [12, 1], [13, 19]]) l.add(x, y, MINT, 'accelerator');
   campaign.push(l.finish());
 }
 
-// 12: A turbine with eight radial blades and interrupted rings. Four iron hubs only.
+// 12: Turbine spokes create fast side returns; open horizontal service lanes reach the core.
 {
-  const l = level(12, '恒星熔炉', 34, 29, 355, 96, 4);
-  const cx = 16.5; const cy = 13.5;
-  l.paint((x, y) => {
-    const dx = x - cx; const dy = y - cy;
-    const radius = Math.hypot(dx, dy);
-    const angle = Math.atan2(dy, dx);
-    return radius >= 7 && radius <= 14 && Math.cos(8 * angle - radius * 0.28) > 0.12;
-  }, (x, y) => y < cy ? GOLD : ROSE, (x, y) => (x + 3 * y) % 8 === 0 ? 2 : 1);
-  l.paint((x, y) => ring(x, y, cx, cy, 6, 6, 0.21), CYAN,
-    (x, y) => (x + y) % 3 === 0 ? 2 : 1);
-  l.paint((x, y) => diamond(x, y, cx, cy, 3), VIOLET, 2);
-  l.cut((x, y) => x >= 16 && x <= 17 && y >= 17);
-  l.cut((x, y) => y >= 13 && y <= 14 && Math.abs(x - cx) > 3);
-  for (const [x, y] of [[5, 5], [28, 5], [5, 22], [28, 22]]) l.add(x, y, CYAN, 10);
+  const l = level(12, '恒星熔炉', 5, '先打金色冷却节点，再穿过横向检修口；炉心有三层装甲，超新星要择机释放。', 400, 78, 26, 22);
+  const cx = 12.5, cy = 10;
+  l.paint((x, y) => ring(x, y, cx, cy, 10.8, 8.8, 0.085), VIOLET);
+  l.paint((x, y) => ring(x, y, cx, cy, 6, 5.4, 0.12), CYAN);
+  for (const [ax, ay, bx, by] of [[3, 4, 8, 7], [22, 4, 17, 7], [3, 16, 8, 13], [22, 16, 17, 13]]) line(l, ax, ay, bx, by, ROSE, 0.75, 'armor');
+  l.role((x, y) => (x < 6 || x > 19) && y >= 6 && y <= 15, 'armor');
+  l.cut((x, y) => y >= 10 && y <= 11 && (x < 8 || x > 17));
+  rect(l, 11, 8, 14, 12, ROSE, 'armor');
+  for (const [x, y] of [[7, 5], [18, 5], [7, 15], [18, 15]]) reactor(l, x, y, BLUE);
+  for (const [x, y] of [[12, 1], [13, 19], [2, 8], [23, 13]]) l.add(x, y, MINT, 'accelerator');
+  l.add(12, 12, ARMOR, 'armor', 3); l.add(13, 12, ARMOR, 'armor', 3);
   campaign.push(l.finish());
 }
 
-// 13: A complete Dyson megastructure: segmented collectors, an equatorial
-// ring and a bright stellar core. Huge appearance, several broad entry routes.
+// 13: Three interrupted collectors, four weak points, a narrow equator and an armored heart.
 {
-  const l = level(13, '戴森天幕', 36, 30, 365, 94, 5);
-  const cx = 17.5; const cy = 13.5;
-  l.paint((x, y) => ring(x, y, cx, cy, 16, 12.8, 0.105), VIOLET,
-    (x, y) => (x + 3 * y) % 8 === 0 ? 2 : 1);
-  l.paint((x, y) => ring(x, y, cx, cy, 10.5, 10.4, 0.12), CYAN,
-    (x, y) => (x + y) % 5 === 0 ? 2 : 1);
-  l.paint((x, y) => ring(x, y, cx, cy, 16.2, 4.5, 0.2), GOLD,
-    (x, y) => (x + y) % 6 === 0 ? 2 : 1);
-  l.paint((x, y) => diamond(x, y, cx, cy, 4.5), ROSE,
-    (x, y) => Math.abs(x - cx) + Math.abs(y - cy) < 2 ? 3 : 1);
-  for (const side of [-1, 1]) {
-    line(l, cx + side * 3, 2, cx + side * 14, 8, BLUE, 0.8);
-    line(l, cx + side * 3, 26, cx + side * 14, 20, BLUE, 0.8);
-  }
-  // Open collector seams, lower docking gates, and a route through the equator.
-  l.cut((x, y) => (x === 8 || x === 27) && (y < 8 || y > 19));
-  l.cut((x, y) => x >= 16 && x <= 19 && y >= 19);
-  l.cut((x, y) => y >= 13 && y <= 14 && (x < 9 || x > 26));
-  for (const [x, y] of [[3, 7], [32, 7], [3, 21], [32, 21]]) l.add(x, y, VIOLET, 10);
-  for (const [x, y] of [[2, 28], [33, 28]]) star(l, x, y, 1, CYAN);
+  const l = level(13, '戴森天幕', 5, '利用外环缺口逐层拆解；四枚金色弱点能削开装甲，最后收束角度击穿核心。', 405, 76, 26, 22);
+  const cx = 12.5, cy = 10;
+  l.paint((x, y) => ring(x, y, cx, cy, 11.8, 9.5, 0.065), VIOLET);
+  l.paint((x, y) => ring(x, y, cx, cy, 8, 7, 0.09), CYAN);
+  l.paint((x, y) => ring(x, y, cx, cy, 11.8, 3.3, 0.13), ROSE);
+  l.role((x, y) => y >= 11 || (x >= 8 && x <= 17 && y <= 4), 'armor');
+  l.cut((x, y) => (x >= 5 && x <= 6 || x >= 19 && x <= 20) && (y < 5 || y > 15));
+  l.cut((x, y) => y >= 10 && y <= 11 && (x < 7 || x > 18));
+  l.cut((x, y) => x >= 12 && x <= 13 && y >= 15);
+  rect(l, 10, 8, 15, 12, BLUE, 'armor');
+  for (const [x, y] of [[8, 7], [17, 7], [8, 13], [17, 13]]) reactor(l, x, y, ROSE);
+  for (const [x, y] of [[2, 6], [23, 6], [5, 16], [20, 16], [12, 3], [13, 17]]) l.add(x, y, MINT, 'accelerator');
+  for (const x of [11, 14]) l.add(x, 12, ARMOR, 'armor', 3);
   campaign.push(l.finish());
 }
 
 const outputDirectory = path.join(__dirname, '..', 'levels');
 for (const [index, stage] of campaign.entries()) {
   const positions = new Set();
-  let hp = 0;
-  const pitch = 357 / stage.gridWidth;
+  let totalHP = 0;
   for (const brick of stage.bricks) {
     const key = `${brick.row},${brick.col}`;
     if (positions.has(key)) throw new Error(`${stage.name}: duplicate ${key}`);
     positions.add(key);
-    if (brick.row < 0 || brick.row >= stage.gridHeight || brick.col < 0 || brick.col >= stage.gridWidth) {
-      throw new Error(`${stage.name}: out-of-bounds brick ${key}`);
-    }
-    if (![1, 2, 3, 10].includes(brick.hp)) throw new Error(`${stage.name}: invalid HP`);
+    if (brick.row < 0 || brick.row >= stage.gridHeight || brick.col < 0 || brick.col >= stage.gridWidth) throw new Error(`${stage.name}: out-of-bounds ${key}`);
+    if (![1, 2, 3].includes(brick.hp) || !(brick.kind in KIND_HP)) throw new Error(`${stage.name}: invalid brick ${key}`);
+    if (brick.kind !== 'armor' && brick.hp !== KIND_HP[brick.kind]) throw new Error(`${stage.name}: incorrect role HP ${key}`);
     if (!/^#[a-f0-9]{6}$/i.test(brick.color)) throw new Error(`${stage.name}: invalid color`);
-    if (90 + (brick.row + 1) * pitch - 2 > 400) throw new Error(`${stage.name}: brick field too low`);
-    hp += brick.hp;
+    if (90 + (brick.row + 1) * 357 / stage.gridWidth - 2 > 400) throw new Error(`${stage.name}: brick field too low`);
+    totalHP += brick.hp;
   }
-  if (hp / stage.bricks.length > 1.65) throw new Error(`${stage.name}: too much HP`);
-  if (stage.bricks.length < 180 || stage.bricks.length > 550) throw new Error(`${stage.name}: inappropriate brick count`);
-  if (stage.bricks.filter((brick) => brick.hp === 10).length / stage.bricks.length > 0.03) {
-    throw new Error(`${stage.name}: too many iron bricks`);
-  }
+  if (totalHP / stage.bricks.length > 1.72 || totalHP / stage.bricks.length < 1.25) throw new Error(`${stage.name}: HP distribution outside tactical budget`);
+  if (stage.bricks.length < 90 || stage.bricks.length > 220) throw new Error(`${stage.name}: inappropriate brick count ${stage.bricks.length}`);
   const filename = `level-${String(index + 1).padStart(2, '0')}.json`;
   const header = JSON.stringify({ ...stage, bricks: undefined }, null, 2).slice(0, -2);
   const encodedBricks = stage.bricks.map((brick) => `    ${JSON.stringify(brick)}`).join(',\n');
   fs.writeFileSync(path.join(outputDirectory, filename), `${header},\n  "bricks": [\n${encodedBricks}\n  ]\n}\n`);
 }
-
 console.table(campaign.map((stage) => ({
-  name: stage.name,
-  grid: `${stage.gridWidth}×${stage.gridHeight}`,
-  bricks: stage.bricks.length,
+  name: stage.name, grid: `${stage.gridWidth}×${stage.gridHeight}`, bricks: stage.bricks.length,
   hp: stage.bricks.reduce((sum, brick) => sum + brick.hp, 0),
   averageHP: +(stage.bricks.reduce((sum, brick) => sum + brick.hp, 0) / stage.bricks.length).toFixed(2),
-  iron: stage.bricks.filter((brick) => brick.hp === 10).length,
-  speed: stage.ballSpeed,
-  paddle: stage.paddleWidth,
-  lives: stage.lives,
+  armor: stage.bricks.filter((brick) => brick.kind === 'armor').length,
+  reactor: stage.bricks.filter((brick) => brick.kind === 'reactor').length,
+  accelerator: stage.bricks.filter((brick) => brick.kind === 'accelerator').length,
+  bottom: +(Math.max(...stage.bricks.map((brick) => 90 + (brick.row + 1) * 357 / stage.gridWidth - 2))).toFixed(1),
+  speed: stage.ballSpeed, paddle: stage.paddleWidth, lives: stage.lives,
 })));

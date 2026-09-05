@@ -1,5 +1,6 @@
 import {
   C,
+  BALANCE,
   GameScene,
   LEVEL_DATA,
   BrickMapper,
@@ -24,6 +25,7 @@ import type {
 export type {
   ActivePowerUp,
   BrickColor,
+  BrickKind,
   GameProgress,
   GameSnapshot,
   GameStatus,
@@ -32,7 +34,7 @@ export type {
   LevelBrick,
   PowerUpKind,
 } from "./types";
-export { C, PowerUpType } from "./legacy.js";
+export { C, BALANCE, PowerUpType } from "./legacy.js";
 
 export const PROGRESS_KEY = "breakout-maker-progress";
 export const LEVEL_VERSION = 3;
@@ -97,6 +99,21 @@ export function validateLevel(value: unknown): Level {
       throw new Error("关卡包含重叠砖块，请重新生成。");
     occupied.add(position);
     const clean: LevelBrick = { row: brick.row, col: brick.col, hp: brick.hp };
+    if (brick.kind !== undefined) {
+      if (
+        !["normal", "armor", "reactor", "accelerator"].includes(
+          String(brick.kind),
+        )
+      )
+        throw new Error("关卡包含无效砖块类型，请重新生成。");
+      clean.kind = brick.kind as LevelBrick["kind"];
+      if (
+        (clean.kind === "armor" && !integerInRange(brick.hp, 2, 3)) ||
+        (clean.kind === "reactor" && brick.hp !== 2) ||
+        (clean.kind === "accelerator" && !integerInRange(brick.hp, 1, 2))
+      )
+        throw new Error("特殊砖块耐久无效，请重新生成。");
+    }
     if (brick.color !== undefined && brick.color !== null) {
       const validColor = (color: unknown): color is string =>
         typeof color === "string" &&
@@ -113,7 +130,7 @@ export function validateLevel(value: unknown): Level {
     }
     return clean;
   });
-  return {
+  const cleanLevel: Level = {
     name,
     gridWidth,
     gridHeight,
@@ -122,6 +139,17 @@ export function validateLevel(value: unknown): Level {
     lives,
     bricks: cleanBricks,
   };
+  if (value.difficulty !== undefined) {
+    if (!integerInRange(value.difficulty, 1, 5))
+      throw new Error("关卡难度无效，请重新生成。");
+    cleanLevel.difficulty = value.difficulty as Level["difficulty"];
+  }
+  if (value.briefing !== undefined) {
+    if (typeof value.briefing !== "string" || value.briefing.length > 400)
+      throw new Error("关卡说明无效，请重新生成。");
+    cleanLevel.briefing = value.briefing;
+  }
+  return cleanLevel;
 }
 
 /** Campaign access is open; legacy saves can no longer lock any stage. */
@@ -175,8 +203,8 @@ export class GameEngine {
   private lastComboTime = -Infinity;
   private lastPickup: GameSnapshot["lastPickup"] = null;
   private readonly feedbackStream = new FeedbackStream();
-  private applyingPulse = false;
-  private hasDroppedPower = false;
+  private damageSource: "ball" | "pulse" | "reactor" = "ball";
+  private lastDropTime = -Infinity;
   private bricksWithoutDrop = 0;
   private accumulator = 0;
   private disposed = false;
@@ -233,7 +261,6 @@ export class GameEngine {
       const running = this.scene._launched;
       if (running) {
         this.elapsed += C.FIXED_DT;
-        this.attractDrops(C.FIXED_DT);
       }
       const waitingPaddle = !running
         ? {
@@ -243,6 +270,18 @@ export class GameEngine {
           }
         : null;
       this.scene.update(C.FIXED_DT);
+      // Contact limits may consume fire before the wall-clock duration ends.
+      const fireTimer = Math.max(
+        0,
+        ...this.scene.balls
+          .filter((ball) => ball.isFireball)
+          .map((ball) => ball.fireballTimer),
+      );
+      this.scene.activePowerUps = this.scene.activePowerUps.filter((power) => {
+        if (power.type !== "fireball") return true;
+        power.timer = fireTimer;
+        return fireTimer > 0;
+      });
       // Legacy pre-launch movement also ticks the paddle effect; keep all effect
       // durations on the same simulation clock while waiting to relaunch.
       if (waitingPaddle) Object.assign(this.scene.paddle, waitingPaddle);
@@ -303,34 +342,26 @@ export class GameEngine {
     // Anchor the blast to an actual brick, including sparse image/custom grids.
     exposed.sort(
       (a, b) =>
-        b.y - a.y ||
         Math.abs(a.x - this.scene.paddle.x) -
-          Math.abs(b.x - this.scene.paddle.x),
+          Math.abs(b.x - this.scene.paddle.x) || b.y - a.y,
     );
     const anchor = exposed[0];
     if (!anchor) return false;
     const targets = exposed
       .filter(
-        (target) => Math.hypot(target.x - anchor.x, target.y - anchor.y) <= 140,
+        (target) =>
+          Math.hypot(target.x - anchor.x, target.y - anchor.y) <=
+          BALANCE.pulseRadius,
       )
       .sort(
         (a, b) =>
           Math.hypot(a.x - anchor.x, a.y - anchor.y) -
           Math.hypot(b.x - anchor.x, b.y - anchor.y),
       )
-      .slice(0, 10);
+      .slice(0, BALANCE.pulseTargets);
 
     this.energy = 0;
-    this.pulseTime = 5;
-    for (const ball of this.scene.balls) {
-      ball.isFireball = true;
-      ball.fireballTimer = Math.max(ball.fireballTimer, 5);
-    }
-    const fire = this.scene.activePowerUps.find(
-      (power) => power.type === "fireball",
-    );
-    if (fire) fire.timer = Math.max(fire.timer, 5);
-    else this.scene.activePowerUps.push({ type: "fireball", timer: 5 });
+    this.pulseTime = BALANCE.pulseDuration;
     this.feedbackStream.emit(this.elapsed, {
       kind: "pulse",
       x: anchor.x,
@@ -338,15 +369,8 @@ export class GameEngine {
       color: "#c5a5ff",
       strength: 1,
     });
-    this.applyingPulse = true;
-    try {
-      for (const { brick } of targets) {
-        const destroyed = brick.hit(true);
-        if (destroyed) field.destroyed++;
-        this.scene.physics.onBrickHit?.(brick.row, brick.col, destroyed, brick);
-      }
-    } finally {
-      this.applyingPulse = false;
+    for (const { brick } of targets) {
+      this.scene.physics.damageBrick(brick.row, brick.col, "pulse");
     }
     // Skill damage can clear the final brick outside the regular physics tick.
     if (this.scene._pendingTransition) {
@@ -386,7 +410,8 @@ export class GameEngine {
     this.bestCombo = 0;
     this.lastComboTime = -Infinity;
     this.lastPickup = null;
-    this.hasDroppedPower = false;
+    this.lastDropTime = -Infinity;
+    this.damageSource = "ball";
     this.bricksWithoutDrop = 0;
     this.feedbackStream.clear();
     this.installFeedback();
@@ -433,10 +458,16 @@ export class GameEngine {
     const originalBallLost = physics.onBallLost;
     const originalWallCollision = physics._wallCollision.bind(physics);
 
-    // Preserve the original score formula while making its timeout pause-safe.
+    // Drops are resolved below once the natural/collateral source is known.
+    scene._maybeDropPowerUp = () => {};
+    // Collateral awards base points; only natural kills extend the capped combo.
     scene.scoreSystem.onBrickHit = (destroyed) => {
       if (!destroyed) return;
       const score = scene.scoreSystem;
+      if (this.damageSource !== "ball") {
+        score.score += C.BASE_SCORE;
+        return;
+      }
       score._combo =
         (this.elapsed - this.lastComboTime) * 1000 < C.COMBO_TIMEOUT
           ? score._combo + 1
@@ -444,7 +475,11 @@ export class GameEngine {
       this.lastComboTime = this.elapsed;
       score._lastHit = this.elapsed * 1000;
       const points = Math.round(
-        C.BASE_SCORE * (1 + (score._combo - 1) * C.COMBO_MULT),
+        C.BASE_SCORE *
+          Math.min(
+            BALANCE.maxScoreMultiplier,
+            1 + (score._combo - 1) * C.COMBO_MULT,
+          ),
       );
       score.score += points;
       this.bestCombo = Math.max(this.bestCombo, score._combo);
@@ -456,10 +491,22 @@ export class GameEngine {
       }
     };
 
-    physics.onBrickHit = (row, col, destroyed, brick) => {
-      const priorDrops = scene.powerUpDrops.length;
+    physics.onBrickHit = (
+      row,
+      col,
+      destroyed,
+      brick,
+      source = "ball",
+      ball,
+    ) => {
       const priorScore = scene.scoreSystem.score;
-      originalBrickHit?.(row, col, destroyed, brick);
+      const previousSource = this.damageSource;
+      this.damageSource = source;
+      try {
+        originalBrickHit?.(row, col, destroyed, brick, source, ball);
+      } finally {
+        this.damageSource = previousSource;
+      }
       const rect = scene.brickField.getBrickRect(row, col);
       const x = rect.x + rect.w / 2;
       const y = rect.y + rect.h / 2;
@@ -476,52 +523,60 @@ export class GameEngine {
         points: scene.scoreSystem.score - priorScore,
         strength: destroyed ? Math.min(1.5, 0.9 + combo * 0.06) : 0.32,
       });
+      if (source !== "ball") return;
+      this.energy = Math.min(
+        100,
+        this.energy +
+          (destroyed
+            ? BALANCE.pulseEnergyPerBrick
+            : brick.kind === "armor"
+              ? BALANCE.pulseEnergyPerArmorHit
+              : 0),
+      );
       if (!destroyed) return;
-
-      // Direct pulse strikes and its fireballs cannot immediately recharge it.
-      if (!this.applyingPulse && this.pulseTime <= 0) {
-        this.energy = Math.min(
-          100,
-          this.energy + 9 + Math.min(3, Math.max(0, combo - 1)),
-        );
-      }
-
-      if (scene.powerUpDrops.length === priorDrops) {
-        this.bricksWithoutDrop++;
-        const firstDropDue =
-          !this.hasDroppedPower && scene.brickField.destroyed >= 4;
-        if (firstDropDue || this.bricksWithoutDrop >= 7) {
-          let kind: PowerUpKind = PowerUpType.SPLIT;
-          if (!firstDropDue) {
-            let roll =
-              Math.random() *
-              POWER_UP_WEIGHTS.reduce((sum, entry) => sum + entry.weight, 0);
-            for (const entry of POWER_UP_WEIGHTS) {
-              roll -= entry.weight;
-              if (roll <= 0) {
-                kind = entry.type;
-                break;
-              }
-            }
-          }
-          scene.powerUpDrops.push(new PowerUpDrop(x, y, kind));
+      this.bricksWithoutDrop++;
+      if (
+        this.elapsed - this.lastDropTime < BALANCE.dropCooldown ||
+        scene.powerUpDrops.filter((drop) => drop.alive).length >=
+          BALANCE.maxDrops
+      )
+        return;
+      if (
+        this.bricksWithoutDrop < BALANCE.dropPity &&
+        Math.random() >= BALANCE.dropChance
+      )
+        return;
+      const weights = POWER_UP_WEIGHTS.filter(
+        (entry) =>
+          entry.type !== "extraLife" ||
+          (scene._lifeRepairs < BALANCE.maxLifeRepairs &&
+            scene.lives < this.level.lives &&
+            !scene.powerUpDrops.some(
+              (drop) => drop.alive && drop.type === "extraLife",
+            )),
+      );
+      let roll =
+        Math.random() * weights.reduce((sum, entry) => sum + entry.weight, 0);
+      let kind = weights[weights.length - 1].type;
+      for (const entry of weights) {
+        roll -= entry.weight;
+        if (roll <= 0) {
+          kind = entry.type;
+          break;
         }
       }
-      const spawned = scene.powerUpDrops.slice(priorDrops);
-      if (spawned.length > 0) {
-        this.hasDroppedPower = true;
-        this.bricksWithoutDrop = 0;
-        for (const drop of spawned) {
-          this.feedbackStream.emit(this.elapsed, {
-            kind: "powerSpawn",
-            x: drop.x,
-            y: drop.y,
-            color: POWER_COLORS[drop.type],
-            power: drop.type,
-            strength: 0.65,
-          });
-        }
-      }
+      const drop = new PowerUpDrop(x, y, kind);
+      scene.powerUpDrops.push(drop);
+      this.lastDropTime = this.elapsed;
+      this.bricksWithoutDrop = 0;
+      this.feedbackStream.emit(this.elapsed, {
+        kind: "powerSpawn",
+        x,
+        y,
+        color: POWER_COLORS[kind],
+        power: kind,
+        strength: 0.65,
+      });
     };
 
     physics._wallCollision = (ball) => {
@@ -574,14 +629,6 @@ export class GameEngine {
         scene._pendingTransition = null;
         scene._spawnBallOnPaddle();
       }
-      // Repeated split drops stay spectacular without unbounded exponential work.
-      if (scene.balls.length > 24) scene.balls.length = 24;
-      if (this.pulseTime > 0) {
-        for (const ball of scene.balls) {
-          ball.isFireball = true;
-          ball.fireballTimer = Math.max(ball.fireballTimer, this.pulseTime);
-        }
-      }
       const longest = new Map<PowerUpKind, number>();
       for (const power of scene.activePowerUps) {
         longest.set(
@@ -603,24 +650,6 @@ export class GameEngine {
       });
       this.lastPickup = { id: event.id, type, time: this.elapsed };
     };
-  }
-
-  private attractDrops(dt: number): void {
-    const paddle = this.scene.paddle;
-    for (const drop of this.scene.powerUpDrops) {
-      const dy = paddle.y - drop.y;
-      const dx = paddle.x - drop.x;
-      if (
-        !drop.alive ||
-        dy < 0 ||
-        dy > 130 ||
-        Math.abs(dx) > paddle.width / 2 + 55
-      )
-        continue;
-      // A gentle final approach assists near catches, while steering still matters.
-      const movement = Math.min(Math.abs(dx), (28 + 70 * (1 - dy / 130)) * dt);
-      drop.x += Math.sign(dx) * movement;
-    }
   }
 
   private transition(state: string): void {
@@ -673,6 +702,13 @@ export class GameEngine {
       pulseTime: this.pulseTime,
       bestCombo: this.bestCombo,
       elapsed: this.elapsed,
+      ballCount: this.scene.balls.filter((ball) => !ball._dead).length,
+      maxBallSpeed: Math.max(
+        0,
+        ...this.scene.balls
+          .filter((ball) => !ball._dead)
+          .map((ball) => ball.speed),
+      ),
       lastPickup: this.lastPickup ? { ...this.lastPickup } : null,
     };
   }

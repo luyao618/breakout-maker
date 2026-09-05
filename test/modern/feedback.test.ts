@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   C,
+  BALANCE,
   GameEngine,
   PROGRESS_KEY,
   loadProgress,
@@ -20,7 +21,7 @@ function fixture(bricks?: Level["bricks"]): Level {
     lives: 3,
     bricks:
       bricks ??
-      [0, 5, 6].flatMap((row) =>
+      [0, 1, 5, 6].flatMap((row) =>
         Array.from({ length: 16 }, (_, col) => ({ row, col, hp: 1 })),
       ),
   };
@@ -37,7 +38,8 @@ function hit(engine: GameEngine, row: number, col: number) {
 }
 
 function charge(engine: GameEngine) {
-  for (let col = 0; col < 9; col++) hit(engine, 0, col);
+  for (let index = 0; index < 25; index++)
+    hit(engine, Math.floor(index / 16), index % 16);
   expect(engine.getSnapshot()).toMatchObject({ energy: 100, pulseReady: true });
 }
 
@@ -59,7 +61,7 @@ afterEach(() => {
 });
 
 describe("reactor charge and exposed-field pulse", () => {
-  it("requires full charge and live play, caps damage to 10 exposed bricks, and cannot recharge itself", () => {
+  it("requires full charge and live play, caps damage to 5 exposed bricks, and cannot recharge itself", () => {
     vi.spyOn(Math, "random").mockReturnValue(0.99);
     const engine = new GameEngine(fixture(), -1);
     expect(engine.activatePulse()).toBe(false);
@@ -77,7 +79,7 @@ describe("reactor charge and exposed-field pulse", () => {
       (row) => row.filter((brick) => brick?.alive).length,
     );
     expect(engine.activatePulse()).toBe(true);
-    expect(engine.scene.brickField.destroyed - destroyedBefore).toBe(10);
+    expect(engine.scene.brickField.destroyed - destroyedBefore).toBe(5);
     expect(
       engine.scene.brickField.bricks[0].filter((brick) => brick?.alive),
     ).toHaveLength(rowsBefore[0]);
@@ -87,34 +89,32 @@ describe("reactor charge and exposed-field pulse", () => {
     expect(engine.getSnapshot()).toMatchObject({
       energy: 0,
       pulseReady: false,
-      pulseTime: 5,
+      pulseTime: BALANCE.pulseDuration,
       lives: 3,
     });
     expect(engine.getSnapshot().score).toBeGreaterThan(scoreBefore);
-    expect(
-      engine.scene.balls.every(
-        (ball) => ball.isFireball && ball.fireballTimer === 5,
-      ),
-    ).toBe(true);
+    expect(engine.scene.balls.every((ball) => !ball.isFireball)).toBe(true);
     const pulse = engine.feedback.find((event) => event.kind === "pulse")!;
     const emitted = engine.feedback.filter(
       (event) => event.kind === "brick" && event.id > pulse.id,
     );
-    expect(emitted).toHaveLength(10);
+    expect(emitted).toHaveLength(5);
     expect(
       emitted.every(
-        (event) => Math.hypot(event.x - pulse.x, event.y - pulse.y) <= 140,
+        (event) =>
+          Math.hypot(event.x - pulse.x, event.y - pulse.y) <=
+          BALANCE.pulseRadius,
       ),
     ).toBe(true);
     expect(engine.activatePulse()).toBe(false);
-    hit(engine, 0, 9);
-    expect(engine.scene.brickField.bricks[0][9]?.alive).toBe(false);
-    expect(engine.getSnapshot().energy).toBe(0);
+    hit(engine, 1, 9);
+    expect(engine.scene.brickField.bricks[1][9]?.alive).toBe(false);
+    expect(engine.getSnapshot().energy).toBe(4);
     engine.scene.powerUpDrops = [];
     coast(engine, 301);
     expect(engine.getSnapshot().pulseTime).toBe(0);
     expect(engine.scene.balls.every((ball) => !ball.isFireball)).toBe(true);
-    hit(engine, 0, 10);
+    hit(engine, 1, 10);
     expect(engine.getSnapshot().energy).toBeGreaterThan(0);
     engine.dispose();
   });
@@ -123,7 +123,11 @@ describe("reactor charge and exposed-field pulse", () => {
     vi.spyOn(Math, "random").mockReturnValue(0.99);
     const engine = new GameEngine(
       fixture([
-        ...Array.from({ length: 9 }, (_, col) => ({ row: 0, col, hp: 1 })),
+        ...Array.from({ length: 25 }, (_, index) => ({
+          row: Math.floor(index / 16),
+          col: index % 16,
+          hp: 1,
+        })),
         { row: 8, col: 0, hp: 999 },
         { row: 2, col: 15, hp: 1 },
       ]),
@@ -132,13 +136,15 @@ describe("reactor charge and exposed-field pulse", () => {
     engine.launch();
     charge(engine);
     const score = engine.getSnapshot().score;
+    engine.move(0);
+    coast(engine, 1);
     expect(engine.activatePulse()).toBe(true);
     const iron = engine.scene.brickField.bricks[8][0] as Brick;
     const ironRect = engine.scene.brickField.getBrickRect(8, 0);
     expect(iron).toMatchObject({ alive: true, hp: 9 });
     expect(engine.getSnapshot()).toMatchObject({
       score,
-      destroyed: 9,
+      destroyed: 25,
       energy: 0,
       status: "playing",
     });
@@ -158,7 +164,11 @@ describe("reactor charge and exposed-field pulse", () => {
     vi.stubGlobal("localStorage", storage);
     const engine = new GameEngine(
       fixture([
-        ...Array.from({ length: 9 }, (_, col) => ({ row: 0, col, hp: 1 })),
+        ...Array.from({ length: 25 }, (_, index) => ({
+          row: Math.floor(index / 16),
+          col: index % 16,
+          hp: 1,
+        })),
         ...Array.from({ length: 4 }, (_, col) => ({
           row: 6,
           col: col + 6,
@@ -172,8 +182,8 @@ describe("reactor charge and exposed-field pulse", () => {
     engine.activatePulse();
     expect(engine.getSnapshot()).toMatchObject({
       status: "won",
-      destroyed: 13,
-      total: 13,
+      destroyed: 29,
+      total: 29,
       lives: 3,
     });
     expect(engine.feedback.at(-1)?.kind).toBe("win");
@@ -190,28 +200,33 @@ describe("reactor charge and exposed-field pulse", () => {
   });
 });
 
-describe("drop assistance and game feedback", () => {
-  it("guarantees a first drop by brick 4 and a later drop after 7 unlucky destructions", () => {
+describe("tactical drops and game feedback", () => {
+  it("offers pity after 18 natural destructions while respecting the 5-second cooldown", () => {
     vi.spyOn(Math, "random").mockReturnValue(0.99);
     const engine = new GameEngine(fixture(), -1);
     engine.launch();
-    for (let col = 0; col < 3; col++) hit(engine, 0, col);
+    for (let index = 0; index < 17; index++)
+      hit(engine, Math.floor(index / 16), index % 16);
     expect(engine.scene.powerUpDrops).toHaveLength(0);
-    hit(engine, 0, 3);
-    expect(engine.scene.powerUpDrops.map((drop) => drop.type)).toEqual([
-      "split",
-    ]);
-    for (let col = 4; col < 10; col++) hit(engine, 0, col);
+    hit(engine, 1, 1);
     expect(engine.scene.powerUpDrops).toHaveLength(1);
-    hit(engine, 0, 10);
-    expect(engine.scene.powerUpDrops).toHaveLength(2);
+    expect(engine.scene.powerUpDrops[0].type).toBe("widePaddle");
+    for (let index = 18; index < 32; index++)
+      hit(engine, Math.floor(index / 16), index % 16);
+    for (let col = 0; col < 4; col++) hit(engine, 5, col);
+    expect(
+      engine.feedback.filter((event) => event.kind === "powerSpawn"),
+    ).toHaveLength(1);
+    engine.scene.powerUpDrops = [];
+    coast(engine, 301);
+    hit(engine, 5, 4);
     expect(
       engine.feedback.filter((event) => event.kind === "powerSpawn"),
     ).toHaveLength(2);
     engine.dispose();
   });
 
-  it("gently draws nearby drops into a real catch while distant drops still require steering", () => {
+  it("requires steering to catch drops, with no attraction across the paddle edge", () => {
     const engine = new GameEngine(fixture(), -1);
     engine.launch();
     const paddle = engine.scene.paddle;
@@ -223,17 +238,11 @@ describe("drop assistance and game feedback", () => {
     const far = new PowerUpDrop(5, paddle.y - 50, "extraLife");
     engine.scene.powerUpDrops.push(near, far);
     const originalNearX = near.x;
-    engine.update(C.FIXED_DT);
-    expect(near.x).toBeLessThan(originalNearX);
-    expect(originalNearX - near.x).toBeLessThan(2);
-    expect(far.x).toBe(5);
     coast(engine, 30);
-    expect(engine.getSnapshot().lastPickup?.type).toBe("widePaddle");
-    expect(engine.scene.paddle.width).toBe(150);
-    expect(engine.scene.lives).toBe(3);
-    expect(
-      engine.feedback.filter((event) => event.kind === "powerCollect"),
-    ).toHaveLength(1);
+    expect(near.x).toBe(originalNearX);
+    expect(far.x).toBe(5);
+    expect(engine.getSnapshot().lastPickup).toBeNull();
+    expect(engine.scene.paddle.width).toBe(100);
     engine.dispose();
   });
 
@@ -280,7 +289,7 @@ describe("drop assistance and game feedback", () => {
       engine.scene._activatePowerUp("fireball");
       engine.scene._activatePowerUp("widePaddle");
     }
-    expect(engine.scene.balls).toHaveLength(24);
+    expect(engine.scene.balls).toHaveLength(4);
     expect(engine.getSnapshot().activePowerUps).toHaveLength(2);
     expect(engine.getSnapshot()).toMatchObject({ lives: 3, score: 0 });
     engine.dispose();
@@ -301,7 +310,7 @@ describe("simulation clock and feed lifecycle", () => {
     for (let i = 0; i < 700; i++) engine.update(C.FIXED_DT);
     expect(engine.getSnapshot()).toEqual(waiting);
     expect(engine.scene.paddle.wideTimer).toBe(wideTime);
-    expect(engine.scene.paddle.width).toBe(150);
+    expect(engine.scene.paddle.width).toBe(125);
     engine.dispose();
   });
 
@@ -349,7 +358,7 @@ describe("simulation clock and feed lifecycle", () => {
     expect(engine.scene.balls[0].fireballTimer).toBe(fireTimer);
     expect(engine.scene.paddle.wideTimer).toBe(wideTimer);
     engine.resume();
-    hit(engine, 0, 9);
+    hit(engine, 1, 9);
     expect(engine.getSnapshot().combo).toBe(paused.combo + 1);
     engine.scene.powerUpDrops = [];
     coast(engine, 121);

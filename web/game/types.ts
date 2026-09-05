@@ -1,10 +1,13 @@
 export type BrickColor = string | [string, string];
 
+export type BrickKind = "normal" | "armor" | "reactor" | "accelerator";
+
 export interface LevelBrick {
   row: number;
   col: number;
   hp: number;
   color?: BrickColor;
+  kind?: BrickKind;
 }
 
 export interface Level {
@@ -15,6 +18,8 @@ export interface Level {
   paddleWidth: number;
   lives: number;
   bricks: LevelBrick[];
+  difficulty?: 1 | 2 | 3 | 4 | 5;
+  briefing?: string;
 }
 
 export type GameStatus = "ready" | "playing" | "paused" | "won" | "lost";
@@ -64,10 +69,12 @@ export interface GameSnapshot {
   activePowerUps: ActivePowerUp[];
   energy: number;
   pulseReady: boolean;
-  /** Seconds of pulse overdrive remaining. */
+  /** Seconds of pulse feedback remaining; it grants no ball power. */
   pulseTime: number;
   bestCombo: number;
   elapsed: number;
+  ballCount: number;
+  maxBallSpeed: number;
   lastPickup: { id: number; type: PowerUpKind; time: number } | null;
 }
 

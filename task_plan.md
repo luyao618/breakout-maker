@@ -27,7 +27,7 @@ Complete
 - Browser playtest and desktop/mobile visual review, address findings.
 
 ## Next Step
-Game is live at https://luyao.blog/games/breakout/; gameplay, AI and blog coexistence verified.
+Tactical release is live at https://luyao.blog/games/breakout/. All implementation, calibration, browser checks and deployment validation are complete.
 
 ## Design decisions
 - Palette: void #090b16, titanium #81869e, pearl #edf0ff, lavender #b7a1ff, ion #8ee7f0, ember #f8b78c.
@@ -37,6 +37,7 @@ Game is live at https://luyao.blog/games/breakout/; gameplay, AI and blog coexis
 - Original `.impeccable.md` provides accessibility/product context; user explicitly authorizes replacing its old visual implementation.
 
 ## Errors
+- Difficulty pass: a pre-existing media-query spacing error surfaced during CSS minification; corrected and rebuilt without that warning. Immediate post-reload browser clicks ran before mount; waited for the next DOM snapshot, then verified controls.
 - Goal creation reported an existing active goal; verified the existing goal already matches this request.
 - Browser test helper `wait` became stuck after an HMR component replacement during upload; isolated final browser checks from editing, stopped only the task-owned stalled daemon, and created a fresh QA session.
 
@@ -75,3 +76,11 @@ Game is live at https://luyao.blog/games/breakout/; gameplay, AI and blog coexis
 - Move pickup messages and timed effects into the existing page header; no game geometry shift on collection.
 - Remove pickup bursts/camera shake on all screens and move combo/pulse text out of the live playfield too.
 - Verify portrait, landscape, tablet and desktop; redeploy frontend only, preserving API/quota/blog.
+
+### Phase 10 — Tactical difficulty redesign
+**Status:** complete
+- Audit the feedback loop and capture untouched baseline simulation results.
+- Rebuild the campaign around firing lanes, armor gates, reactor weak points and accelerator hazards.
+- Bound multi-ball, penetration, life income and skill charge so aiming and survival matter.
+- Compare control-only simulated skill tiers, retain expert feasibility checks and verify mobile presentation.
+- Deploy frontend release without changing blog, API credentials, trial state, unlocked stages or header notifications.

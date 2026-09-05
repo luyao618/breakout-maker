@@ -24,3 +24,8 @@
 - A stress catch of five powers in quick succession showed stacked 3D pickup rings could still distract over the paddle. Suppress those pickup-only bursts on narrow screens while retaining sound, the external HUD and falling-power visuals.
 - Repeat obstruction root cause: the old pickup card and timer strip still existed inside ArcadeOverlay and were only hidden at <=600px. Tablet/landscape/desktop retained them. Pickup-triggered combos also displayed large text inside the board.
 - New fix structurally removes all pickup/timer/combo/pulse text nodes from the live playfield. One universal status bar lives in the page header; pickup-specific 3D bursts and camera shake are removed at every viewport.
+
+- Difficulty audit: old 15% drops plus first/pity guarantees, 24 balls, all-ball 8s penetration, 9–12 energy per kill and repeat extra lives cause a runaway clearing loop. Prior perfect-controller checks clear in 10–20 seconds and often finish at 9 lives. Layout-only changes cannot fix this.
+
+- Independent untouched baseline calibration: all 156 seeded control-only attempts won (four synthetic skill tiers ×13 stages ×3 seeds), 14.1–16.4s mean times, each run reached24 balls. Across all runs only one life lost. These synthetic models are sensitivity checks, not measured player win rates.
+- Final balance uses eight-cell reactor splash (also triggerable by direct pulse hits), bounded to one collateral wave. Stage briefings, help and renderer legend describe that final rule consistently. Six viewport checks retain the previous top-header notification guarantee.

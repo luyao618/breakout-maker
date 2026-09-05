@@ -18,6 +18,7 @@ class Ball {
     this.speed = C.BALL_SPEED;
 
     this.isFireball = false;   // fireball mode — destroys any brick in one hit
+    this.fireballContacts = 0; // remaining piercing contacts
     this.fireballTimer = 0;    // seconds remaining for fireball
     this.trail = [];           // last 5 positions for rendering a trail
   }
@@ -52,6 +53,8 @@ class Ball {
       this.fireballTimer -= dt;
       if (this.fireballTimer <= 0) {
         this.isFireball = false;
+        this.fireballTimer = 0;
+        this.fireballContacts = 0;
       }
     }
 

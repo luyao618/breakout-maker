@@ -448,7 +448,7 @@
     font-size: 9px;
   }
 }
-@media (min-width: 601px) and(max-width:850px) {
+@media (min-width: 601px) and (max-width: 850px) {
   .arcade-edition .play-layout {
     grid-template-columns: 145px minmax(300px, 1fr);
     gap: 22px;
@@ -728,5 +728,109 @@
   }
   .power-status-timers b {
     font-size: 9px;
+  }
+}
+
+/* Tactical markings and briefings stay outside live play. */
+.brick-mark {
+  width: 28px;
+  height: 28px;
+  flex: none;
+}
+.brick-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 22px;
+}
+.brick-legend > div {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.brick-legend-icon {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  background: #91b0eb0b;
+  border: 1px solid #91b0eb24;
+  border-radius: 7px;
+  flex: none;
+}
+.brick-legend strong {
+  display: block;
+  color: #d3dcf2;
+  font-size: 11px;
+  font-weight: 500;
+}
+.brick-legend small {
+  display: block;
+  color: #97a2be;
+  font-size: 10px;
+  margin-top: 4px;
+}
+.telemetry-panel > .brick-legend {
+  margin-top: 24px;
+  gap: 12px;
+}
+.telemetry-panel > .brick-legend > div {
+  width: 100%;
+}
+.level-difficulty {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+}
+.level-difficulty[data-difficulty="3"] {
+  color: #f1c58a;
+}
+.level-difficulty[data-difficulty="4"],
+.level-difficulty[data-difficulty="5"] {
+  color: #f09ac5;
+}
+.level-briefing {
+  margin-top: 22px;
+  border-top: 1px solid var(--line);
+  padding-top: 20px;
+}
+.level-briefing p {
+  font-size: 13px;
+  color: #d6dbf0;
+  line-height: 1.8;
+  margin: 10px 0 16px;
+}
+.tactical-guide {
+  margin-top: 26px;
+  padding-top: 22px;
+  border-top: 1px solid var(--line);
+}
+.tactical-guide h3 {
+  font-size: 15px;
+  font-weight: 400;
+  margin: 0 0 18px;
+}
+.tactical-guide p {
+  font-size: 12px;
+  color: #9da8c3;
+  line-height: 1.9;
+}
+.launch-overlay .launch-briefing {
+  max-width: 80%;
+  line-height: 1.8;
+  text-align: center;
+  font-size: 11px;
+}
+@media (max-width: 600px) {
+  .level-briefing .brick-legend {
+    gap: 11px;
+  }
+  .level-briefing .brick-legend > div {
+    width: 100%;
+  }
+}
+
+@media (max-width: 1050px) {
+  .telemetry-panel > .brick-legend {
+    display: none;
   }
 }

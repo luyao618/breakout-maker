@@ -1,4 +1,10 @@
-import type { ActivePowerUp, BrickColor, Level, PowerUpKind } from "./types";
+import type {
+  ActivePowerUp,
+  BrickColor,
+  BrickKind,
+  Level,
+  PowerUpKind,
+} from "./types";
 
 export const C: {
   FIXED_DT: number;
@@ -35,6 +41,26 @@ export const PowerUpType: {
   WIDE_PADDLE: "widePaddle";
   EXTRA_LIFE: "extraLife";
 };
+export const BALANCE: Readonly<{
+  maxBalls: number;
+  fireballDuration: number;
+  fireballContacts: number;
+  wideDuration: number;
+  wideMultiplier: number;
+  maxLifeRepairs: number;
+  dropChance: number;
+  dropCooldown: number;
+  maxDrops: number;
+  dropPity: number;
+  pulseEnergyPerBrick: number;
+  pulseEnergyPerArmorHit: number;
+  pulseRadius: number;
+  pulseTargets: number;
+  pulseDuration: number;
+  acceleratorMultiplier: number;
+  maxSpeedMultiplier: number;
+  maxScoreMultiplier: number;
+}>;
 export const POWER_UP_WEIGHTS: { type: PowerUpKind; weight: number }[];
 export const POWER_UP_DROP_CHANCE: number;
 export interface Rect {
@@ -59,6 +85,7 @@ export class Ball {
   speed: number;
   isFireball: boolean;
   fireballTimer: number;
+  fireballContacts: number;
   trail: { x: number; y: number }[];
   _dead?: boolean;
   launch(angle?: number): void;
@@ -81,11 +108,18 @@ export class Paddle {
   getBounds(): Bounds;
 }
 export class Brick {
-  constructor(row: number, col: number, hp?: number, color?: BrickColor | null);
+  constructor(
+    row: number,
+    col: number,
+    hp?: number,
+    color?: BrickColor | null,
+    kind?: BrickKind,
+  );
   row: number;
   col: number;
   hp: number;
   maxHp: number;
+  kind: BrickKind;
   color: BrickColor | null;
   alive: boolean;
   shakeTimer: number;
@@ -150,9 +184,23 @@ export class PhysicsWorld {
   paddle: Paddle;
   screenW: number;
   screenH: number;
+  levelBallSpeed: number;
   onBrickHit:
-    | ((row: number, col: number, destroyed: boolean, brick: Brick) => void)
+    | ((
+        row: number,
+        col: number,
+        destroyed: boolean,
+        brick: Brick,
+        source?: "ball" | "pulse" | "reactor",
+        ball?: Ball | null,
+      ) => void)
     | null;
+  damageBrick(
+    row: number,
+    col: number,
+    source?: "ball" | "pulse" | "reactor",
+    ball?: Ball | null,
+  ): boolean;
   onBallLost: ((ball: Ball) => void) | null;
   onPaddleHit: ((ball: Ball) => void) | null;
   tick(balls: Ball[], dt: number): void;
@@ -183,6 +231,7 @@ export class GameScene {
   levelIndex: number;
   lives: number;
   _launched: boolean;
+  _lifeRepairs: number;
   _pendingTransition: { state: string; data: unknown } | null;
   enter(data: { level: Level; levelIndex: number }): void;
   exit(preserveState?: boolean): void;
@@ -190,6 +239,7 @@ export class GameScene {
   onTap(x: number, y: number): void;
   onMove(x: number, y?: number): void;
   _activatePowerUp(type: PowerUpKind): void;
+  _maybeDropPowerUp(x: number, y: number): void;
   _spawnBallOnPaddle(): void;
 }
 export class BrickMapper {

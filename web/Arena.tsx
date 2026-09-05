@@ -17,6 +17,8 @@ import { Environment, Lightformer } from "@react-three/drei";
 import * as THREE from "three";
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
 import type { GameEngine } from "./game/engine";
+import type { BrickKind } from "./game/types";
+import { drawBrickMark } from "./game/brick-art";
 import {
   ArcadeBloom,
   ReactorField,
@@ -35,6 +37,7 @@ interface ArenaProps {
 }
 
 interface BrickView {
+  kind?: BrickKind;
   row: number;
   col: number;
   hp: number;
@@ -772,6 +775,71 @@ function brickColor(brick: BrickView): string {
   return ["#8b6dff", "#6f94ff", "#60c2ff", "#72e6ec"][brick.row % 4];
 }
 
+/** Engraved, shape-coded faces remain legible without adding playfield text. */
+function BrickMarkLayer({
+  engine,
+  kind,
+}: {
+  engine: GameEngine | null;
+  kind: Exclude<BrickKind, "normal">;
+}) {
+  const mesh = useRef<THREE.InstancedMesh>(null);
+  const scratch = useMemo(() => new THREE.Object3D(), []);
+  const capacity = Math.max(
+    1,
+    engine?.level.bricks.filter((b) => b.kind === kind).length ?? 1,
+  );
+  const texture = useMemo(() => {
+    const canvas = document.createElement("canvas");
+    canvas.width = canvas.height = 128;
+    drawBrickMark(canvas.getContext("2d")!, kind, 0, 0, 128);
+    const map = new THREE.CanvasTexture(canvas);
+    map.colorSpace = THREE.SRGBColorSpace;
+    return map;
+  }, [kind]);
+  useEffect(() => () => texture.dispose(), [texture]);
+  useFrame(() => {
+    if (!mesh.current) return;
+    const field = engine?.scene.brickField;
+    let count = 0;
+    if (field)
+      for (const row of field.bricks)
+        for (const brick of row) {
+          if (!brick?.alive || brick.kind !== kind || count >= capacity)
+            continue;
+          const rect = field.getBrickRect(brick.row, brick.col);
+          const width = rect.w / 40;
+          const depth = Math.min(0.35, Math.max(0.07, width * 0.3));
+          scratch.position.set(
+            xWorld(rect.x + rect.w / 2),
+            yWorld(rect.y + rect.h * 0.46),
+            depth + 0.015,
+          );
+          scratch.scale.set(width * 0.76, (rect.h / 40) * 0.76, 1);
+          scratch.updateMatrix();
+          mesh.current.setMatrixAt(count++, scratch.matrix);
+        }
+    mesh.current.count = count;
+    mesh.current.instanceMatrix.needsUpdate = true;
+  });
+  return (
+    <instancedMesh
+      ref={mesh}
+      args={[undefined, undefined, capacity]}
+      count={0}
+      frustumCulled={false}
+    >
+      <planeGeometry args={[1, 1]} />
+      <meshBasicMaterial
+        map={texture}
+        transparent
+        depthWrite={false}
+        toneMapped={false}
+      />
+    </instancedMesh>
+  );
+}
+
 function DropLabelLayer({
   engine,
   type,
@@ -872,7 +940,7 @@ function Playfield({
   useFrame(({ clock }) => {
     const scene = engine?.scene as SceneView | undefined;
     if (!scene) return;
-    // Only resize GPU storage when an unlimited legacy split exceeds its previous capacity.
+    // Resize GPU storage only when the live entity count exceeds capacity.
     // Entity positions and colors stay entirely outside React state.
     if (scene.balls.length > ballCapacity)
       setBallCapacity(2 ** Math.ceil(Math.log2(scene.balls.length)));
@@ -925,7 +993,11 @@ function Playfield({
             entry.y - entry.h * 0.22,
             depth + 0.005,
           );
-          obj.scale.set(b.alive ? entry.w * 0.65 : 0, entry.h * 0.052, 0.025);
+          obj.scale.set(
+            b.alive ? entry.w * 0.65 * (b.hp / b.maxHp) : 0,
+            entry.h * 0.052,
+            0.025,
+          );
           obj.updateMatrix();
           cores.current.setMatrixAt(index, obj.matrix);
         }
@@ -1088,6 +1160,9 @@ function Playfield({
           envMapIntensity={1.3}
         />
       </instancedMesh>
+      {(["armor", "reactor", "accelerator"] as const).map((kind) => (
+        <BrickMarkLayer key={kind} engine={engine} kind={kind} />
+      ))}
       <group ref={paddle}>
         <mesh geometry={bodyGeometry} scale={[1, 1, 0.27]} castShadow>
           <meshStandardMaterial
@@ -1280,6 +1355,31 @@ function CompatibleArena({
               if (!brick?.alive) continue;
               const rect = field.getBrickRect(brick.row, brick.col);
               block(rect.x, rect.y, rect.w, rect.h, brickColor(brick));
+              if (brick.kind && brick.kind !== "normal") {
+                drawBrickMark(
+                  context,
+                  brick.kind,
+                  rect.x + rect.w * 0.1,
+                  rect.y + rect.h * 0.06,
+                  rect.w * 0.8,
+                );
+              }
+              if (brick.maxHp > 1) {
+                context.fillStyle = "#182033";
+                context.fillRect(
+                  rect.x + rect.w * 0.15,
+                  rect.y + rect.h * 0.85,
+                  rect.w * 0.7,
+                  1.5,
+                );
+                context.fillStyle = "#f5f3ff";
+                context.fillRect(
+                  rect.x + rect.w * 0.15,
+                  rect.y + rect.h * 0.85,
+                  (rect.w * 0.7 * brick.hp) / brick.maxHp,
+                  1.5,
+                );
+              }
             }
         if (scene.paddle) {
           const p = scene.paddle;

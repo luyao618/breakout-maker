@@ -7,7 +7,7 @@ The blog remains rooted at `/var/www/blog`. Only dedicated `/games/breakout/` lo
 ## Layout
 
 - Runtime: `/opt/breakout-maker/runtime/node` (verified Node 22.23.2 Linux x64).
-- Versioned release: `/opt/breakout-maker/releases/20260905-top-hud/{public,server}`.
+- Versioned release: `/opt/breakout-maker/releases/20260905-tactical/{public,server}`.
 - Active release symlink: `/opt/breakout-maker/current`.
 - Static symlink: `/var/www/games/breakout` → active release `/public`.
 - API: `breakout-maker.service`, listening on `127.0.0.1:3107` only.
@@ -56,7 +56,7 @@ No blog files, posts, feed, TLS certificate or DNS records need to change.
 
 ## Shared generation allowance
 
-The current release is `/opt/breakout-maker/releases/20260905-top-hud`; its generation API retains the persistent quota implementation. The shared model is `Kwai-Kolors/Kolors`, listed as free on SiliconFlow's official pricing page when checked on 2026-09-05. The service key stays in `/etc/breakout-maker.env` and is never part of the frontend bundle.
+The current release is `/opt/breakout-maker/releases/20260905-tactical`; its generation API retains the persistent quota implementation. The shared model is `Kwai-Kolors/Kolors`, listed as free on SiliconFlow's official pricing page when checked on 2026-09-05. The service key stays in `/etc/breakout-maker.env` and is never part of the frontend bundle.
 
 Each client IP gets three lifetime attempts. Valid accepted generation requests reserve an attempt durably before generation; provider failures count, malformed/busy requests do not. Quota records are salted hashes of canonical IPs in `/var/lib/breakout-maker/trial-quota.json`. `StateDirectory=breakout-maker` keeps this file across service restarts and code releases. Do not delete it when deploying or rolling back.
 
@@ -67,3 +67,11 @@ Visitors can supply their own SiliconFlow key after exhaustion (or earlier). It 
 When rolling back this release, keep the quota-enforcing backend or temporarily disable generation. Rolling back to a pre-quota API would remove the requested usage boundary.
 
 The campaign update only switches the static release. The running quota API, its service key and the persistent trial state are unchanged. All 13 redesigned campaign levels are freely available, and pickup/status notifications occupy the existing page header on every viewport, with no in-field text or pickup bursts.
+
+## Tactical campaign release — 2026-09-05
+
+Frontend-only release: `/opt/breakout-maker/releases/20260905-tactical`. Backend files were copied unchanged from the previous quota-capable release; the API was not restarted. Previous release `/opt/breakout-maker/releases/20260905-top-hud` remains available for an atomic symlink rollback. All existing hashed assets are retained for already-open tabs.
+
+The 13-stage campaign now uses bounded powers and armor/reactor/accelerator bricks. Numeric difficulty levels and route briefings are included in each stage; all stages remain unlocked. `tools/balance-calibration.md` records baseline and new synthetic-controller results.
+
+After activation, API PID remained 538453 with 0 restarts. Trial state and blog index/feed SHA256 matched their predeploy values exactly. No environment variables, keys, quota records, Nginx configuration, blog files or service definitions changed.

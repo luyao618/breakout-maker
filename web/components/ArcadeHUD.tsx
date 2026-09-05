@@ -19,19 +19,27 @@ const powerInfo: Record<
 > = {
   split: {
     title: "光球裂变",
-    subtitle: "一束光，化作三道轨迹",
+    subtitle: "新增两球 · 场上最多四球",
     icon: Sparkles,
   },
-  multiShot: { title: "流星齐射", subtitle: "三枚光球，同时出击", icon: Zap },
+  multiShot: {
+    title: "流星齐射",
+    subtitle: "挡板发出两球 · 上限四球",
+    icon: Zap,
+  },
   fireball: {
     title: "烈焰穿透",
-    subtitle: "击穿砖阵，让火焰蔓延",
+    subtitle: "单球强化 · 4 秒 / 6 次碰砖",
     icon: Flame,
   },
-  widePaddle: { title: "引力展开", subtitle: "接住更多可能", icon: Maximize2 },
+  widePaddle: {
+    title: "引力展开",
+    subtitle: "挡板加宽 25% · 持续 7 秒",
+    icon: Maximize2,
+  },
   extraLife: {
     title: "星火重生",
-    subtitle: "多一次机会，再来一场",
+    subtitle: "恢复一命 · 每局限一次",
     icon: Heart,
   },
 };
@@ -79,9 +87,9 @@ export function PulseControl({
         </strong>
         <small>
           {active
-            ? `穿透模式 · ${snapshot.pulseTime.toFixed(1)}s`
+            ? "定向冲击 · 每块 1 点伤害"
             : ready
-              ? "清场冲击 + 5 秒火球"
+              ? "跟随挡板瞄准 · 最多命中 5 砖"
               : `击碎砖块，积蓄能量 · ${Math.floor(snapshot.energy)}%`}
         </small>
       </span>
@@ -132,12 +140,12 @@ export function PowerStatusBar({
           {info
             ? `获得${info.title}`
             : pulseActive
-              ? "超新星 · 穿透模式"
+              ? "超新星 · 定向破甲"
               : snapshot.combo >= 3
                 ? `连锁反应 · ×${snapshot.combo}`
                 : snapshot.activePowerUps.length
                   ? "道具效果持续中"
-                  : "接住补给，获得强化"}
+                  : `光球 ${snapshot.ballCount}/4 · 瞄准弱点`}
         </span>
       </div>
       <div className="power-status-timers" aria-label="持续效果倒计时">

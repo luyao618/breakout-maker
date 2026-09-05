@@ -33,6 +33,7 @@ import {
   PowerStatusBar,
 } from "./components/ArcadeHUD";
 import BrickPreview from "./components/BrickPreview";
+import BrickLegend from "./components/BrickLegend";
 import ModalFrame from "./components/ModalFrame";
 import Maker from "./components/Maker";
 import { shortName } from "./lib/display";
@@ -54,6 +55,7 @@ const powerNames: Record<string, string> = {
   widePaddle: "加宽挡板",
   extraLife: "额外生命",
 };
+const difficultyNames = ["", "试炼", "进阶", "高压", "险境", "极限"];
 const formatScore = (value: number) => String(value).padStart(6, "0");
 
 export default function App() {
@@ -588,9 +590,8 @@ export default function App() {
             </div>
             <h1>{snapshot ? shortName(snapshot.levelName) : ""}</h1>
             <p>
-              让反弹成为连锁反应。
-              <br />
-              蓄满能量，亲手引爆这片星空。
+              {engine.level.briefing ||
+                "控制落点，选择击球角度。把超新星留给难以突破的砖阵。"}
             </p>
             <div className="mission-preview">
               <BrickPreview
@@ -650,7 +651,7 @@ export default function App() {
                 <i className="signal-dot" />
                 {snapshot?.status === "playing"
                   ? snapshot.pulseTime > 0
-                    ? "超新星 · 穿透模式"
+                    ? "超新星 · 定向破甲"
                     : "引力场已启动"
                   : snapshot?.status === "ready"
                     ? "等待发射"
@@ -697,7 +698,9 @@ export default function App() {
               >
                 <span className="launch-orb" />
                 <strong>点击发射</strong>
-                <span>击碎砖块蓄能 · E 键释放超新星</span>
+                <span className="launch-briefing">
+                  {engine.level.briefing || "击碎砖块蓄能 · E 键释放超新星"}
+                </span>
               </button>
             )}
             {snapshot &&
@@ -835,6 +838,7 @@ export default function App() {
                 </div>
               ))}
             </div>
+            <BrickLegend />
             <AudioDeck
               muted={muted}
               music={music}
@@ -903,7 +907,8 @@ export default function App() {
           wide
         >
           <p className="modal-intro">
-            所有星域自由进入。从轨道穿梭到核心攻坚，选择你想挑战的阵列。
+            13
+            个星域全部开放。装甲封路、核心爆破、加速回球；从试炼到极限，挑选你的挑战。
           </p>
           <div className="level-grid">
             {levels.map((level, index) => (
@@ -916,19 +921,13 @@ export default function App() {
                   <span className="mono">
                     {String(index + 1).padStart(2, "0")}
                   </span>
-                  {index === selected ? (
-                    <Check size={15} />
-                  ) : (
-                    <span className="level-difficulty">
-                      {index < 3
-                        ? "探索"
-                        : index < 7
-                          ? "进阶"
-                          : index < 11
-                            ? "挑战"
-                            : "极限"}
-                    </span>
-                  )}
+                  <span
+                    className="level-difficulty"
+                    data-difficulty={level.difficulty || 1}
+                  >
+                    {index === selected && <Check size={12} />}
+                    {difficultyNames[level.difficulty || 1]}
+                  </span>
                 </div>
                 <BrickPreview
                   level={level}
@@ -940,6 +939,13 @@ export default function App() {
                 </small>
               </button>
             ))}
+          </div>
+          <div className="level-briefing" aria-live="polite">
+            <span className="eyebrow">
+              破局提示 / {difficultyNames[selectedLevel.difficulty || 1]}
+            </span>
+            <p>{selectedLevel.briefing}</p>
+            <BrickLegend />
           </div>
           <div className="level-select-footer">
             <div>
@@ -1000,10 +1006,25 @@ export default function App() {
               <Sparkles />
               <h3>接住掉落的惊喜</h3>
               <p>
-                五种道具随机掉落，靠近挡板会轻微吸附。击碎砖块还能蓄能，满格后按
-                E 或点击「释放超新星」清场，并获得 5 秒火球。
+                分裂与齐射各增加两球，场上最多四球。火球只强化一球，持续 4 秒或
+                6 次碰砖。 加宽持续 7
+                秒；补命每局最多一次，不能超过开局生命。接补给时也要留意回球。
               </p>
             </div>
+          </div>
+          <div className="tactical-guide">
+            <h3>读懂砖阵，寻找弱点</h3>
+            <BrickLegend />
+            <p>
+              普通砖一击破碎。反应堆被光球或超新星直接击破时，周围八格各受一点伤害，不连续引爆其他反应堆。
+              加速砖让光球逐次提速，最高到初速的 130%。
+            </p>
+            <p>
+              击碎砖块积蓄超新星。满格按 E
+              或点技能按钮，向挡板上方最近的外层砖释放冲击， 最多直接伤害 5
+              块砖、每块 1
+              点；命中反应堆可额外爆破近邻。移动挡板选择突破位置，破甲比乱放更有效。
+            </p>
           </div>
           <div className="help-footer">
             <span>

@@ -206,8 +206,8 @@ describe("original gameplay adapter", () => {
     engine.dispose();
   });
 
-  it("preserves all five power-up behaviors and timed expiry through the real catch path", () => {
-    const engine = new GameEngine(fixture({ lives: 8 }), 0);
+  it("bounds all five tactical power-up behaviors and timed expiry through the real catch path", () => {
+    const engine = new GameEngine(fixture({ lives: 3 }), 0);
     engine.launch();
     const catchDrop = (type: PowerUpDrop["type"]) => {
       engine.scene.powerUpDrops.push(
@@ -222,17 +222,20 @@ describe("original gameplay adapter", () => {
     catchDrop(PowerUpType.SPLIT);
     expect(engine.scene.balls).toHaveLength(3);
     catchDrop(PowerUpType.MULTI_SHOT);
-    expect(engine.scene.balls).toHaveLength(6);
+    expect(engine.scene.balls).toHaveLength(4);
     catchDrop(PowerUpType.FIREBALL);
-    expect(engine.scene.balls.every((ball) => ball.isFireball)).toBe(true);
+    expect(engine.scene.balls.filter((ball) => ball.isFireball)).toHaveLength(
+      1,
+    );
     expect(engine.getSnapshot().activePowerUps).toEqual([
-      { type: "fireball", timer: expect.closeTo(8 - C.FIXED_DT) },
+      { type: "fireball", timer: expect.closeTo(4) },
     ]);
     catchDrop(PowerUpType.WIDE_PADDLE);
-    expect(engine.scene.paddle.width).toBe(150);
+    expect(engine.scene.paddle.width).toBe(125);
+    engine.scene.lives = 2;
     catchDrop(PowerUpType.EXTRA_LIFE);
     catchDrop(PowerUpType.EXTRA_LIFE);
-    expect(engine.scene.lives).toBe(9);
+    expect(engine.scene.lives).toBe(3);
     expect(engine.scene.powerUpDrops).toHaveLength(0);
     // Keep balls away from collisions while advancing the original timers.
     for (let frame = 0; frame < 601; frame++) {
