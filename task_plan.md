@@ -4,7 +4,7 @@
 Create a new React + TypeScript + Three.js edition on `codex/astral-forge-3d`, preserving the original breakout rules, 13 levels, image conversion, AI generation, powers, scoring, and progress.
 
 ## Current Phase
-Phase 12 — Archive and promote to main
+Complete
 
 ### Phase 1 — Audit and direction
 **Status:** complete
@@ -27,7 +27,7 @@ Phase 12 — Archive and promote to main
 - Browser playtest and desktop/mobile visual review, address findings.
 
 ## Next Step
-Push signed archive tags and the approved branch, merge its PR into main, then synchronize and verify the local checkout.
+Main now contains the approved deployed version. Seven signed archive tags preserve prior versions; stage13 remains the protected Lu Yuan dedication.
 
 ## Design decisions
 - Palette: void #090b16, titanium #81869e, pearl #edf0ff, lavender #b7a1ff, ion #8ee7f0, ember #f8b78c.
@@ -94,7 +94,7 @@ Push signed archive tags and the approved branch, merge its PR into main, then s
 - Keep stages 1–12 unchanged; verify playability and mobile text rendering, then deploy frontend only.
 
 ### Phase 12 — Archive and promote to main
-**Status:** in_progress
+**Status:** complete
 - Preserve old main and all superseded 3D milestones with signed archive tags.
 - Reconcile remote main, which contains the squash-equivalent README ancestor, without changing deployed game content.
 - Document archived versions; push, create and merge the personal-repository PR.
