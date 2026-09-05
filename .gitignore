@@ -1,2 +1,10 @@
 .harness/
 .DS_Store
+node_modules/
+dist/
+web/game/legacy.js
+*.local
+
+dist-live/
+
+server/data/

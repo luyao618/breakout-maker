@@ -1,430 +1,174 @@
 {
-  "name": "关卡4 - 钻石",
-  "gridWidth": 20,
-  "gridHeight": 12,
-  "ballSpeed": 320,
-  "paddleWidth": 88,
-  "lives": 4,
+  "name": "关卡4 - 棱镜航道",
+  "difficulty": 2,
+  "briefing": "缺口左右交错；薄荷色加速砖会催快回球，过弯后先准备接球。",
+  "gridWidth": 24,
+  "gridHeight": 20,
+  "ballSpeed": 346,
+  "paddleWidth": 90,
+  "lives": 3,
   "bricks": [
-    {
-      "row": 0,
-      "col": 9,
-      "hp": 1
-    },
-    {
-      "row": 0,
-      "col": 10,
-      "hp": 1
-    },
-    {
-      "row": 1,
-      "col": 8,
-      "hp": 1
-    },
-    {
-      "row": 1,
-      "col": 9,
-      "hp": 1
-    },
-    {
-      "row": 1,
-      "col": 10,
-      "hp": 1
-    },
-    {
-      "row": 1,
-      "col": 11,
-      "hp": 1
-    },
-    {
-      "row": 2,
-      "col": 7,
-      "hp": 1
-    },
-    {
-      "row": 2,
-      "col": 8,
-      "hp": 1
-    },
-    {
-      "row": 2,
-      "col": 9,
-      "hp": 1
-    },
-    {
-      "row": 2,
-      "col": 10,
-      "hp": 1
-    },
-    {
-      "row": 2,
-      "col": 11,
-      "hp": 1
-    },
-    {
-      "row": 2,
-      "col": 12,
-      "hp": 1
-    },
-    {
-      "row": 3,
-      "col": 6,
-      "hp": 1
-    },
-    {
-      "row": 3,
-      "col": 7,
-      "hp": 1
-    },
-    {
-      "row": 3,
-      "col": 8,
-      "hp": 2
-    },
-    {
-      "row": 3,
-      "col": 9,
-      "hp": 1
-    },
-    {
-      "row": 3,
-      "col": 10,
-      "hp": 1
-    },
-    {
-      "row": 3,
-      "col": 11,
-      "hp": 2
-    },
-    {
-      "row": 3,
-      "col": 12,
-      "hp": 1
-    },
-    {
-      "row": 3,
-      "col": 13,
-      "hp": 1
-    },
-    {
-      "row": 4,
-      "col": 5,
-      "hp": 1
-    },
-    {
-      "row": 4,
-      "col": 6,
-      "hp": 1
-    },
-    {
-      "row": 4,
-      "col": 7,
-      "hp": 2
-    },
-    {
-      "row": 4,
-      "col": 8,
-      "hp": 2
-    },
-    {
-      "row": 4,
-      "col": 9,
-      "hp": 1
-    },
-    {
-      "row": 4,
-      "col": 10,
-      "hp": 1
-    },
-    {
-      "row": 4,
-      "col": 11,
-      "hp": 2
-    },
-    {
-      "row": 4,
-      "col": 12,
-      "hp": 2
-    },
-    {
-      "row": 4,
-      "col": 13,
-      "hp": 1
-    },
-    {
-      "row": 4,
-      "col": 14,
-      "hp": 1
-    },
-    {
-      "row": 5,
-      "col": 4,
-      "hp": 1
-    },
-    {
-      "row": 5,
-      "col": 5,
-      "hp": 1
-    },
-    {
-      "row": 5,
-      "col": 6,
-      "hp": 2
-    },
-    {
-      "row": 5,
-      "col": 7,
-      "hp": 3
-    },
-    {
-      "row": 5,
-      "col": 8,
-      "hp": 2
-    },
-    {
-      "row": 5,
-      "col": 9,
-      "hp": 1
-    },
-    {
-      "row": 5,
-      "col": 10,
-      "hp": 1
-    },
-    {
-      "row": 5,
-      "col": 11,
-      "hp": 2
-    },
-    {
-      "row": 5,
-      "col": 12,
-      "hp": 3
-    },
-    {
-      "row": 5,
-      "col": 13,
-      "hp": 2
-    },
-    {
-      "row": 5,
-      "col": 14,
-      "hp": 1
-    },
-    {
-      "row": 5,
-      "col": 15,
-      "hp": 1
-    },
-    {
-      "row": 6,
-      "col": 4,
-      "hp": 1
-    },
-    {
-      "row": 6,
-      "col": 5,
-      "hp": 1
-    },
-    {
-      "row": 6,
-      "col": 6,
-      "hp": 2
-    },
-    {
-      "row": 6,
-      "col": 7,
-      "hp": 3
-    },
-    {
-      "row": 6,
-      "col": 8,
-      "hp": 2
-    },
-    {
-      "row": 6,
-      "col": 9,
-      "hp": 1
-    },
-    {
-      "row": 6,
-      "col": 10,
-      "hp": 1
-    },
-    {
-      "row": 6,
-      "col": 11,
-      "hp": 2
-    },
-    {
-      "row": 6,
-      "col": 12,
-      "hp": 3
-    },
-    {
-      "row": 6,
-      "col": 13,
-      "hp": 2
-    },
-    {
-      "row": 6,
-      "col": 14,
-      "hp": 1
-    },
-    {
-      "row": 6,
-      "col": 15,
-      "hp": 1
-    },
-    {
-      "row": 7,
-      "col": 5,
-      "hp": 1
-    },
-    {
-      "row": 7,
-      "col": 6,
-      "hp": 1
-    },
-    {
-      "row": 7,
-      "col": 7,
-      "hp": 2
-    },
-    {
-      "row": 7,
-      "col": 8,
-      "hp": 2
-    },
-    {
-      "row": 7,
-      "col": 9,
-      "hp": 1
-    },
-    {
-      "row": 7,
-      "col": 10,
-      "hp": 1
-    },
-    {
-      "row": 7,
-      "col": 11,
-      "hp": 2
-    },
-    {
-      "row": 7,
-      "col": 12,
-      "hp": 2
-    },
-    {
-      "row": 7,
-      "col": 13,
-      "hp": 1
-    },
-    {
-      "row": 7,
-      "col": 14,
-      "hp": 1
-    },
-    {
-      "row": 8,
-      "col": 6,
-      "hp": 1
-    },
-    {
-      "row": 8,
-      "col": 7,
-      "hp": 1
-    },
-    {
-      "row": 8,
-      "col": 8,
-      "hp": 2
-    },
-    {
-      "row": 8,
-      "col": 9,
-      "hp": 1
-    },
-    {
-      "row": 8,
-      "col": 10,
-      "hp": 1
-    },
-    {
-      "row": 8,
-      "col": 11,
-      "hp": 2
-    },
-    {
-      "row": 8,
-      "col": 12,
-      "hp": 1
-    },
-    {
-      "row": 8,
-      "col": 13,
-      "hp": 1
-    },
-    {
-      "row": 9,
-      "col": 7,
-      "hp": 1
-    },
-    {
-      "row": 9,
-      "col": 8,
-      "hp": 1
-    },
-    {
-      "row": 9,
-      "col": 9,
-      "hp": 1
-    },
-    {
-      "row": 9,
-      "col": 10,
-      "hp": 1
-    },
-    {
-      "row": 9,
-      "col": 11,
-      "hp": 1
-    },
-    {
-      "row": 9,
-      "col": 12,
-      "hp": 1
-    },
-    {
-      "row": 10,
-      "col": 8,
-      "hp": 1
-    },
-    {
-      "row": 10,
-      "col": 9,
-      "hp": 1
-    },
-    {
-      "row": 10,
-      "col": 10,
-      "hp": 1
-    },
-    {
-      "row": 10,
-      "col": 11,
-      "hp": 1
-    },
-    {
-      "row": 11,
-      "col": 9,
-      "hp": 1
-    },
-    {
-      "row": 11,
-      "col": 10,
-      "hp": 1
-    }
+    {"row":1,"col":1,"hp":1,"color":"#61dce9","kind":"normal"},
+    {"row":1,"col":2,"hp":1,"color":"#61dce9","kind":"normal"},
+    {"row":1,"col":3,"hp":1,"color":"#61dce9","kind":"normal"},
+    {"row":1,"col":4,"hp":1,"color":"#80efc8","kind":"accelerator"},
+    {"row":1,"col":8,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":1,"col":9,"hp":1,"color":"#61dce9","kind":"normal"},
+    {"row":1,"col":10,"hp":1,"color":"#61dce9","kind":"normal"},
+    {"row":1,"col":11,"hp":1,"color":"#61dce9","kind":"normal"},
+    {"row":1,"col":12,"hp":1,"color":"#61dce9","kind":"normal"},
+    {"row":1,"col":13,"hp":1,"color":"#61dce9","kind":"normal"},
+    {"row":1,"col":14,"hp":1,"color":"#61dce9","kind":"normal"},
+    {"row":1,"col":15,"hp":1,"color":"#61dce9","kind":"normal"},
+    {"row":1,"col":16,"hp":1,"color":"#61dce9","kind":"normal"},
+    {"row":1,"col":17,"hp":1,"color":"#61dce9","kind":"normal"},
+    {"row":1,"col":18,"hp":1,"color":"#61dce9","kind":"normal"},
+    {"row":1,"col":19,"hp":1,"color":"#61dce9","kind":"normal"},
+    {"row":1,"col":20,"hp":1,"color":"#61dce9","kind":"normal"},
+    {"row":1,"col":21,"hp":1,"color":"#61dce9","kind":"normal"},
+    {"row":1,"col":22,"hp":1,"color":"#61dce9","kind":"normal"},
+    {"row":2,"col":15,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":2,"col":16,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":2,"col":17,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":2,"col":18,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":2,"col":19,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":2,"col":20,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":2,"col":21,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":2,"col":22,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":4,"col":1,"hp":1,"color":"#aa8cf3","kind":"normal"},
+    {"row":4,"col":2,"hp":1,"color":"#aa8cf3","kind":"normal"},
+    {"row":4,"col":3,"hp":1,"color":"#aa8cf3","kind":"normal"},
+    {"row":4,"col":4,"hp":2,"color":"#ffc971","kind":"reactor"},
+    {"row":4,"col":5,"hp":1,"color":"#aa8cf3","kind":"normal"},
+    {"row":4,"col":6,"hp":1,"color":"#aa8cf3","kind":"normal"},
+    {"row":4,"col":7,"hp":1,"color":"#aa8cf3","kind":"normal"},
+    {"row":4,"col":8,"hp":1,"color":"#aa8cf3","kind":"normal"},
+    {"row":4,"col":9,"hp":1,"color":"#aa8cf3","kind":"normal"},
+    {"row":4,"col":10,"hp":1,"color":"#aa8cf3","kind":"normal"},
+    {"row":4,"col":11,"hp":1,"color":"#aa8cf3","kind":"normal"},
+    {"row":4,"col":12,"hp":1,"color":"#aa8cf3","kind":"normal"},
+    {"row":4,"col":13,"hp":1,"color":"#aa8cf3","kind":"normal"},
+    {"row":4,"col":14,"hp":1,"color":"#aa8cf3","kind":"normal"},
+    {"row":4,"col":15,"hp":1,"color":"#80efc8","kind":"accelerator"},
+    {"row":4,"col":19,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":4,"col":20,"hp":1,"color":"#aa8cf3","kind":"normal"},
+    {"row":4,"col":21,"hp":1,"color":"#aa8cf3","kind":"normal"},
+    {"row":4,"col":22,"hp":1,"color":"#aa8cf3","kind":"normal"},
+    {"row":5,"col":1,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":5,"col":2,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":5,"col":3,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":5,"col":4,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":5,"col":5,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":5,"col":6,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":5,"col":7,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":5,"col":8,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":7,"col":1,"hp":1,"color":"#61dce9","kind":"normal"},
+    {"row":7,"col":2,"hp":1,"color":"#61dce9","kind":"normal"},
+    {"row":7,"col":3,"hp":1,"color":"#61dce9","kind":"normal"},
+    {"row":7,"col":4,"hp":1,"color":"#80efc8","kind":"accelerator"},
+    {"row":7,"col":8,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":7,"col":9,"hp":1,"color":"#61dce9","kind":"normal"},
+    {"row":7,"col":10,"hp":1,"color":"#61dce9","kind":"normal"},
+    {"row":7,"col":11,"hp":1,"color":"#61dce9","kind":"normal"},
+    {"row":7,"col":12,"hp":1,"color":"#61dce9","kind":"normal"},
+    {"row":7,"col":13,"hp":1,"color":"#61dce9","kind":"normal"},
+    {"row":7,"col":14,"hp":1,"color":"#61dce9","kind":"normal"},
+    {"row":7,"col":15,"hp":1,"color":"#61dce9","kind":"normal"},
+    {"row":7,"col":16,"hp":1,"color":"#61dce9","kind":"normal"},
+    {"row":7,"col":17,"hp":1,"color":"#61dce9","kind":"normal"},
+    {"row":7,"col":18,"hp":1,"color":"#61dce9","kind":"normal"},
+    {"row":7,"col":19,"hp":1,"color":"#61dce9","kind":"normal"},
+    {"row":7,"col":20,"hp":1,"color":"#61dce9","kind":"normal"},
+    {"row":7,"col":21,"hp":1,"color":"#61dce9","kind":"normal"},
+    {"row":7,"col":22,"hp":1,"color":"#61dce9","kind":"normal"},
+    {"row":8,"col":15,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":8,"col":16,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":8,"col":17,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":8,"col":18,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":8,"col":19,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":8,"col":20,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":8,"col":21,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":8,"col":22,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":10,"col":1,"hp":1,"color":"#aa8cf3","kind":"normal"},
+    {"row":10,"col":2,"hp":1,"color":"#aa8cf3","kind":"normal"},
+    {"row":10,"col":3,"hp":1,"color":"#aa8cf3","kind":"normal"},
+    {"row":10,"col":4,"hp":1,"color":"#aa8cf3","kind":"normal"},
+    {"row":10,"col":5,"hp":1,"color":"#aa8cf3","kind":"normal"},
+    {"row":10,"col":6,"hp":1,"color":"#aa8cf3","kind":"normal"},
+    {"row":10,"col":7,"hp":1,"color":"#aa8cf3","kind":"normal"},
+    {"row":10,"col":8,"hp":1,"color":"#aa8cf3","kind":"normal"},
+    {"row":10,"col":9,"hp":1,"color":"#aa8cf3","kind":"normal"},
+    {"row":10,"col":10,"hp":1,"color":"#aa8cf3","kind":"normal"},
+    {"row":10,"col":11,"hp":1,"color":"#aa8cf3","kind":"normal"},
+    {"row":10,"col":12,"hp":1,"color":"#aa8cf3","kind":"normal"},
+    {"row":10,"col":13,"hp":1,"color":"#aa8cf3","kind":"normal"},
+    {"row":10,"col":14,"hp":1,"color":"#aa8cf3","kind":"normal"},
+    {"row":10,"col":15,"hp":1,"color":"#80efc8","kind":"accelerator"},
+    {"row":10,"col":19,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":10,"col":20,"hp":1,"color":"#aa8cf3","kind":"normal"},
+    {"row":10,"col":21,"hp":1,"color":"#aa8cf3","kind":"normal"},
+    {"row":10,"col":22,"hp":1,"color":"#aa8cf3","kind":"normal"},
+    {"row":11,"col":1,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":11,"col":2,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":11,"col":3,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":11,"col":4,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":11,"col":5,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":11,"col":6,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":11,"col":7,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":11,"col":8,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":13,"col":1,"hp":1,"color":"#61dce9","kind":"normal"},
+    {"row":13,"col":2,"hp":1,"color":"#61dce9","kind":"normal"},
+    {"row":13,"col":3,"hp":1,"color":"#61dce9","kind":"normal"},
+    {"row":13,"col":4,"hp":1,"color":"#80efc8","kind":"accelerator"},
+    {"row":13,"col":8,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":13,"col":9,"hp":1,"color":"#61dce9","kind":"normal"},
+    {"row":13,"col":10,"hp":1,"color":"#61dce9","kind":"normal"},
+    {"row":13,"col":11,"hp":1,"color":"#61dce9","kind":"normal"},
+    {"row":13,"col":12,"hp":1,"color":"#61dce9","kind":"normal"},
+    {"row":13,"col":13,"hp":1,"color":"#61dce9","kind":"normal"},
+    {"row":13,"col":14,"hp":1,"color":"#61dce9","kind":"normal"},
+    {"row":13,"col":15,"hp":1,"color":"#61dce9","kind":"normal"},
+    {"row":13,"col":16,"hp":1,"color":"#61dce9","kind":"normal"},
+    {"row":13,"col":17,"hp":1,"color":"#61dce9","kind":"normal"},
+    {"row":13,"col":18,"hp":1,"color":"#61dce9","kind":"normal"},
+    {"row":13,"col":19,"hp":2,"color":"#ffc971","kind":"reactor"},
+    {"row":13,"col":20,"hp":1,"color":"#61dce9","kind":"normal"},
+    {"row":13,"col":21,"hp":1,"color":"#61dce9","kind":"normal"},
+    {"row":13,"col":22,"hp":1,"color":"#61dce9","kind":"normal"},
+    {"row":14,"col":15,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":14,"col":16,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":14,"col":17,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":14,"col":18,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":14,"col":19,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":14,"col":20,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":14,"col":21,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":14,"col":22,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":16,"col":1,"hp":1,"color":"#aa8cf3","kind":"normal"},
+    {"row":16,"col":2,"hp":1,"color":"#aa8cf3","kind":"normal"},
+    {"row":16,"col":3,"hp":1,"color":"#aa8cf3","kind":"normal"},
+    {"row":16,"col":4,"hp":1,"color":"#aa8cf3","kind":"normal"},
+    {"row":16,"col":5,"hp":1,"color":"#aa8cf3","kind":"normal"},
+    {"row":16,"col":6,"hp":1,"color":"#aa8cf3","kind":"normal"},
+    {"row":16,"col":7,"hp":1,"color":"#aa8cf3","kind":"normal"},
+    {"row":16,"col":8,"hp":1,"color":"#aa8cf3","kind":"normal"},
+    {"row":16,"col":9,"hp":1,"color":"#aa8cf3","kind":"normal"},
+    {"row":16,"col":10,"hp":1,"color":"#aa8cf3","kind":"normal"},
+    {"row":16,"col":11,"hp":1,"color":"#aa8cf3","kind":"normal"},
+    {"row":16,"col":12,"hp":1,"color":"#aa8cf3","kind":"normal"},
+    {"row":16,"col":13,"hp":1,"color":"#aa8cf3","kind":"normal"},
+    {"row":16,"col":14,"hp":1,"color":"#aa8cf3","kind":"normal"},
+    {"row":16,"col":15,"hp":1,"color":"#80efc8","kind":"accelerator"},
+    {"row":16,"col":19,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":16,"col":20,"hp":1,"color":"#aa8cf3","kind":"normal"},
+    {"row":16,"col":21,"hp":1,"color":"#aa8cf3","kind":"normal"},
+    {"row":16,"col":22,"hp":1,"color":"#aa8cf3","kind":"normal"},
+    {"row":17,"col":1,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":17,"col":2,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":17,"col":3,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":17,"col":4,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":17,"col":5,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":17,"col":6,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":17,"col":7,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":17,"col":8,"hp":2,"color":"#b8ccf4","kind":"armor"}
   ]
 }

@@ -1,240 +1,168 @@
 {
-  "name": "关卡1 - 初次见面",
-  "gridWidth": 16,
-  "gridHeight": 8,
-  "ballSpeed": 280,
-  "paddleWidth": 100,
-  "lives": 5,
+  "name": "关卡1 - 星环启航",
+  "difficulty": 1,
+  "briefing": "从星环两侧切入，绕到银色装甲背后；挡板边缘能打出更斜的回球。",
+  "gridWidth": 24,
+  "gridHeight": 20,
+  "ballSpeed": 325,
+  "paddleWidth": 96,
+  "lives": 3,
   "bricks": [
-    {
-      "row": 0,
-      "col": 4,
-      "hp": 1
-    },
-    {
-      "row": 0,
-      "col": 5,
-      "hp": 1
-    },
-    {
-      "row": 0,
-      "col": 10,
-      "hp": 1
-    },
-    {
-      "row": 0,
-      "col": 11,
-      "hp": 1
-    },
-    {
-      "row": 1,
-      "col": 3,
-      "hp": 1
-    },
-    {
-      "row": 1,
-      "col": 4,
-      "hp": 1
-    },
-    {
-      "row": 1,
-      "col": 5,
-      "hp": 1
-    },
-    {
-      "row": 1,
-      "col": 6,
-      "hp": 1
-    },
-    {
-      "row": 1,
-      "col": 9,
-      "hp": 1
-    },
-    {
-      "row": 1,
-      "col": 10,
-      "hp": 1
-    },
-    {
-      "row": 1,
-      "col": 11,
-      "hp": 1
-    },
-    {
-      "row": 1,
-      "col": 12,
-      "hp": 1
-    },
-    {
-      "row": 2,
-      "col": 3,
-      "hp": 1
-    },
-    {
-      "row": 2,
-      "col": 4,
-      "hp": 1
-    },
-    {
-      "row": 2,
-      "col": 5,
-      "hp": 1
-    },
-    {
-      "row": 2,
-      "col": 6,
-      "hp": 1
-    },
-    {
-      "row": 2,
-      "col": 9,
-      "hp": 1
-    },
-    {
-      "row": 2,
-      "col": 10,
-      "hp": 1
-    },
-    {
-      "row": 2,
-      "col": 11,
-      "hp": 1
-    },
-    {
-      "row": 2,
-      "col": 12,
-      "hp": 1
-    },
-    {
-      "row": 3,
-      "col": 4,
-      "hp": 1
-    },
-    {
-      "row": 3,
-      "col": 5,
-      "hp": 1
-    },
-    {
-      "row": 3,
-      "col": 10,
-      "hp": 1
-    },
-    {
-      "row": 3,
-      "col": 11,
-      "hp": 1
-    },
-    {
-      "row": 5,
-      "col": 1,
-      "hp": 1
-    },
-    {
-      "row": 5,
-      "col": 14,
-      "hp": 1
-    },
-    {
-      "row": 6,
-      "col": 2,
-      "hp": 1
-    },
-    {
-      "row": 6,
-      "col": 3,
-      "hp": 1
-    },
-    {
-      "row": 6,
-      "col": 4,
-      "hp": 1
-    },
-    {
-      "row": 6,
-      "col": 5,
-      "hp": 1
-    },
-    {
-      "row": 6,
-      "col": 6,
-      "hp": 1
-    },
-    {
-      "row": 6,
-      "col": 7,
-      "hp": 1
-    },
-    {
-      "row": 6,
-      "col": 8,
-      "hp": 1
-    },
-    {
-      "row": 6,
-      "col": 9,
-      "hp": 1
-    },
-    {
-      "row": 6,
-      "col": 10,
-      "hp": 1
-    },
-    {
-      "row": 6,
-      "col": 11,
-      "hp": 1
-    },
-    {
-      "row": 6,
-      "col": 12,
-      "hp": 1
-    },
-    {
-      "row": 6,
-      "col": 13,
-      "hp": 1
-    },
-    {
-      "row": 7,
-      "col": 4,
-      "hp": 1
-    },
-    {
-      "row": 7,
-      "col": 5,
-      "hp": 1
-    },
-    {
-      "row": 7,
-      "col": 6,
-      "hp": 1
-    },
-    {
-      "row": 7,
-      "col": 7,
-      "hp": 1
-    },
-    {
-      "row": 7,
-      "col": 8,
-      "hp": 1
-    },
-    {
-      "row": 7,
-      "col": 9,
-      "hp": 1
-    },
-    {
-      "row": 7,
-      "col": 10,
-      "hp": 1
-    },
-    {
-      "row": 7,
-      "col": 11,
-      "hp": 1
-    }
+    {"row":1,"col":1,"hp":1,"color":"#79b0f3","kind":"normal"},
+    {"row":1,"col":2,"hp":1,"color":"#79b0f3","kind":"normal"},
+    {"row":1,"col":3,"hp":1,"color":"#79b0f3","kind":"normal"},
+    {"row":1,"col":7,"hp":1,"color":"#aa8cf3","kind":"normal"},
+    {"row":1,"col":8,"hp":1,"color":"#aa8cf3","kind":"normal"},
+    {"row":1,"col":9,"hp":1,"color":"#aa8cf3","kind":"normal"},
+    {"row":1,"col":10,"hp":1,"color":"#aa8cf3","kind":"normal"},
+    {"row":1,"col":11,"hp":1,"color":"#aa8cf3","kind":"normal"},
+    {"row":1,"col":12,"hp":1,"color":"#aa8cf3","kind":"normal"},
+    {"row":1,"col":13,"hp":1,"color":"#aa8cf3","kind":"normal"},
+    {"row":1,"col":14,"hp":1,"color":"#aa8cf3","kind":"normal"},
+    {"row":1,"col":15,"hp":1,"color":"#aa8cf3","kind":"normal"},
+    {"row":1,"col":16,"hp":1,"color":"#aa8cf3","kind":"normal"},
+    {"row":1,"col":20,"hp":1,"color":"#79b0f3","kind":"normal"},
+    {"row":1,"col":21,"hp":1,"color":"#79b0f3","kind":"normal"},
+    {"row":1,"col":22,"hp":1,"color":"#79b0f3","kind":"normal"},
+    {"row":2,"col":1,"hp":1,"color":"#79b0f3","kind":"normal"},
+    {"row":2,"col":2,"hp":1,"color":"#79b0f3","kind":"normal"},
+    {"row":2,"col":3,"hp":1,"color":"#79b0f3","kind":"normal"},
+    {"row":2,"col":5,"hp":1,"color":"#aa8cf3","kind":"normal"},
+    {"row":2,"col":6,"hp":1,"color":"#aa8cf3","kind":"normal"},
+    {"row":2,"col":7,"hp":1,"color":"#aa8cf3","kind":"normal"},
+    {"row":2,"col":8,"hp":1,"color":"#aa8cf3","kind":"normal"},
+    {"row":2,"col":15,"hp":1,"color":"#aa8cf3","kind":"normal"},
+    {"row":2,"col":16,"hp":1,"color":"#aa8cf3","kind":"normal"},
+    {"row":2,"col":17,"hp":1,"color":"#aa8cf3","kind":"normal"},
+    {"row":2,"col":18,"hp":1,"color":"#aa8cf3","kind":"normal"},
+    {"row":2,"col":20,"hp":1,"color":"#79b0f3","kind":"normal"},
+    {"row":2,"col":21,"hp":1,"color":"#79b0f3","kind":"normal"},
+    {"row":2,"col":22,"hp":1,"color":"#79b0f3","kind":"normal"},
+    {"row":3,"col":3,"hp":1,"color":"#aa8cf3","kind":"normal"},
+    {"row":3,"col":4,"hp":1,"color":"#aa8cf3","kind":"normal"},
+    {"row":3,"col":5,"hp":1,"color":"#aa8cf3","kind":"normal"},
+    {"row":3,"col":18,"hp":1,"color":"#aa8cf3","kind":"normal"},
+    {"row":3,"col":19,"hp":1,"color":"#aa8cf3","kind":"normal"},
+    {"row":3,"col":20,"hp":1,"color":"#aa8cf3","kind":"normal"},
+    {"row":4,"col":3,"hp":1,"color":"#aa8cf3","kind":"normal"},
+    {"row":4,"col":4,"hp":1,"color":"#aa8cf3","kind":"normal"},
+    {"row":4,"col":8,"hp":1,"color":"#61dce9","kind":"normal"},
+    {"row":4,"col":9,"hp":1,"color":"#61dce9","kind":"normal"},
+    {"row":4,"col":10,"hp":1,"color":"#61dce9","kind":"normal"},
+    {"row":4,"col":11,"hp":1,"color":"#61dce9","kind":"normal"},
+    {"row":4,"col":12,"hp":1,"color":"#61dce9","kind":"normal"},
+    {"row":4,"col":13,"hp":1,"color":"#61dce9","kind":"normal"},
+    {"row":4,"col":14,"hp":1,"color":"#61dce9","kind":"normal"},
+    {"row":4,"col":15,"hp":1,"color":"#61dce9","kind":"normal"},
+    {"row":4,"col":19,"hp":1,"color":"#aa8cf3","kind":"normal"},
+    {"row":4,"col":20,"hp":1,"color":"#aa8cf3","kind":"normal"},
+    {"row":5,"col":2,"hp":1,"color":"#aa8cf3","kind":"normal"},
+    {"row":5,"col":3,"hp":1,"color":"#aa8cf3","kind":"normal"},
+    {"row":5,"col":7,"hp":1,"color":"#61dce9","kind":"normal"},
+    {"row":5,"col":8,"hp":1,"color":"#61dce9","kind":"normal"},
+    {"row":5,"col":15,"hp":1,"color":"#61dce9","kind":"normal"},
+    {"row":5,"col":16,"hp":1,"color":"#61dce9","kind":"normal"},
+    {"row":5,"col":20,"hp":1,"color":"#aa8cf3","kind":"normal"},
+    {"row":5,"col":21,"hp":1,"color":"#aa8cf3","kind":"normal"},
+    {"row":6,"col":1,"hp":1,"color":"#aa8cf3","kind":"normal"},
+    {"row":6,"col":2,"hp":1,"color":"#aa8cf3","kind":"normal"},
+    {"row":6,"col":6,"hp":1,"color":"#61dce9","kind":"normal"},
+    {"row":6,"col":7,"hp":1,"color":"#61dce9","kind":"normal"},
+    {"row":6,"col":10,"hp":1,"color":"#ee8bc1","kind":"normal"},
+    {"row":6,"col":11,"hp":1,"color":"#ee8bc1","kind":"normal"},
+    {"row":6,"col":12,"hp":1,"color":"#ee8bc1","kind":"normal"},
+    {"row":6,"col":13,"hp":1,"color":"#ee8bc1","kind":"normal"},
+    {"row":6,"col":16,"hp":1,"color":"#61dce9","kind":"normal"},
+    {"row":6,"col":17,"hp":1,"color":"#61dce9","kind":"normal"},
+    {"row":6,"col":21,"hp":1,"color":"#aa8cf3","kind":"normal"},
+    {"row":6,"col":22,"hp":1,"color":"#aa8cf3","kind":"normal"},
+    {"row":7,"col":5,"hp":1,"color":"#61dce9","kind":"normal"},
+    {"row":7,"col":6,"hp":1,"color":"#61dce9","kind":"normal"},
+    {"row":7,"col":10,"hp":1,"color":"#ee8bc1","kind":"normal"},
+    {"row":7,"col":11,"hp":1,"color":"#ee8bc1","kind":"normal"},
+    {"row":7,"col":12,"hp":1,"color":"#ee8bc1","kind":"normal"},
+    {"row":7,"col":13,"hp":1,"color":"#ee8bc1","kind":"normal"},
+    {"row":7,"col":17,"hp":1,"color":"#61dce9","kind":"normal"},
+    {"row":7,"col":18,"hp":1,"color":"#61dce9","kind":"normal"},
+    {"row":8,"col":5,"hp":1,"color":"#61dce9","kind":"normal"},
+    {"row":8,"col":6,"hp":1,"color":"#61dce9","kind":"normal"},
+    {"row":8,"col":10,"hp":1,"color":"#ee8bc1","kind":"normal"},
+    {"row":8,"col":11,"hp":1,"color":"#ee8bc1","kind":"normal"},
+    {"row":8,"col":12,"hp":1,"color":"#ee8bc1","kind":"normal"},
+    {"row":8,"col":13,"hp":1,"color":"#ee8bc1","kind":"normal"},
+    {"row":8,"col":17,"hp":1,"color":"#61dce9","kind":"normal"},
+    {"row":8,"col":18,"hp":1,"color":"#61dce9","kind":"normal"},
+    {"row":9,"col":5,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":9,"col":6,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":9,"col":10,"hp":1,"color":"#ee8bc1","kind":"normal"},
+    {"row":9,"col":11,"hp":1,"color":"#ee8bc1","kind":"normal"},
+    {"row":9,"col":12,"hp":1,"color":"#ee8bc1","kind":"normal"},
+    {"row":9,"col":13,"hp":1,"color":"#ee8bc1","kind":"normal"},
+    {"row":9,"col":17,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":9,"col":18,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":10,"col":1,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":10,"col":2,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":10,"col":6,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":10,"col":7,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":10,"col":16,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":10,"col":17,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":10,"col":21,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":10,"col":22,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":11,"col":2,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":11,"col":3,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":11,"col":7,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":11,"col":8,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":11,"col":15,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":11,"col":16,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":11,"col":20,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":11,"col":21,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":12,"col":3,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":12,"col":4,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":12,"col":8,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":12,"col":9,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":12,"col":10,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":12,"col":11,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":12,"col":12,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":12,"col":13,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":12,"col":14,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":12,"col":15,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":12,"col":19,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":12,"col":20,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":13,"col":3,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":13,"col":4,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":13,"col":5,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":13,"col":18,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":13,"col":19,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":13,"col":20,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":14,"col":5,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":14,"col":6,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":14,"col":7,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":14,"col":8,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":14,"col":15,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":14,"col":16,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":14,"col":17,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":14,"col":18,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":15,"col":7,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":15,"col":8,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":15,"col":9,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":15,"col":10,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":15,"col":11,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":15,"col":12,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":15,"col":13,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":15,"col":14,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":15,"col":15,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":15,"col":16,"hp":2,"color":"#b8ccf4","kind":"armor"},
+    {"row":17,"col":1,"hp":1,"color":"#79b0f3","kind":"normal"},
+    {"row":17,"col":2,"hp":1,"color":"#79b0f3","kind":"normal"},
+    {"row":17,"col":3,"hp":1,"color":"#79b0f3","kind":"normal"},
+    {"row":17,"col":20,"hp":1,"color":"#79b0f3","kind":"normal"},
+    {"row":17,"col":21,"hp":1,"color":"#79b0f3","kind":"normal"},
+    {"row":17,"col":22,"hp":1,"color":"#79b0f3","kind":"normal"},
+    {"row":18,"col":1,"hp":1,"color":"#79b0f3","kind":"normal"},
+    {"row":18,"col":2,"hp":1,"color":"#79b0f3","kind":"normal"},
+    {"row":18,"col":3,"hp":1,"color":"#79b0f3","kind":"normal"},
+    {"row":18,"col":20,"hp":1,"color":"#79b0f3","kind":"normal"},
+    {"row":18,"col":21,"hp":1,"color":"#79b0f3","kind":"normal"},
+    {"row":18,"col":22,"hp":1,"color":"#79b0f3","kind":"normal"}
   ]
 }

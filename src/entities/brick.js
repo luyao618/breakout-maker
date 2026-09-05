@@ -9,9 +9,10 @@ class Brick {
    * @param {number} hp     - hit points (10 = iron brick, tough but breakable)
    * @param {string|null} color - override colour, or null for hp-based
    */
-  constructor(row, col, hp = 1, color = null) {
+  constructor(row, col, hp = 1, color = null, kind = 'normal') {
     this.row = row;
     this.col = col;
+    this.kind = kind;
     // Convert legacy indestructible (999) to iron (10)
     this.hp = (hp >= C.INDESTRUCTIBLE_HP) ? C.IRONCLAD_HP : hp;
     this.maxHp = this.hp;
@@ -26,8 +27,9 @@ class Brick {
    * @returns {boolean} true if the brick was destroyed by this hit
    */
   hit(isFireball = false) {
-    // Iron bricks always take exactly 1 hp per hit (fireball doesn't one-shot them)
-    if (this.maxHp >= C.IRONCLAD_HP) {
+    if (!this.alive) return false;
+    // Armor and legacy iron absorb one damage and reflect piercing balls.
+    if (this.kind === 'armor' || this.maxHp >= C.IRONCLAD_HP) {
       this.hp--;
       if (this.hp <= 0) {
         this.alive = false;

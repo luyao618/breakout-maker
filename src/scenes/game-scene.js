@@ -42,6 +42,7 @@ class GameScene {
 
     this._pendingTransition = null;
     this._launched          = false;
+    this._lifeRepairs = 0;
     this.powerUpDrops       = [];
 
     // Invalidate brick cache so the new level's bricks are rendered fresh
@@ -73,9 +74,11 @@ class GameScene {
       C.SCREEN_W, C.SCREEN_H,
     );
 
+    this.physics.levelBallSpeed = this.level.ballSpeed || C.BALL_SPEED;
+
     // --- Physics callbacks ---
 
-    this.physics.onBrickHit = (row, col, destroyed, brick) => {
+    this.physics.onBrickHit = (row, col, destroyed, brick, source = 'ball') => {
       this.scoreSystem.onBrickHit(destroyed);
 
       // Sound effects
@@ -98,8 +101,7 @@ class GameScene {
         }
 
         // Maybe drop a power-up
-        const drop = rollPowerUpDrop(rect.x + rect.w / 2, rect.y + rect.h / 2);
-        if (drop) this.powerUpDrops.push(drop);
+        if (source === 'ball') this._maybeDropPowerUp(rect.x + rect.w / 2, rect.y + rect.h / 2);
       }
 
       // Invalidate the cached brick layer so Renderer redraws
@@ -234,61 +236,71 @@ class GameScene {
     switch (type) {
 
       case PowerUpType.SPLIT: {
-        // Every existing ball spawns two extra at ±0.4 rad offset
-        const newBalls = [];
-        for (const ball of this.balls) {
-          const baseAngle = Math.atan2(ball.vy, ball.vx);
-
-          for (const offset of [-0.4, 0.4]) {
-            const angle = baseAngle + offset;
-            const b = new Ball(ball.x, ball.y, ball.radius);
-            b.speed = ball.speed;
-            b.vx    = ball.speed * Math.cos(angle);
-            b.vy    = ball.speed * Math.sin(angle);
-            b.isFireball   = ball.isFireball;
-            b.fireballTimer = ball.fireballTimer;
-            newBalls.push(b);
-          }
+        // Split one live ball; neither clones nor subsequent pickups multiply fire.
+        const ball = this.balls.find(b => !b._dead);
+        if (!ball) break;
+        const baseAngle = Math.atan2(ball.vy, ball.vx);
+        for (const offset of [-0.4, 0.4]) {
+          if (this.balls.length >= BALANCE.maxBalls) break;
+          const angle = baseAngle + offset;
+          const b = new Ball(ball.x, ball.y, ball.radius);
+          b.speed = ball.speed;
+          b.vx = ball.speed * Math.cos(angle);
+          b.vy = ball.speed * Math.sin(angle);
+          this.balls.push(b);
         }
-        this.balls.push(...newBalls);
         break;
       }
 
       case PowerUpType.MULTI_SHOT: {
-        // Fire 3 new balls from the paddle in a fan
-        for (let i = -1; i <= 1; i++) {
+        for (const offset of [-0.3, 0.3]) {
+          if (this.balls.length >= BALANCE.maxBalls) break;
           const b = new Ball(
-            this.paddle.x + i * 15,
+            this.paddle.x,
             this.paddle.y - this.paddle.height / 2 - C.BALL_RADIUS - 2,
           );
           b.speed = this.level.ballSpeed || C.BALL_SPEED;
-          b.launch(C.LAUNCH_ANGLE + i * 0.3);
+          b.launch(offset);
           this.balls.push(b);
         }
         break;
       }
 
       case PowerUpType.FIREBALL: {
-        // All current balls become fireballs for 8 s
-        for (const ball of this.balls) {
-          ball.isFireball   = true;
-          ball.fireballTimer = 8;
+        // Refresh the same fireball when possible: only one may exist at a time.
+        const ball = this.balls.find(b => b.isFireball && !b._dead)
+          || this.balls.find(b => !b._dead);
+        if (!ball) break;
+        for (const candidate of this.balls) {
+          candidate.isFireball = candidate === ball;
+          candidate.fireballTimer = candidate === ball ? BALANCE.fireballDuration : 0;
+          candidate.fireballContacts = candidate === ball ? BALANCE.fireballContacts : 0;
         }
-        this.activePowerUps.push({ type: PowerUpType.FIREBALL, timer: 8 });
+        this.activePowerUps.push({ type, timer: BALANCE.fireballDuration });
         break;
       }
 
       case PowerUpType.WIDE_PADDLE: {
-        this.paddle.setWide(10);
-        this.activePowerUps.push({ type: PowerUpType.WIDE_PADDLE, timer: 10 });
+        this.paddle.setWide(BALANCE.wideDuration);
+        this.activePowerUps.push({ type, timer: BALANCE.wideDuration });
         break;
       }
 
       case PowerUpType.EXTRA_LIFE: {
-        this.lives = Math.min(this.lives + 1, 9);
+        const startingLives = this.level.lives || C.DEFAULT_LIVES;
+        if (this._lifeRepairs < BALANCE.maxLifeRepairs && this.lives < startingLives) {
+          this.lives++;
+          this._lifeRepairs++;
+        }
         break;
       }
     }
+  }
+
+  /** The modern host supplies cooldown, pity and eligibility rules. */
+  _maybeDropPowerUp(x, y) {
+    const drop = rollPowerUpDrop(x, y);
+    if (drop) this.powerUpDrops.push(drop);
   }
 
   // ---- Rendering ----

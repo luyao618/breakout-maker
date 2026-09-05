@@ -1,0 +1,836 @@
+/* The reactor surrounds the play surface; feedback always leaves the ball visible. */
+.arcade-edition {
+  --violet: #a58dff;
+  --cyan: #74f1ff;
+  background: radial-gradient(ellipse at 53% 42%, #23205635, transparent 56%);
+}
+.arcade-edition .site-header {
+  height: 84px;
+}
+.arcade-edition .play-layout {
+  position: relative;
+  isolation: isolate;
+  max-width: 1280px;
+  grid-template-columns: minmax(190px, 1fr) minmax(380px, 535px) minmax(
+      185px,
+      1fr
+    );
+  gap: 43px;
+  margin-top: 22px;
+}
+.arcade-edition .game-stage {
+  background: #090e1fe8;
+  border-color: #7298e74d;
+  border-radius: 14px;
+  box-shadow:
+    0 0 0 5px #17263b22,
+    0 0 0 6px #728ce00c,
+    0 0 80px #6964ef15,
+    0 35px 80px #0007;
+  transition:
+    border-color 0.3s,
+    box-shadow 0.4s;
+}
+.arcade-edition .game-stage:before,
+.arcade-edition .game-stage:after {
+  position: absolute;
+  content: "";
+  width: 40%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, #89ceff, transparent);
+  left: 30%;
+  z-index: 4;
+  pointer-events: none;
+}
+.arcade-edition .game-stage:before {
+  top: 0;
+}
+.arcade-edition .game-stage:after {
+  bottom: 0;
+  background: linear-gradient(90deg, transparent, #c396fc, transparent);
+}
+.arcade-edition .game-stage.overdriving {
+  border-color: #ffc08b8c;
+  box-shadow:
+    0 0 0 5px #fd99580b,
+    0 0 80px #f8834333,
+    0 20px 90px #0008;
+}
+.arcade-edition .game-stage.pulse-armed {
+  border-color: #8edeff8c;
+  box-shadow: 0 0 40px #4ac8fc20;
+}
+.arcade-edition .game-arena {
+  inset: 17px -13px 12px;
+}
+.arcade-edition .mission-number {
+  font-size: 75px;
+  color: #ced3ff;
+  text-shadow: 0 0 45px #9698ee35;
+}
+.arcade-edition .mission-panel h1 {
+  letter-spacing: 3px;
+  font-size: 23px;
+}
+.arcade-edition .mission-panel > p {
+  font-size: 11px;
+  color: #9fa8c5;
+}
+.arcade-edition .mission-preview {
+  width: 125px;
+  height: 72px;
+  margin: 19px 0;
+  opacity: 0.8;
+  filter: drop-shadow(0 0 10px #9aabff45);
+}
+.arcade-edition .mission-progress {
+  max-width: 230px;
+}
+.arcade-edition .mission-progress > div {
+  height: 4px;
+}
+.arcade-edition .mission-progress i {
+  background: linear-gradient(90deg, #ac89ff, #74f1ff);
+  box-shadow: 0 0 10px #74f1ff;
+}
+.arcade-edition .play-control-help {
+  margin-top: 25px;
+  gap: 10px;
+}
+.arcade-edition .telemetry-panel {
+  padding-top: 37px;
+}
+.arcade-edition .score-readout strong {
+  font-size: 42px;
+  letter-spacing: -2px;
+  color: #dbe7ff;
+  text-shadow: 0 0 26px #71c8ff40;
+}
+.arcade-edition .life-readout {
+  margin-top: 30px;
+}
+.arcade-edition .life-readout > div {
+  color: #e396c9;
+  filter: drop-shadow(0 0 7px #e875b54a);
+}
+.arcade-edition .combo-readout {
+  margin-top: 28px;
+  transition: color 0.25s;
+}
+.arcade-edition .combo-readout strong {
+  color: #b6aecf;
+  font-size: 45px;
+}
+.arcade-edition .combo-readout.combo-hot strong {
+  color: #9bf7ff;
+  text-shadow: 0 0 20px #36c5e17a;
+}
+.arcade-edition .combo-hot svg {
+  color: #a2f6ff;
+  fill: #a2f6ff;
+}
+.run-best {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  margin-top: 9px;
+  font-size: 9px;
+  color: #8991af;
+}
+.run-best strong {
+  font-size: 11px;
+  color: #b2afcc;
+  font-weight: 400;
+}
+.arcade-edition .power-guide {
+  margin-top: 21px;
+  padding-top: 19px;
+}
+.arcade-edition .power-guide > div {
+  margin: 9px 0;
+}
+.arcade-edition .power-guide .power-token {
+  background: #121d32;
+  box-shadow: 0 0 14px #76bcff0c;
+  border-color: color-mix(in srgb, currentColor 50%, transparent);
+}
+.orbital-scenery {
+  position: absolute;
+  inset: -20px -80px -50px;
+  z-index: -1;
+  pointer-events: none;
+  overflow: hidden;
+  opacity: 0.7;
+}
+.orbital-planet {
+  width: 430px;
+  height: 430px;
+  position: absolute;
+  top: 25%;
+  left: -235px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 82% 38%,
+    #789bee25,
+    #2628520d 34%,
+    #090b16 70%
+  );
+  box-shadow:
+    6px -1px 1px #a79eff13,
+    25px -6px 80px #8b66ed15;
+}
+.orbital-scenery > i {
+  position: absolute;
+  width: 1500px;
+  height: 650px;
+  border: 1px solid #8babee10;
+  border-radius: 50%;
+  left: -160px;
+  top: 80px;
+  transform: rotate(-35deg);
+}
+.orbital-scenery > i:nth-of-type(2) {
+  transform: rotate(-35deg) scale(1.1);
+  border-color: #8babee07;
+}
+.orbital-scenery > span {
+  position: absolute;
+  bottom: 8%;
+  left: 15px;
+  writing-mode: vertical-rl;
+  font-family: "JetBrains Mono", monospace;
+  letter-spacing: 5px;
+  font-size: 8px;
+  color: #829acd25;
+}
+.pulse-control {
+  display: flex;
+  width: 100%;
+  max-width: 250px;
+  gap: 10px;
+  padding: 14px 11px;
+  margin-top: 27px;
+  border-radius: 11px;
+  background: linear-gradient(125deg, #1c264499, #16132d88);
+  border: 1px solid #667be03d;
+  align-items: center;
+  text-align: left;
+  position: relative;
+  color: #9ea8d4;
+  transition:
+    border-color 0.3s,
+    box-shadow 0.3s,
+    background 0.3s;
+}
+.pulse-control:disabled {
+  cursor: default;
+  opacity: 1;
+}
+.pulse-control > kbd {
+  position: absolute;
+  right: 8px;
+  top: 8px;
+  font-size: 7px;
+  padding: 2px 3px;
+  min-width: 16px;
+  color: #b9c2ea;
+}
+.pulse-reactor {
+  display: grid;
+  place-items: center;
+  width: 47px;
+  height: 47px;
+  position: relative;
+  flex-shrink: 0;
+  color: #8ba9dc;
+}
+.pulse-reactor > svg:first-child {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+  fill: none;
+  stroke-width: 2;
+}
+.reactor-track {
+  stroke: #8ea6fe22;
+}
+.reactor-fill {
+  stroke: #8ddfff;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.2s;
+}
+.pulse-label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.pulse-label .eyebrow {
+  font-size: 6px;
+  letter-spacing: 1px;
+  color: #799fc0;
+}
+.pulse-label strong {
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 1px;
+  color: #c3cbe4;
+}
+.pulse-label small {
+  font-size: 7px;
+  line-height: 1.5;
+  color: #8b99b7;
+}
+.pulse-control.charged {
+  cursor: pointer;
+  background: linear-gradient(120deg, #12496660, #31327950);
+  border-color: #80e9ff91;
+  box-shadow:
+    0 0 25px #74f1ff14,
+    inset 0 0 25px #74f1ff08;
+}
+.pulse-control.charged .pulse-reactor {
+  color: #8ff5ff;
+  filter: drop-shadow(0 0 6px #70eaff);
+}
+.pulse-control.charged .pulse-label strong {
+  color: #c7faff;
+}
+.pulse-control.charged:hover {
+  border-color: #bcf9ff;
+  box-shadow: 0 0 35px #74f1ff30;
+  transform: translateY(-1px);
+}
+.pulse-control.overdriving {
+  background: linear-gradient(120deg, #502c2866, #29204777);
+  border-color: #ffa66473;
+}
+.pulse-control.overdriving .pulse-reactor {
+  color: #ffb172;
+  filter: drop-shadow(0 0 8px #ff8f4f55);
+}
+.pulse-control.overdriving .pulse-label strong {
+  color: #ffe2b6;
+}
+.audio-deck {
+  max-width: 225px;
+  margin-top: 23px;
+  border-top: 1px solid var(--line);
+  padding-top: 18px;
+}
+.audio-deck-label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #687a9b;
+  margin-bottom: 12px;
+}
+.audio-deck-label .eyebrow {
+  font-size: 7px;
+  letter-spacing: 1px;
+}
+.audio-deck > div:nth-child(2) {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.audio-deck button {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 10px;
+  color: #6b7591;
+  background: transparent;
+  text-align: left;
+  padding: 5px 0;
+}
+.audio-deck button > span {
+  margin-left: auto;
+  font-family: "JetBrains Mono";
+  font-size: 7px;
+  letter-spacing: 1px;
+}
+.audio-deck button.enabled {
+  color: #a8d5ee;
+}
+.audio-deck button.enabled > span {
+  color: #8bf1db;
+}
+.audio-deck > p {
+  font-size: 8px;
+  color: #6b7591;
+  margin-top: 14px;
+}
+.arcade-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  overflow: hidden;
+  border-radius: inherit;
+}
+.overdrive-frame {
+  position: absolute;
+  inset: 0;
+  border: 1px solid #ffb87270;
+  box-shadow: inset 0 0 70px #f5784b15;
+  border-radius: inherit;
+}
+.mobile-action-dock {
+  display: none;
+}
+.arcade-edition .launch-overlay {
+  border-color: #8bceff4a;
+  background: linear-gradient(130deg, #12213de6, #251b3ce0);
+  box-shadow: 0 0 35px #66abff12;
+  padding: 21px 25px;
+}
+.arcade-edition .launch-overlay strong {
+  letter-spacing: 4px;
+}
+.arcade-edition .launch-overlay .launch-orb {
+  width: 8px;
+  height: 8px;
+  background: #b9fbff;
+  box-shadow:
+    0 0 8px #89f5ff,
+    0 0 22px #81e4ff,
+    0 0 45px #bf9bff;
+}
+.arcade-edition .launch-overlay > span:last-child {
+  font-size: 8px;
+}
+.arcade-edition .quality-toggle {
+  padding: 12px 0;
+  color: #7c94b4;
+}
+@media (min-width: 1500px) {
+  .arcade-edition .play-layout {
+    max-width: 1390px;
+    grid-template-columns: 240px 590px 240px;
+    justify-content: space-between;
+  }
+  .arcade-edition .game-stage {
+    height: calc(100svh - 160px);
+    max-height: 860px;
+  }
+}
+@media (max-width: 1100px) {
+  .arcade-edition .play-layout {
+    grid-template-columns: 170px minmax(350px, 1fr) 160px;
+    gap: 24px;
+  }
+  .arcade-edition .score-readout strong {
+    font-size: 32px;
+  }
+  .pulse-control {
+    padding: 12px 7px;
+    gap: 6px;
+  }
+  .pulse-reactor {
+    width: 38px;
+    height: 38px;
+  }
+  .pulse-label strong {
+    font-size: 10px;
+  }
+  .pulse-label small {
+    font-size: 6px;
+  }
+  .pulse-label .eyebrow {
+    font-size: 5px;
+  }
+  .arcade-edition .mission-number {
+    font-size: 62px;
+  }
+  .audio-deck button {
+    font-size: 9px;
+  }
+}
+@media (min-width: 601px) and (max-width: 850px) {
+  .arcade-edition .play-layout {
+    grid-template-columns: 145px minmax(300px, 1fr);
+    gap: 22px;
+  }
+  .arcade-edition .telemetry-panel {
+    padding: 0 5px 10px;
+    grid-column: 2;
+  }
+  .arcade-edition .score-readout strong {
+    font-size: 26px;
+  }
+  .arcade-edition .life-readout,
+  .arcade-edition .combo-readout {
+    margin-top: 0;
+  }
+  .arcade-edition .combo-readout strong {
+    font-size: 29px;
+  }
+  .run-best,
+  .audio-deck {
+    display: none;
+  }
+  .arcade-edition .mission-number {
+    font-size: 55px;
+  }
+  .pulse-control {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 12px;
+    gap: 10px;
+  }
+  .pulse-label strong {
+    font-size: 12px;
+  }
+  .pulse-label small {
+    font-size: 7px;
+  }
+  .pulse-label .eyebrow {
+    font-size: 6px;
+  }
+  .arcade-edition .mission-panel h1 {
+    font-size: 18px;
+  }
+}
+@media (max-width: 600px) {
+  .arcade-edition .site-header {
+    height: 58px;
+  }
+  .arcade-edition .play-layout {
+    display: flex;
+    gap: 0;
+    margin: 0;
+  }
+  .arcade-edition .mission-number {
+    font-size: 20px;
+    margin: 0 0 0 auto;
+  }
+  .arcade-edition .mission-panel h1 {
+    font-size: 12px;
+    letter-spacing: 1px;
+  }
+  .arcade-edition .mission-panel > .pulse-control {
+    display: none;
+  }
+  .arcade-edition .game-stage {
+    height: calc(100svh - 259px);
+    min-height: 330px;
+    max-height: 720px;
+    overflow: hidden;
+  }
+  .arcade-edition .game-arena {
+    inset: 7px -6px 0;
+  }
+  .arcade-edition .telemetry-panel {
+    padding: 11px 10px 6px;
+    gap: 12px;
+  }
+  .arcade-edition .score-readout strong {
+    font-size: 24px;
+    letter-spacing: 0;
+    margin-top: 5px;
+  }
+  .arcade-edition .life-readout,
+  .arcade-edition .combo-readout {
+    margin-top: 0;
+  }
+  .arcade-edition .combo-readout strong {
+    font-size: 24px;
+    margin-top: 3px;
+  }
+  .arcade-edition .life-readout > div {
+    margin-top: 7px;
+  }
+  .arcade-edition .run-best,
+  .arcade-edition .audio-deck {
+    display: none;
+  }
+  .orbital-scenery {
+    display: none;
+  }
+  .mobile-action-dock {
+    display: flex;
+    width: 100%;
+    max-width: 440px;
+    gap: 10px;
+    align-items: center;
+    order: 4;
+    margin: 4px 0 10px;
+  }
+  .mobile-action-dock > .pulse-control {
+    margin: 0;
+    flex: 1;
+    max-width: none;
+    padding: 8px 12px;
+    gap: 10px;
+    border-radius: 9px;
+  }
+  .mobile-action-dock .pulse-reactor {
+    width: 36px;
+    height: 36px;
+  }
+  .mobile-action-dock .pulse-label {
+    gap: 2px;
+  }
+  .mobile-action-dock .pulse-label .eyebrow {
+    font-size: 5px;
+  }
+  .mobile-action-dock .pulse-label strong {
+    font-size: 10px;
+    letter-spacing: 1px;
+  }
+  .mobile-action-dock .pulse-label small {
+    font-size: 6px;
+  }
+  .mobile-action-dock .pulse-control > kbd {
+    display: none;
+  }
+  .mobile-radio {
+    width: 48px;
+    height: 53px;
+    background: #151d34;
+    border: 1px solid #667be030;
+    border-radius: 9px;
+    display: grid;
+    place-items: center;
+    color: #78839f;
+  }
+  .mobile-radio.enabled {
+    color: #a3f4ed;
+    border-color: #7fe8e655;
+    box-shadow: 0 0 20px #74f1ff0b;
+  }
+  .arcade-edition .launch-overlay {
+    padding: 16px 18px;
+  }
+  .arcade-edition .launch-overlay > span:last-child {
+    font-size: 6px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pulse-control,
+  .reactor-fill {
+    transition: none;
+  }
+}
+
+.arcade-edition .power-0 {
+  color: #71f9ff;
+}
+.arcade-edition .power-1 {
+  color: #b791ff;
+}
+.arcade-edition .power-2 {
+  color: #ff8955;
+}
+.arcade-edition .power-3 {
+  color: #8fffc5;
+}
+.arcade-edition .power-4 {
+  color: #ff86b5;
+}
+@media (max-width: 600px) {
+  .arcade-edition .game-arena {
+    inset: 33px -6px 24px;
+  }
+}
+
+/* Mobile power feedback lives above the arena, outside all ball trajectories. */
+.level-difficulty {
+  font-size: 8px;
+  font-weight: 400;
+  color: #9fa9c5;
+}
+@media (max-width: 600px) {
+  .arcade-edition .game-stage {
+    height: calc(100svh - 259px);
+    min-height: 280px;
+  }
+}
+
+/* Notifications use existing header space on every device; never an overlay. */
+.arcade-edition .site-header {
+  gap: 24px;
+}
+.power-status-bar {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  min-width: 0;
+  height: 36px;
+  pointer-events: none;
+}
+.power-status-message {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  font-size: 11px;
+  line-height: 1.5;
+  color: #8897b5;
+}
+.power-status-message span {
+  white-space: nowrap;
+}
+.power-status-message.has-pickup {
+  color: var(--pickup-color);
+}
+.power-status-timers {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+.power-status-timers > span {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.power-status-timers b {
+  font-family: "JetBrains Mono";
+  font-size: 10px;
+  font-weight: 400;
+}
+.arcade-edition .header-tools {
+  margin-left: 0;
+}
+.arcade-edition .header-tools .edition {
+  display: none;
+}
+@media (max-width: 1000px) {
+  .arcade-edition .site-header nav {
+    display: none;
+  }
+  .power-status-bar {
+    justify-content: flex-start;
+  }
+}
+@media (max-width: 600px) {
+  .arcade-edition .site-header {
+    gap: 9px;
+  }
+  .arcade-edition .brand .brand-name {
+    display: none;
+  }
+  .power-status-bar {
+    gap: 8px;
+    justify-content: space-between;
+  }
+  .power-status-message {
+    font-size: 9px;
+    gap: 5px;
+  }
+  .power-status-timers {
+    gap: 7px;
+  }
+  .power-status-timers b {
+    font-size: 9px;
+  }
+}
+
+/* Tactical markings and briefings stay outside live play. */
+.brick-mark {
+  width: 28px;
+  height: 28px;
+  flex: none;
+}
+.brick-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 22px;
+}
+.brick-legend > div {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.brick-legend-icon {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  background: #91b0eb0b;
+  border: 1px solid #91b0eb24;
+  border-radius: 7px;
+  flex: none;
+}
+.brick-legend strong {
+  display: block;
+  color: #d3dcf2;
+  font-size: 11px;
+  font-weight: 500;
+}
+.brick-legend small {
+  display: block;
+  color: #97a2be;
+  font-size: 10px;
+  margin-top: 4px;
+}
+.telemetry-panel > .brick-legend {
+  margin-top: 24px;
+  gap: 12px;
+}
+.telemetry-panel > .brick-legend > div {
+  width: 100%;
+}
+.level-difficulty {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+}
+.level-difficulty[data-difficulty="3"] {
+  color: #f1c58a;
+}
+.level-difficulty[data-difficulty="4"],
+.level-difficulty[data-difficulty="5"] {
+  color: #f09ac5;
+}
+.level-briefing {
+  margin-top: 22px;
+  border-top: 1px solid var(--line);
+  padding-top: 20px;
+}
+.level-briefing p {
+  font-size: 13px;
+  color: #d6dbf0;
+  line-height: 1.8;
+  margin: 10px 0 16px;
+}
+.tactical-guide {
+  margin-top: 26px;
+  padding-top: 22px;
+  border-top: 1px solid var(--line);
+}
+.tactical-guide h3 {
+  font-size: 15px;
+  font-weight: 400;
+  margin: 0 0 18px;
+}
+.tactical-guide p {
+  font-size: 12px;
+  color: #9da8c3;
+  line-height: 1.9;
+}
+.launch-overlay .launch-briefing {
+  max-width: 80%;
+  line-height: 1.8;
+  text-align: center;
+  font-size: 11px;
+}
+@media (max-width: 600px) {
+  .level-briefing .brick-legend {
+    gap: 11px;
+  }
+  .level-briefing .brick-legend > div {
+    width: 100%;
+  }
+}
+
+@media (max-width: 1050px) {
+  .telemetry-panel > .brick-legend {
+    display: none;
+  }
+}

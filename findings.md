@@ -1,0 +1,32 @@
+# Findings
+
+- Legacy game is global-scope Canvas 2D bundled by build.js; original tests use VM source loading.
+- Logical board is 375×667, top wall y=80, paddle y=567, fixed timestep 1/60.
+- First 6 levels unlocked by default; localStorage key `breakout-maker-progress`, levelVersion 3.
+- GameScene already owns full ball/power/score logic and can be adapted without changing physics.
+- Level 1 is a smile, 46 bricks, 280 px/s, 100 px paddle, 5 lives. All level metadata must remain intact.
+- Backend POST /api/generate-level returns the level directly; requires separately configured LLM_API_KEY.
+- Root has no npm project yet; server is Express+TS. Docker currently builds legacy preview only.
+- Existing untracked user files: .omc/ and screenshots/.originals/.
+- Browser CLI is an older installed version without `skills get`; used its built-in --help for exact command reference.
+- Registry proxy successfully installed dependencies (168 packages, audit clean). Direct public npm registry curl failed; default proxy remained usable.
+- Docker daemon unavailable; Dockerfile prepared but no image build/deployment performed.
+- Desktop browser screenshot confirms the 3D lobby and in-game smile layout render correctly without console/page errors.
+- Visual identity uses a pastel ceramic / titanium instrument against a restrained violet starfield; game camera preserves board readability.
+- Second-pass browser successfully creates the WebGL bloom scene, live starfield and charged-ability HUD. Existing original audio is muted while the new procedural engine receives non-consuming feedback events.
+- Browser QA uses a temporary in-page paddle-follow helper, derived from the live React game instance, to exercise real simulation continuously; helper is not in application source/build.
+- Production cohost layout: existing /etc/nginx/sites-available/blog uses /var/www/blog; certificate is already valid for luyao.blog. The chosen game locations use ^~ so existing blog asset regex cannot steal game assets.
+- Predeploy blog index SHA256: 3336fc2b6d3383c25ef1249401cb274178eb3a9c2eefffe058ab2b2bd63a2482. Feed SHA256: 50ae8d00afd3645ccf67a704630576b88b6603abbcbec79dcb1e980212637191.
+- Official SiliconFlow pricing page https://siliconflow.cn/pricing (checked 2026-09-05) lists current image models: Kolors is marked free; Z-Image-Turbo ¥0.10/image, ERNIE-Image-Turbo ¥0.11, Qwen-Image/Edit variants ¥0.30. The official image guide uses model ID Kwai-Kolors/Kolors. Select Kolors as the cheapest currently listed available image model; preserve 3-attempt/IP policy even while upstream pricing is free.
+- Source: https://docs.siliconflow.cn/cn/userguide/capabilities/images and live pricing DOM. Outdated /zh-cn/pricing redirected to home; corrected to /pricing.
+- Final authored campaign: 13 distinct patterns, 184–522 bricks, mainly 1 HP; field bottom ≤400 leaves ~170 logical pixels before the paddle. Deterministic control-only simulation cleared all 13 with finite physics; these are ideal-bot checks, not human difficulty timing claims.
+- Mobile browser caught all five actual PowerUpDrop types; announcements/timers remained in the reserved row above the arena, both legacy overlay elements were hidden. At 320×640 and 390×844 there is no horizontal overflow.
+- A stress catch of five powers in quick succession showed stacked 3D pickup rings could still distract over the paddle. Suppress those pickup-only bursts on narrow screens while retaining sound, the external HUD and falling-power visuals.
+- Repeat obstruction root cause: the old pickup card and timer strip still existed inside ArcadeOverlay and were only hidden at <=600px. Tablet/landscape/desktop retained them. Pickup-triggered combos also displayed large text inside the board.
+- New fix structurally removes all pickup/timer/combo/pulse text nodes from the live playfield. One universal status bar lives in the page header; pickup-specific 3D bursts and camera shake are removed at every viewport.
+
+- Difficulty audit: old 15% drops plus first/pity guarantees, 24 balls, all-ball 8s penetration, 9–12 energy per kill and repeat extra lives cause a runaway clearing loop. Prior perfect-controller checks clear in 10–20 seconds and often finish at 9 lives. Layout-only changes cannot fix this.
+
+- Independent untouched baseline calibration: all 156 seeded control-only attempts won (four synthetic skill tiers ×13 stages ×3 seeds), 14.1–16.4s mean times, each run reached24 balls. Across all runs only one life lost. These synthetic models are sensitivity checks, not measured player win rates.
+- Final balance uses eight-cell reactor splash (also triggerable by direct pulse hits), bounded to one collateral wave. Stage briefings, help and renderer legend describe that final rule consistently. Six viewport checks retain the previous top-header notification guarantee.
+- Stage13 is a protected personal dedication for the author’s brother, 鹿原. Preserve 鹿原加油 and the original lower 必胜 text during all future campaign redesigns. Original source Git blob5c377a9d16a519c71e89a3e50c6d081e3fab80c7; 60×44, 778 bricks, rows4–40, 526hp2 and252hp3.

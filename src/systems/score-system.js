@@ -28,7 +28,7 @@ class ScoreSystem {
     this._lastHit = now;
 
     // Score with combo multiplier
-    const mult = 1 + (this._combo - 1) * C.COMBO_MULT;
+    const mult = Math.min(BALANCE.maxScoreMultiplier, 1 + (this._combo - 1) * C.COMBO_MULT);
     const pts  = Math.round(C.BASE_SCORE * mult);
     this.score += pts;
 

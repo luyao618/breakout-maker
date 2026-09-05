@@ -28,10 +28,11 @@ class PhysicsWorld {
    */
   tick(balls, dt) {
     for (const ball of balls) {
+      const previous = { x: ball.x, y: ball.y };
       ball.update(dt);
+      this._brickCollisions(ball, dt, previous);
       this._wallCollision(ball);
       this._paddleCollision(ball, dt);
-      this._brickCollisions(ball, dt);
       this._enforceMinVy(ball);
 
       // Check if ball fell off the bottom edge
@@ -89,7 +90,9 @@ class PhysicsWorld {
   }
 
   // ---- Brick collisions (find nearest swept hit) ----
-  _brickCollisions(ball, dt) {
+  _brickCollisions(ball, dt, previous) {
+    const start = previous || { x: ball.x - ball.vx * dt, y: ball.y - ball.vy * dt };
+    const sweep = { ...start, vx: ball.vx, vy: ball.vy, radius: ball.radius };
     let nearest  = null;
     let nearestT = Infinity;
     let nearestR = -1;
@@ -98,12 +101,12 @@ class PhysicsWorld {
     // AABB early-out: only check bricks near the ball's swept path
     const cellW = this.bf.brickW + C.BRICK_GAP;
     const cellH = this.bf.brickH + C.BRICK_GAP;
-    const futureX = ball.x + ball.vx * dt;
-    const futureY = ball.y + ball.vy * dt;
-    const bx0 = Math.min(ball.x, futureX) - ball.radius;
-    const bx1 = Math.max(ball.x, futureX) + ball.radius;
-    const by0 = Math.min(ball.y, futureY) - ball.radius;
-    const by1 = Math.max(ball.y, futureY) + ball.radius;
+    const futureX = start.x + ball.vx * dt;
+    const futureY = start.y + ball.vy * dt;
+    const bx0 = Math.min(start.x, futureX) - ball.radius;
+    const bx1 = Math.max(start.x, futureX) + ball.radius;
+    const by0 = Math.min(start.y, futureY) - ball.radius;
+    const by1 = Math.max(start.y, futureY) + ball.radius;
 
     const rMin = Math.max(0, Math.floor((by0 - this.bf.offsetY) / cellH) - 1);
     const rMax = Math.min(this.bf.gridH - 1, Math.ceil((by1 - this.bf.offsetY) / cellH) + 1);
@@ -116,7 +119,7 @@ class PhysicsWorld {
         if (!brick || !brick.alive) continue;
 
         const rect = this.bf.getBrickRect(r, c);
-        const hit  = CollisionDetector.sweepBallVsRect(ball, rect, dt);
+        const hit  = CollisionDetector.sweepBallVsRect(sweep, rect, dt);
         if (hit && hit.t < nearestT) {
           nearest  = hit;
           nearestT = hit.t;
@@ -127,25 +130,51 @@ class PhysicsWorld {
     }
 
     if (nearest) {
-      // Move ball to the collision point
-      ball.x += ball.vx * dt * nearest.t;
-      ball.y += ball.vy * dt * nearest.t;
-      // Remove the remaining movement (already applied in ball.update)
-      ball.x -= ball.vx * dt;
-      ball.y -= ball.vy * dt;
-
+      // Sweep the movement that was actually advanced, not the next frame.
+      ball.x = start.x + ball.vx * dt * nearest.t;
+      ball.y = start.y + ball.vy * dt * nearest.t;
       const brick = this.bf.bricks[nearestR][nearestC];
-      const destroyed = brick.hit(ball.isFireball);
-      if (destroyed) this.bf.destroyed++;
-
-      // Reflect velocity (fireball punches through without reflecting)
-      if (!ball.isFireball) {
+      const piercing = ball.isFireball;
+      const reflective = !piercing || brick.kind === 'armor' || brick.maxHp >= C.IRONCLAD_HP;
+      if (reflective) {
         if (nearest.nx !== 0) ball.vx *= -1;
         if (nearest.ny !== 0) ball.vy *= -1;
+        // Keep the next sweep outside the contacted face.
+        ball.x += nearest.nx * 0.001;
+        ball.y += nearest.ny * 0.001;
       }
-
-      if (this.onBrickHit) this.onBrickHit(nearestR, nearestC, destroyed, brick);
+      this.damageBrick(nearestR, nearestC, 'ball', ball);
+      if (piercing) {
+        ball.fireballContacts = Math.max(0, ball.fireballContacts - 1);
+        if (ball.fireballContacts === 0) {
+          ball.isFireball = false;
+          ball.fireballTimer = 0;
+        }
+      }
     }
+  }
+
+  /** Resolve one damage source centrally so collateral cannot farm resources. */
+  damageBrick(row, col, source = 'ball', ball = null) {
+    const brick = this.bf.bricks[row]?.[col];
+    if (!brick?.alive) return false;
+    const destroyed = brick.hit(source === 'ball' && !!ball?.isFireball);
+    if (destroyed) this.bf.destroyed++;
+    if (source === 'ball' && brick.kind === 'accelerator' && ball) {
+      const baseSpeed = this.levelBallSpeed || C.BALL_SPEED;
+      ball.speed = Math.min(baseSpeed * BALANCE.maxSpeedMultiplier, ball.speed * BALANCE.acceleratorMultiplier);
+      ball.normalizeSpeed();
+    }
+    if (this.onBrickHit) this.onBrickHit(row, col, destroyed, brick, source, ball);
+    // A directly hit reactor splashes adjacent cells once, never another chain.
+    if (destroyed && brick.kind === 'reactor' && source !== 'reactor') {
+      for (let dr = -1; dr <= 1; dr++) {
+        for (let dc = -1; dc <= 1; dc++) {
+          if (dr !== 0 || dc !== 0) this.damageBrick(row + dr, col + dc, 'reactor');
+        }
+      }
+    }
+    return destroyed;
   }
 
   // ---- Prevent near-horizontal ball (enforce minimum vy) ----

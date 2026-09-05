@@ -1,0 +1,169 @@
+.generation-quota {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+  padding: 15px 16px;
+  border: 1px solid #a791f735;
+  border-radius: 10px;
+  background: linear-gradient(100deg, #b7a1ff0b, #73dbea05);
+  margin: 0 0 15px;
+}
+.generation-quota > span {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.generation-quota strong {
+  font-size: 12px;
+  font-weight: 500;
+  color: #cccbef;
+}
+.generation-quota small {
+  font-size: 9px;
+  color: #8f99b7;
+}
+.quota-dots {
+  display: flex;
+  gap: 6px;
+}
+.quota-dots i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #343a55;
+}
+.quota-dots .available {
+  background: #9cdfea;
+  box-shadow: 0 0 9px #8ee7f048;
+}
+.generation-quota.exhausted {
+  border-color: #f8b78c3d;
+  background: #f8b78c05;
+}
+.generation-quota.exhausted strong {
+  color: #e5c3a9;
+}
+.quota-error {
+  font-size: 10px;
+  color: #e1b8af;
+  display: flex;
+  justify-content: space-between;
+  margin: 12px 0;
+  gap: 12px;
+}
+.quota-error button {
+  background: transparent;
+  color: #b7a1ff;
+  font-size: 10px;
+  padding: 0;
+}
+.personal-api {
+  border: 1px solid #b7a1ff22;
+  border-radius: 10px;
+  padding: 13px 14px;
+  margin-bottom: 23px;
+  background: #0a0f1b44;
+}
+.own-key-toggle {
+  font-size: 10px;
+  color: #aaaec8;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  cursor: pointer;
+  line-height: 1.7;
+}
+.own-key-toggle input {
+  accent-color: #b7a1ff;
+  width: 15px;
+  height: 15px;
+  margin: 0;
+  flex-shrink: 0;
+}
+.key-settings {
+  padding-top: 17px;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+.key-settings > label {
+  font-size: 10px;
+  color: #b6bdd4;
+}
+.key-input-row {
+  display: flex;
+  gap: 7px;
+  margin-bottom: 5px;
+}
+.key-input-row input,
+.key-settings select {
+  min-width: 0;
+  width: 100%;
+  background: #0b0e1c;
+  color: #e1e6f7;
+  border: 1px solid #a695d83a;
+  border-radius: 7px;
+  padding: 11px 12px;
+  font-size: 12px;
+}
+.key-input-row input:focus,
+.key-settings select:focus {
+  outline: 1px solid #b7a1ff;
+}
+.key-input-row button {
+  background: #252137;
+  color: #bab0d3;
+  border: 1px solid #a695d826;
+  border-radius: 7px;
+  padding: 0 12px;
+  white-space: nowrap;
+  font-size: 10px;
+}
+.key-input-row button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.key-settings > p {
+  font-size: 9px;
+  color: #858ea9;
+  line-height: 1.8;
+  margin: 3px 0 0;
+}
+.key-settings a {
+  display: block;
+  color: #aca5d9;
+  margin-top: 6px;
+  text-decoration: none;
+}
+.key-settings a:hover {
+  text-decoration: underline;
+}
+@media (max-width: 600px) {
+  .generation-quota {
+    padding: 13px;
+  }
+  .generation-quota strong {
+    font-size: 11px;
+  }
+  .generation-quota small {
+    font-size: 8px;
+  }
+  .personal-api {
+    padding: 12px;
+  }
+  .own-key-toggle {
+    font-size: 9px;
+  }
+  .key-input-row input,
+  .key-settings select {
+    font-size: 16px;
+    padding: 10px;
+  }
+  .key-input-row button {
+    padding: 0 10px;
+  }
+  .key-settings > p {
+    font-size: 8px;
+  }
+}

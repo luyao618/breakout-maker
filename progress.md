@@ -1,0 +1,70 @@
+# Progress
+
+- 2026-09-05: audited repo, chose architecture and art direction, created new branch.
+- Active goal verified; gameplay preservation and 3D presentation implementation underway.
+- Engine adapter and 3D arena integrated; root React lobby, campaign picker, maker dialogs and responsive play HUD implemented.
+- Production typecheck/build pass. Engine adapter has 14 passing tests.
+- Legacy test baseline found three stale expectations (12 vs 13 levels, top-wall test hitting a brick); corrected fixtures without changing simulation, all 106 original tests now pass.
+- Scoped Vitest to test/modern so standalone legacy runners are not run a second time inside Vitest.
+- Browser QA started at http://localhost:5173, desktop target 1440×1050.
+- Mobile lobby and gameplay screenshots verified at 390×844. Fixed flex sizing that collapsed the mobile showcase.
+- Actual PNG upload produced a 2,182-brick image level, with successful preview and playable scene; no page errors.
+- AI backend is not running locally; service failure stays in the dialog with retry available. Real external model generation is not claimed tested.
+- Extracted Maker, ModalFrame and BrickPreview into dedicated typed components and added formatter commands.
+- Final validation: 106 legacy tests + 16 modern adapter tests pass; TypeScript, production build, Prettier check and git diff --check pass.
+- Production preview verified at 1440×1050, 768×1024 and 390×844, with no horizontal overflow or page errors. Tablet HUD was corrected to keep score/lives visible.
+- Browser dispatched Space/Escape controls launch and pause correctly; paused score stays frozen. Pointer controls and full image flow verified separately.
+- AI success flow verified with temporary local HTTP fixture, then fixture stopped. This verifies fetch/preview/play, not a real model call.
+- Three rendering includes dynamic instance capacity, labeled drops and a verified functional Canvas fallback when WebGL is unavailable.
+- Final screenshots saved in screenshots/astral-desktop.png and screenshots/astral-mobile-play.png. Production preview remains at http://localhost:4173.
+- README and Dockerfile updated for the new Vite frontend; no external deployment. Docker image build remains unverified because the daemon is unavailable.
+- Second pass requested: user finds first version too restrained and authorizes stronger sound, drop effects, and gameplay improvements. Work remains on the existing new branch.
+- Arcade contract: simulation-stamped feedback drives sound/VFX/UI; charged Supernova damages exposed bricks then grants 5 seconds of fireball. Early/pity drops keep powers present in short sessions.
+- Deployment authorized mid-work. Server inspected read-only: Ubuntu 24.04, existing nginx on 80/443, blog in /var/www/blog; no Docker. Use a dedicated path under existing HTTPS rather than changing blog routes or DNS.
+- Server deployment prepared for /games/breakout/: Vite asset base and API requests now respect the subpath. Backend accepts an explicit bind host, and limits generation concurrency on the 1 GB VPS.
+- Original blog checksums recorded before changes. Dedicated Node 22.23.2 runtime downloaded and SHA256 verified under /opt/breakout-maker/runtime; no system Node or blog files replaced.
+- Live deployment activated with a validated graceful nginx reload. Public game HTML, JS/CSS and API health all return 200.
+- Blog homepage and RSS feed SHA256 match their predeploy values exactly. Both nginx and the isolated API service are active; API is loopback-only.
+- Versioned release is /opt/breakout-maker/releases/20260905-arcade; nginx backup and rollback documentation are prepared.
+- Real production AI call succeeded: "紫色水母" returned a valid 56×40, 480-brick level in 11.5 seconds using the existing configured provider.
+- Hosted browser successfully launches play; mobile at 390×844 has no horizontal overflow and visible score/ability controls. No page errors.
+- Final visual adjustment restores a dark bloom backdrop; hashed assets are copied before atomically replacing the HTML entry, retaining previous assets for open tabs.
+- Final hosted build rechecked after visual polish; game plays from its HTTPS subpath with no browser errors. Real provider generation succeeded and API service has zero restarts after testing (about 45 MB resident accounting).
+- Desktop/mobile skill controls, opt-in radio, mute cancellation and pause behavior verified. Existing blog index/feed files and public response checksums remain unchanged.
+- Local root build remains available at localhost:4173; hosted build uses an independent dist-live output. Deployment/rollback documented in deploy/COHOST.md.
+- Final live E-key test consumed 100 energy, cleared exposed bricks, and entered 5-second fireball; captured screenshots/arcade-supernova.png directly from the hosted build. Hosted mobile ready state captured in screenshots/arcade-mobile.png.
+- Public blog list and original CSS also return 200. All task-owned live test helpers were removed by closing their isolated QA browser sessions.
+- Quota update: 149 tests now pass, including exact 3-attempt enforcement, persisted reload, IPv6 normalization, fail-closed storage, invalid/busy request handling, personal-key separation and spoofed-forwarding checks.
+- Browser QA: 3→2→1→0 counter, automatic own-key form on exhaustion, own-key requests retain zero shared balance, no key in local/session storage, and closing the dialog clears the key.
+- New supplied key was validated against the SiliconFlow models API (HTTP 200); Kolors and Qwen-Image are available. Key contents are not in repository files or output.
+- Live quota release installed at /opt/breakout-maker/releases/20260905-quota. Service key rotated using a private transfer, shared model set to Kwai-Kolors/Kolors, and usage file moved into systemd-managed persistent state.
+- Production end-to-end tests used a reserved documentation IP over the trusted local proxy interface so visitor trials remain untouched: shared 3→2→1→0, fourth request 403, invalid personal key 401, valid personal key succeeds after exhaustion without changing shared balance.
+- Real Kolors requests succeeded with the new key (shared and personal); public forwarded-IP spoof test still reports the real visitor's untouched 3/3 allowance.
+- Restarted production service and confirmed the reserved test IP remains at 3 used / 0 remaining. Public visitor allowance remains 3/3, and the blog homepage/feed hashes are unchanged.
+- The new model generated successfully with the new service key; invalid own keys do not fall back to shared credentials. Quota state survives outside versioned release folders.
+- Mobile HUD fix: reserved 32px power status row above the arena; old pickup card and bottom timer strip are hidden only on mobile. The row exists continuously so catching powers cannot move the canvas or paddle.
+- Removed React level locks and all partial-save access gates; the legacy Canvas edition also opens every level.
+- Existing physics tests were coupled to the old first-stage empty areas; switched wall/paddle/movement fixtures to an empty field so authored levels cannot accidentally interfere with isolated physics assertions.
+- Final campaign rebuilt from deterministic geometry; first stage was opened up to 224 bricks, and all 13 final patterns retain entrance routes and moderate HP budgets.
+- Added 13 full simulation tests using only legal paddle movement, launch and Supernova controls. Every final level clears with finite physics. Total test count is now 162 (106 legacy + 56 modern).
+- Suppressed mobile-only powerCollect burst effects after stress-testing five simultaneous catches; sound, falling-power auras and the new outside-board status remain intact.
+- Frontend-only release staged at /opt/breakout-maker/releases/20260905-campaign and activated by an atomic current symlink switch. Existing API binaries copied unchanged; no API service restart or environment/secret changes.
+- Before/after checks: API PID remains 538453, persistent trial JSON SHA256 remains 94f48dc776d569a93f6d90e4632bd784f305df0b4893182de829ccf38fdd314f, and blog homepage/feed hashes remain unchanged.
+- Hosted verification: seeded an old unlockedLevels=1 save, reloaded, and confirmed all 13 cards enabled. Directly selected and launched level 13 (戴森天幕) at 390×844; status row remains outside the arena and no horizontal overflow occurs.
+- Final screenshots: screenshots/campaign-open-selection.png and screenshots/mobile-clear-power-hud.png. All isolated QA browsers closed.
+- Universal header fix: removed in-field pickup cards, active-power strip and combo/Supernova title text instead of hiding them at a mobile breakpoint. All status now uses the existing page header; the arena no longer moves when a pickup occurs.
+- Disabled pickup burst VFX and pickup camera shake at every viewport. Retained sounds, falling drops, ball appearance and gameplay effects.
+- Browser caught all five power types: each notification stayed inside the header and above the arena; old overlay nodes count 0 and stage geometry stayed unchanged.
+- Verified 320×640, 390×844, 600×850, 768×1024, 844×390 and 1440×1000: notification stays in the page header above the playfield, no horizontal overflow, no old overlay DOM, no geometry shift on pickup.
+- 162 tests pass. Frontend-only top-hud release deployed with unchanged API PID and unchanged quota/blog checksums; existing backend and settings remain intact.
+
+- Difficulty redesign requested. Started bounded gameplay/level redesign and independent baseline vs skill-tier simulations; previous notifications, open access, blog and quota constraints retained.
+- Added shared engraved armor/reactor/accelerator symbols for Three, Canvas and previews; added selected-level briefings, difficulty labels and help rules outside live play. Baseline simulator/report prepared.
+- Integrated numeric 1–5 difficulty metadata and aligned reactor rules across UI/catalogue: direct ball or pulse destroys a reactor and splashes eight adjacent cells once; collateral never cascades or generates drops/energy. Mobile legend moved out of compact telemetry row after visual QA.
+- Full seeded calibration: casual28/39 wins, skilled/expert/ideal39/39 each; means171/150/116/79s. All runs max4 balls/max3 lives. All172 tests passed; actual browser launch, marked brick rendering and mobile layout verified.
+- Verified six viewport sizes320×640 through1440×1000: notifications inside header above stage, no horizontal overflow or obsolete overlays. Actual browser controller caught a natural wide-paddle drop; direct all-power QA confirmed4-ball/1-fireball limits and unchanged stage geometry.
+- Deployed frontend-only tactical release to /opt/breakout-maker/releases/20260905-tactical. Hosted stage13 launches at405px/s with205 bricks and3 lives, all13 cards selectable, no browser errors. Public HTML/assets/API return200. API PID538453 and quota/blog index/feed SHA256 unchanged. Retained old assets/release for rollback; no backend, secret or quota changes.
+- User clarified the personal meaning of stage13. Found the exact historical Songti bitmap at09cc7ac: 鹿原加油 plus 必胜, 778 bricks. Restoring its positions, HP, speed300, paddle100 and5 lives from a protected source asset; no changes to other stages or shared balance.
+- Verified exact original positions, HP and starting settings; stages1–12 are byte-for-byte unchanged. Three ideal-controller runs cleared the restored dedication in493–663s, so its feasibility test allows1200 simulated seconds rather than the smaller tactical stages’600s.
+- All172 tests, format check and production build pass. Mobile rendering shows original 鹿原加油 / 必胜 text and stage13 is labeled彩蛋. Deployed /opt/breakout-maker/releases/20260905-lu-yuan; hosted HTML and JS exactly match local build, API healthy. API PID538453, trial quota and blog index/feed checksums unchanged.
+- User approved the deployed version and requested archiving/promoting to main. Refreshed origin/main326db4c (squash-equivalent to e28f6d1); resolved README-only history conflict and verified merge c985014 has exactly the b1dc419 deployed tree. Created seven signed archive tags and a version index.

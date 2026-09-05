@@ -2,7 +2,7 @@ import type { Brick, Level } from "./types.js";
 import { buildLevel } from "./types.js";
 import { parseAsciiGrid, enforceSymmetry } from "./ascii-parser.js";
 import { matchTemplate, getTemplateWithVariation, GRID_W, GRID_H } from "./templates.js";
-import { generateFromImage } from "./generate-image.js";
+import { generateFromImage, type ImageGenerationOptions } from "./generate-image.js";
 
 // ---------------------------------------------------------------------------
 // Symmetric shape keywords for enforceSymmetry post-processing
@@ -29,9 +29,9 @@ function isSymmetricPrompt(prompt: string): boolean {
 // ---------------------------------------------------------------------------
 // Main generation function
 // ---------------------------------------------------------------------------
-export async function generateLevel(prompt: string): Promise<Level> {
+export async function generateLevel(prompt: string, options: ImageGenerationOptions = {}): Promise<Level> {
   // --- Phase 1: Try template match first (instant, free, perfect) ---
-  const templateGrid = matchTemplate(prompt);
+  const templateGrid = options.apiKey ? null : matchTemplate(prompt);
   if (templateGrid) {
     console.log(`[generate-level] Template match for "${prompt}"`);
     const varied = getTemplateWithVariation(templateGrid);
@@ -40,7 +40,7 @@ export async function generateLevel(prompt: string): Promise<Level> {
 
   // --- Phase 2: Image generation + pixel sampling ---
   console.log(`[generate-level] No template match, using image generation for "${prompt}"`);
-  return generateFromImage(prompt);
+  return generateFromImage(prompt, options);
 }
 
 /**

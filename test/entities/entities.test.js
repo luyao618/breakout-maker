@@ -129,18 +129,18 @@ suite.test('Paddle.moveTo(): NaN target is ignored', () => {
   assertClose(paddle.x, 100, 1, 'Paddle should not move on NaN');
 });
 
-suite.test('Paddle.setWide(): increases width by 1.5x', () => {
+suite.test('Paddle.setWide(): increases width by 1.25x', () => {
   const paddle = new Paddle(100, 500, 120);
   const originalWidth = paddle.width;
   paddle.setWide(5);
-  assertEqual(paddle.width, originalWidth * 1.5, 'Width should be 1.5x');
+  assertEqual(paddle.width, originalWidth * 1.25, 'Width should be 1.25x');
   assert(paddle.isWide, 'isWide should be true');
 });
 
 suite.test('Paddle.setWide(): reverts after timer expires', () => {
   const paddle = new Paddle(100, 500, 120);
   paddle.setWide(0.1); // Very short duration
-  assertEqual(paddle.width, 180, 'Should be wide');
+  assertEqual(paddle.width, 150, 'Should be wide');
 
   // Tick enough to expire the timer
   for (let i = 0; i < 20; i++) {

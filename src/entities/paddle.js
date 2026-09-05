@@ -26,7 +26,7 @@ class Paddle {
   setWide(duration) {
     this.isWide = true;
     this.wideTimer = duration;
-    this.width = this.baseWidth * 1.5;
+    this.width = this.baseWidth * BALANCE.wideMultiplier;
   }
 
   /** Advance paddle state by dt seconds. */

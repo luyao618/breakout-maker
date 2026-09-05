@@ -28,7 +28,7 @@ class BrickField {
 
     // ---------- Place bricks from level data ----------
     for (const b of level.bricks) {
-      const brick = new Brick(b.row, b.col, b.hp, b.color || null);
+      const brick = new Brick(b.row, b.col, b.hp, b.color || null, b.kind || 'normal');
       this.bricks[b.row][b.col] = brick;
       // All bricks are now destructible (iron bricks take 10 hits)
       this.totalDestructible++;
