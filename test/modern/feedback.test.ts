@@ -242,7 +242,7 @@ describe("tactical drops and game feedback", () => {
     expect(near.x).toBe(originalNearX);
     expect(far.x).toBe(5);
     expect(engine.getSnapshot().lastPickup).toBeNull();
-    expect(engine.scene.paddle.width).toBe(100);
+    expect(engine.scene.paddle.width).toBe(90);
     engine.dispose();
   });
 
@@ -310,7 +310,7 @@ describe("simulation clock and feed lifecycle", () => {
     for (let i = 0; i < 700; i++) engine.update(C.FIXED_DT);
     expect(engine.getSnapshot()).toEqual(waiting);
     expect(engine.scene.paddle.wideTimer).toBe(wideTime);
-    expect(engine.scene.paddle.width).toBe(125);
+    expect(engine.scene.paddle.width).toBe(112.5);
     engine.dispose();
   });
 

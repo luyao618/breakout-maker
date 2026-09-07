@@ -12,6 +12,12 @@
 
 ### 超新星街机版
 
+- **NOCTURNE · 星夜引擎**：回到深蓝星云、月光与晶体的世界。球场左右对称，镜头固定，无侧转或碰撞晃动；适度透视、分层金属护栏和局部泛光保留清晰的立体感。
+- **机械挡板**：切削外壳、金属倒角、端部模块、通风槽、紧固件与凹入式能量核心组成完整模型。满能量时核心转为暖金色；加宽时转为薄荷色。现代版使用关卡原宽度的 90%、16 像素高度，外观与真实碰撞保持一致。
+- **稳定操作**：鼠标和触屏目标在物理模拟中平滑跟随，约 75 毫秒完成 95% 位移；键盘仍直接控制。挡板没有额外摆动，碰撞、发球和道具使用同一位置。
+
+![NOCTURNE 星夜引擎](screenshots/nocturne-desktop.png)
+
 ![全部开放的新星图关卡](screenshots/tactical-level-selection.png)
 
 - **全新星图关卡**：前12关围绕入口与弱点重做，涵盖星环、双子反应堆、矩阵、涡旋、迷宫与分形圣殿；第13关保留原始「鹿原加油 / 必胜」文字砖阵，作为送给鹿原的彩蛋。全部关卡从开始即可任选，旧存档不会锁关。
@@ -118,6 +124,8 @@ open preview.html
 ## English
 
 ### Supernova arcade edition
+
+**NOCTURNE** returns to a midnight nebula with a shaded moon, luminous crystals and layered metal rails. The centered camera has no yaw, roll or impact shake. A detailed mechanical paddle combines chamfered armour, machined end modules and a recessed energy core that changes with power state. Pointer movement settles by 95% in about 75 milliseconds on the simulation clock, so its model and collider stay aligned; keyboard control remains direct. The modern paddle uses 90% of its authored width and a height of 16 game pixels. Compact controls leave the field unobstructed.
 
 Destroy bricks to charge **Supernova**, then aim with the paddle and press **E** or tap the mobile skill button. It damages up to five exposed bricks by one HP each; a destroyed reactor splashes the eight neighboring cells without cascading. Armor reflects fireballs; accelerator bricks raise the striking ball’s speed up to 130%. Split and multishot add two ordinary balls with a four-ball cap. Fire strengthens one ball for four seconds or six contacts; wide paddle lasts seven seconds; one life repair is allowed per run. Drops have a five-second cooldown, two-drop limit and 18-kill pity. All 13 stages remain open. Pause freezes effect timers and silences audio.
 
