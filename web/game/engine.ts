@@ -38,6 +38,8 @@ export { C, BALANCE, PowerUpType } from "./legacy.js";
 
 export const PROGRESS_KEY = "breakout-maker-progress";
 export const LEVEL_VERSION = 3;
+// About 95% of a pointer movement settles within 75 ms at the physics rate.
+const POINTER_FOLLOW_TIME = 0.025;
 export const levels: Level[] = LEVEL_DATA.map(
   (level) => JSON.parse(JSON.stringify(level)) as Level,
 );
@@ -207,6 +209,7 @@ export class GameEngine {
   private lastDropTime = -Infinity;
   private bricksWithoutDrop = 0;
   private accumulator = 0;
+  private pointerTargetX: number | null = null;
   private disposed = false;
   private resumeStatus: "ready" | "playing" = "ready";
   private lastSnapshot: GameSnapshot;
@@ -234,6 +237,7 @@ export class GameEngine {
       level: _applyColors(this.level),
       levelIndex: this.levelIndex,
     });
+    this.configureTablePaddle();
     this.installFeedback();
     this.lastSnapshot = this.snapshot();
     this.publish(true);
@@ -241,6 +245,16 @@ export class GameEngine {
 
   get phase(): GameStatus {
     return this.status;
+  }
+
+  /** Keep the near-edge paddle and its collision body in the same place. */
+  private configureTablePaddle(): void {
+    const paddle = this.scene.paddle;
+    paddle.width = paddle.baseWidth = Math.max(1, this.level.paddleWidth * 0.9);
+    paddle.height = 16;
+    paddle.y = 605;
+    for (const ball of this.scene.balls)
+      ball.y = paddle.y - paddle.height / 2 - ball.radius - 2;
   }
 
   get feedback(): readonly GameFeedback[] {
@@ -269,6 +283,7 @@ export class GameEngine {
             isWide: this.scene.paddle.isWide,
           }
         : null;
+      this.followPointer(C.FIXED_DT);
       this.scene.update(C.FIXED_DT);
       // Contact limits may consume fire before the wall-clock duration ends.
       const fireTimer = Math.max(
@@ -302,7 +317,37 @@ export class GameEngine {
       !Number.isFinite(x)
     )
       return;
+    this.pointerTargetX = null;
     this.scene.onMove(x);
+  }
+
+  /** Smooth pointer movement on the simulation clock, including its collider. */
+  movePointer(x: number): void {
+    if (
+      this.disposed ||
+      (this.status !== "ready" && this.status !== "playing") ||
+      !Number.isFinite(x)
+    )
+      return;
+    this.pointerTargetX = x;
+  }
+
+  private followPointer(dt: number): void {
+    if (this.pointerTargetX === null) return;
+    const paddle = this.scene.paddle;
+    const halfWidth = paddle.width / 2;
+    const target = Math.max(
+      halfWidth,
+      Math.min(C.SCREEN_W - halfWidth, this.pointerTargetX),
+    );
+    const difference = target - paddle.x;
+    const next =
+      paddle.x + difference * (1 - Math.exp(-dt / POINTER_FOLLOW_TIME));
+    // Updating both positions prevents a second legacy interpolation and keeps
+    // the rendered paddle, attached ball and collision body on the same tick.
+    paddle.x = paddle._targetX =
+      Math.abs(target - next) < 0.025 ? target : next;
+    if (paddle.x === target) this.pointerTargetX = null;
   }
 
   launch(): void {
@@ -388,6 +433,8 @@ export class GameEngine {
     this.resumeStatus = this.status;
     this.status = "paused";
     this.accumulator = 0;
+    this.pointerTargetX = null;
+    this.scene.paddle._targetX = this.scene.paddle.x;
     this.publish(true);
   }
 
@@ -414,10 +461,12 @@ export class GameEngine {
     this.damageSource = "ball";
     this.bricksWithoutDrop = 0;
     this.feedbackStream.clear();
+    this.configureTablePaddle();
     this.installFeedback();
     this.status = "ready";
     this.resumeStatus = "ready";
     this.accumulator = 0;
+    this.pointerTargetX = null;
     this.secondsSinceNotification = 0;
     this.publish(true);
   }
@@ -446,6 +495,7 @@ export class GameEngine {
     this.disposed = true;
     this.scene.exit();
     this.accumulator = 0;
+    this.pointerTargetX = null;
   }
 
   private installFeedback(): void {
@@ -659,6 +709,7 @@ export class GameEngine {
     }
     if (state !== "WIN" && state !== "LOSE") return;
     this.status = state === "WIN" ? "won" : "lost";
+    this.pointerTargetX = null;
     this.feedbackStream.emit(this.elapsed, {
       kind: state === "WIN" ? "win" : "lose",
       x: C.SCREEN_W / 2,

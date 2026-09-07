@@ -1,17 +1,14 @@
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import {
   ArrowDown,
-  ArrowLeft,
   ArrowRight,
   Check,
   CircleHelp,
   Command,
   Expand,
-  Flame,
   Heart,
   ImagePlus,
   Layers3,
-  Maximize2,
   MousePointer2,
   Music2,
   Pause,
@@ -21,7 +18,6 @@ import {
   Volume2,
   VolumeX,
   WandSparkles,
-  Zap,
 } from "lucide-react";
 import { GameEngine, levels, setMuted } from "./game/engine";
 import type { GameSnapshot } from "./game/types";
@@ -29,7 +25,6 @@ import { sound } from "./audio/sound-engine";
 import {
   ArcadeOverlay,
   PulseControl,
-  AudioDeck,
   PowerStatusBar,
 } from "./components/ArcadeHUD";
 import BrickPreview from "./components/BrickPreview";
@@ -48,13 +43,6 @@ const colors = [
   "#d0a4e8",
   "#b8dbaa",
 ];
-const powerNames: Record<string, string> = {
-  split: "分裂球",
-  multiShot: "多重发射",
-  fireball: "火球穿透",
-  widePaddle: "加宽挡板",
-  extraLife: "额外生命",
-};
 const difficultyNames = ["", "试炼", "进阶", "高压", "险境", "极限"];
 const formatScore = (value: number) => String(value).padStart(6, "0");
 
@@ -289,7 +277,7 @@ export default function App() {
 
   return (
     <div
-      className={`app ${playing ? "is-playing arcade-edition" : ""} ${(snapshot?.pulseTime ?? 0) > 0 ? "nova-active" : ""}`}
+      className={`app ${playing ? "is-playing lunar-edition" : ""} ${(snapshot?.pulseTime ?? 0) > 0 ? "nova-active" : ""}`}
     >
       <div className="ambient" aria-hidden="true">
         <div className="ambient-cloud cloud-one" />
@@ -339,10 +327,11 @@ export default function App() {
         </nav>
         <div className="header-tools">
           <span className="edition mono">
-            ASTRAL EDITION <span>02</span>
+            {playing ? "NOCTURNE" : "ASTRAL EDITION"}{" "}
+            <span>{playing ? "03" : "02"}</span>
           </span>
           <button
-            className="icon-button"
+            className={`icon-button ${playing ? "lunar-header-audio" : ""}`}
             aria-label={muted ? "开启声音" : "关闭声音"}
             aria-pressed={!muted}
             onClick={toggleMute}
@@ -376,7 +365,7 @@ export default function App() {
                 <span className="title-period">。</span>
               </h1>
               <p className="hero-description">
-                熟悉的打砖块，不一样的宇宙。
+                熟悉的打砖块，全新的立体球场。
                 <br />
                 在光影之间反弹，让每一次碰撞都有回响。
               </p>
@@ -565,119 +554,92 @@ export default function App() {
         </main>
       ) : (
         <main className="play-layout">
-          <div className="orbital-scenery" aria-hidden="true">
-            <div className="orbital-planet" />
-            <i />
-            <i />
-            <span>BREAK THE ORDINARY</span>
-          </div>
-          <aside className="mission-panel">
-            <button
-              className="text-button back-button"
-              onClick={() => engine.pause()}
-            >
-              <ArrowLeft size={15} />
-              暂停 / 返回大厅
-            </button>
-            <span className="eyebrow">REACTOR ONLINE / 当前星域</span>
-            <div className="mission-number">
-              {snapshot && snapshot.levelIndex >= 0
-                ? String(snapshot.levelIndex + 1).padStart(2, "0")
-                : "∞"}
-              <span>
-                / {snapshot && snapshot.levelIndex >= 0 ? "13" : "CUSTOM"}
+          <section className="table-hud" aria-label="本局状态">
+            <div className="table-mission">
+              <span className="table-number mono">
+                {snapshot && snapshot.levelIndex >= 0
+                  ? String(snapshot.levelIndex + 1).padStart(2, "0")
+                  : "∞"}
               </span>
-            </div>
-            <h1>{snapshot ? shortName(snapshot.levelName) : ""}</h1>
-            <p>
-              {engine.level.briefing ||
-                "控制落点，选择击球角度。把超新星留给难以突破的砖阵。"}
-            </p>
-            <div className="mission-preview">
-              <BrickPreview
-                level={engine.scene.level}
-                color={
-                  colors[(snapshot?.levelIndex ?? 0) % colors.length] ||
-                  colors[0]
-                }
-              />
-            </div>
-            <div className="mission-progress">
-              <span>
-                星域清理 <b>{progress}%</b>
-              </span>
-              <div>
-                <i style={{ width: `${progress}%` }} />
+              <div className="table-name">
+                <span className="eyebrow">
+                  {snapshot && snapshot.levelIndex >= 0
+                    ? `星域 / ${levels.length} SECTORS`
+                    : "自定义星域 / CUSTOM"}
+                </span>
+                <h1>{snapshot ? shortName(snapshot.levelName) : ""}</h1>
               </div>
-              <small className="mono">
-                {snapshot?.destroyed} / {snapshot?.total} BRICKS
-              </small>
+              <div
+                className="table-progress"
+                aria-label={`已击破 ${progress}%`}
+              >
+                <span className="mono">
+                  {snapshot?.destroyed} / {snapshot?.total}
+                </span>
+                <div>
+                  <i style={{ width: `${progress}%` }} />
+                </div>
+              </div>
             </div>
-            {snapshot && (
-              <PulseControl
-                snapshot={snapshot}
-                onPulse={() => {
-                  wakeAudio();
-                  engine.activatePulse();
-                }}
-              />
-            )}
-            <div className="play-control-help">
-              <span>
-                <MousePointer2 size={15} />
-                移动鼠标 / 滑动屏幕
-              </span>
-              <span>
-                <kbd>←</kbd>
-                <kbd>→</kbd>移动挡板
-              </span>
-              <span>
-                <kbd>SPACE</kbd>发射光球
-              </span>
-              <span>
-                <kbd>E</kbd>释放超新星
-              </span>
-              <span>
-                <kbd>ESC</kbd>暂停探索
-              </span>
+            <div className="table-readouts">
+              <div className="table-score">
+                <span className="eyebrow">得分 / SCORE</span>
+                <strong className="mono">
+                  {formatScore(snapshot?.score ?? 0)}
+                </strong>
+              </div>
+              <div className="table-lives">
+                <span className="eyebrow">机会 / LIVES</span>
+                <strong aria-label={`${snapshot?.lives ?? 0} 次机会`}>
+                  {Array.from(
+                    { length: Math.min(snapshot?.lives ?? 0, 9) },
+                    (_, i) => (
+                      <Heart key={i} size={14} fill="currentColor" />
+                    ),
+                  )}
+                  {snapshot?.lives === 0 && <span className="mono">0</span>}
+                </strong>
+              </div>
+              <div
+                className={`table-combo ${(snapshot?.combo ?? 0) >= 5 ? "combo-hot" : ""}`}
+              >
+                <span className="eyebrow">连击 / COMBO</span>
+                <strong className="mono">×{snapshot?.combo || 0}</strong>
+              </div>
             </div>
-          </aside>
+            <button
+              className="table-pause icon-button"
+              aria-label={
+                snapshot?.status === "paused" ? "继续游戏" : "暂停游戏"
+              }
+              onClick={() =>
+                snapshot?.status === "paused" ? engine.resume() : engine.pause()
+              }
+            >
+              {snapshot?.status === "paused" ? (
+                <Play size={18} />
+              ) : (
+                <Pause size={18} />
+              )}
+            </button>
+          </section>
           <section
             className={`game-stage ${(snapshot?.pulseTime ?? 0) > 0 ? "overdriving" : ""} ${snapshot?.pulseReady ? "pulse-armed" : ""}`}
             aria-label="打砖块游戏区域"
           >
-            <div className="stage-top">
-              <span>
-                <i className="signal-dot" />
-                {snapshot?.status === "playing"
-                  ? snapshot.pulseTime > 0
-                    ? "超新星 · 定向破甲"
-                    : "引力场已启动"
-                  : snapshot?.status === "ready"
-                    ? "等待发射"
-                    : "星界航行"}
-              </span>
-              <button
-                className="icon-button"
-                aria-label="暂停游戏"
-                onClick={() => engine.pause()}
-              >
-                <Pause size={16} />
-              </button>
-            </div>
             <div className="game-arena">
               <Suspense
                 fallback={
                   <div className="scene-loading">
                     <span className="spinner" />
-                    载入星域…
+                    正在点亮星夜…
                   </div>
                 }
               >
                 <Arena
                   variant="play"
                   engine={engine}
-                  onMove={(x) => engine.move(x)}
+                  onMove={(x) => engine.movePointer(x)}
                   onLaunch={() => {
                     wakeAudio();
                     engine.launch();
@@ -686,6 +648,10 @@ export default function App() {
                   reducedMotion={reducedMotion}
                 />
               </Suspense>
+            </div>
+            <div className="table-scene-label" aria-hidden="true">
+              <span className="eyebrow">LUNAR ARRAY</span>
+              <span>星夜引擎</span>
             </div>
             {snapshot && <ArcadeOverlay snapshot={snapshot} />}
             {snapshot?.status === "ready" && (
@@ -696,10 +662,13 @@ export default function App() {
                   engine.launch();
                 }}
               >
-                <span className="launch-orb" />
-                <strong>点击发射</strong>
+                <span className="launch-heading">
+                  <Play size={14} fill="currentColor" />
+                  <strong>点击发球</strong>
+                  <kbd>SPACE</kbd>
+                </span>
                 <span className="launch-briefing">
-                  {engine.level.briefing || "击碎砖块蓄能 · E 键释放超新星"}
+                  {engine.level.briefing || "移动挡板，找到下一次反弹的角度。"}
                 </span>
               </button>
             )}
@@ -719,19 +688,19 @@ export default function App() {
                     {snapshot.status === "paused"
                       ? "TAKE A BREATH"
                       : snapshot.status === "won"
-                        ? "ORBIT COMPLETE"
-                        : "ANOTHER CHANCE AWAITS"}
+                        ? "SECTOR CLEARED"
+                        : "ONE MORE ROUND"}
                   </span>
                   <h2>
                     {snapshot.status === "paused"
-                      ? "让星光，等一会儿。"
+                      ? "休息一下。"
                       : snapshot.status === "won"
-                        ? "这片星光，属于你。"
-                        : "再出发，仍有星光。"}
+                        ? "漂亮，全部击破。"
+                        : "再来一局？"}
                   </h2>
                   <p>
                     {snapshot.status === "paused"
-                      ? "你的探索进度已保留。"
+                      ? "这一局还在，准备好就继续。"
                       : `得分 ${snapshot.score.toLocaleString()} · 最高 ${snapshot.bestCombo} 连击 · ${Math.floor(snapshot.elapsed)} 秒`}
                   </p>
                   <div className="overlay-actions">
@@ -766,96 +735,14 @@ export default function App() {
                       重新挑战
                     </button>
                     <button className="text-button" onClick={leave}>
-                      返回星界大厅
+                      返回大厅
                     </button>
                   </div>
                 </div>
               )}
-            <div className="stage-bottom">
-              <span className="mono">REACTOR CORE · LIVE</span>
-              <span className="mono">{snapshot?.bestCombo ?? 0} MAX COMBO</span>
-            </div>
           </section>
-          <aside className="telemetry-panel">
-            <div className="score-readout">
-              <span className="eyebrow">你的得分 / SCORE</span>
-              <strong className="mono">
-                {formatScore(snapshot?.score ?? 0)}
-              </strong>
-            </div>
-            <div className="life-readout">
-              <span className="eyebrow">剩余机会 / LIVES</span>
-              <div aria-label={`${snapshot?.lives} 次机会`}>
-                {Array.from(
-                  { length: Math.min(snapshot?.lives ?? 0, 9) },
-                  (_, i) => (
-                    <Heart key={i} size={20} fill="currentColor" />
-                  ),
-                )}
-              </div>
-            </div>
-            <div
-              className={`combo-readout ${(snapshot?.combo ?? 0) >= 5 ? "combo-hot" : ""}`}
-            >
-              <span className="eyebrow">当前连击 / COMBO</span>
-              <strong>
-                ×{snapshot?.combo || 0}
-                <Zap size={20} />
-              </strong>
-            </div>
-            <div className="run-best">
-              <span>本局最高连击</span>
-              <strong className="mono">{snapshot?.bestCombo ?? 0}×</strong>
-            </div>
-            <div className="power-guide">
-              <span className="eyebrow">接住星际补给</span>
-              {Object.entries(powerNames).map(([key, label], i) => (
-                <div key={key}>
-                  <span className={`power-token power-${i}`}>
-                    {
-                      [
-                        <Sparkles size={14} />,
-                        <Zap size={14} />,
-                        <Flame size={14} />,
-                        <Maximize2 size={14} />,
-                        <Heart size={14} />,
-                      ][i]
-                    }
-                  </span>
-                  <span>{label}</span>
-                  {snapshot?.activePowerUps.find(
-                    (power) => power.type === key,
-                  ) && (
-                    <b className="mono">
-                      {Math.ceil(
-                        snapshot.activePowerUps.find(
-                          (power) => power.type === key,
-                        )!.timer,
-                      )}
-                      s
-                    </b>
-                  )}
-                </div>
-              ))}
-            </div>
-            <BrickLegend />
-            <AudioDeck
-              muted={muted}
-              music={music}
-              onMute={toggleMute}
-              onMusic={toggleMusic}
-            />
-            <button
-              className="quality-toggle"
-              onClick={() => setQuality(quality === "high" ? "low" : "high")}
-            >
-              <span className="signal-dot" />
-              {quality === "high" ? "细腻画质" : "流畅画质"}
-              <span>切换</span>
-            </button>
-          </aside>
-          {snapshot && (
-            <div className="mobile-action-dock">
+          <section className="table-controls" aria-label="游戏控制">
+            {snapshot && (
               <PulseControl
                 compact
                 snapshot={snapshot}
@@ -864,16 +751,57 @@ export default function App() {
                   engine.activatePulse();
                 }}
               />
+            )}
+            <div className="table-control-hint">
+              <MousePointer2 size={15} />
+              <span>移动鼠标控制挡板</span>
+              <kbd>←</kbd>
+              <kbd>→</kbd>
+              <span className="table-best">
+                最高连击 <b className="mono">{snapshot?.bestCombo ?? 0}×</b>
+              </span>
+            </div>
+            <div className="table-tools">
               <button
-                className={`mobile-radio ${music ? "enabled" : ""}`}
-                aria-label={music ? "关闭星际电台" : "开启星际电台"}
+                className={!muted ? "enabled" : ""}
+                aria-label={muted ? "开启音效" : "关闭音效"}
+                aria-pressed={!muted}
+                onClick={toggleMute}
+              >
+                {muted ? <VolumeX size={16} /> : <Volume2 size={16} />}
+                <span>音效</span>
+              </button>
+              <button
+                className={music ? "enabled" : ""}
+                aria-label={music ? "关闭音乐" : "开启音乐"}
                 aria-pressed={music}
                 onClick={toggleMusic}
               >
-                <Music2 size={18} />
+                <Music2 size={16} />
+                <span>音乐</span>
+              </button>
+              <button
+                className="table-quality"
+                aria-label={
+                  quality === "high" ? "切换为流畅画质" : "切换为细腻画质"
+                }
+                onClick={() => setQuality(quality === "high" ? "low" : "high")}
+              >
+                <Layers3 size={16} />
+                <span>{quality === "high" ? "细腻" : "流畅"}</span>
+              </button>
+              <button
+                aria-label="玩法指南"
+                onClick={() => {
+                  engine.pause();
+                  openModal("help");
+                }}
+              >
+                <CircleHelp size={16} />
+                <span>玩法</span>
               </button>
             </div>
-          )}
+          </section>
         </main>
       )}
       <footer className="site-footer">

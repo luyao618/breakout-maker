@@ -2,12 +2,23 @@
 
 Public game: https://luyao.blog/games/breakout/
 
+## SSH connection
+
+Use the dedicated VPS key on the deployment machine:
+
+```sh
+ssh -i ~/work/files/ssh/ZGO-VPS-SSH-KEY \
+  -o IdentitiesOnly=yes root@38.175.199.165
+```
+
+The key is stored outside the repository. Do not copy its contents into Git, release archives, or server public directories.
+
 The blog remains rooted at `/var/www/blog`. Only dedicated `/games/breakout/` locations are included in the existing HTTPS virtual host. Nginx serves the game directly; only its `/api/` requests reach the private generation service.
 
 ## Layout
 
 - Runtime: `/opt/breakout-maker/runtime/node` (verified Node 22.23.2 Linux x64).
-- Versioned release: `/opt/breakout-maker/releases/20260905-lu-yuan/{public,server}`.
+- Versioned releases: `/opt/breakout-maker/releases/<release-id>/{public,server}`.
 - Active release symlink: `/opt/breakout-maker/current`.
 - Static symlink: `/var/www/games/breakout` → active release `/public`.
 - API: `breakout-maker.service`, listening on `127.0.0.1:3107` only.
@@ -56,7 +67,7 @@ No blog files, posts, feed, TLS certificate or DNS records need to change.
 
 ## Shared generation allowance
 
-The current release is `/opt/breakout-maker/releases/20260905-lu-yuan`; its generation API retains the persistent quota implementation. The shared model is `Kwai-Kolors/Kolors`, listed as free on SiliconFlow's official pricing page when checked on 2026-09-05. The service key stays in `/etc/breakout-maker.env` and is never part of the frontend bundle.
+The generation API retains the persistent quota implementation. The shared model is `Kwai-Kolors/Kolors`, listed as free on SiliconFlow's official pricing page when checked on 2026-09-05. The service key stays in `/etc/breakout-maker.env` and is never part of the frontend bundle.
 
 Each client IP gets three lifetime attempts. Valid accepted generation requests reserve an attempt durably before generation; provider failures count, malformed/busy requests do not. Quota records are salted hashes of canonical IPs in `/var/lib/breakout-maker/trial-quota.json`. `StateDirectory=breakout-maker` keeps this file across service restarts and code releases. Do not delete it when deploying or rolling back.
 
@@ -81,3 +92,19 @@ After activation, API PID remained 538453 with 0 restarts. Trial state and blog 
 Frontend release: `/opt/breakout-maker/releases/20260905-lu-yuan`; previous release: `/opt/breakout-maker/releases/20260905-tactical`. Stage13 restores the original 鹿原加油 / 必胜 text bitmap, HP and starting parameters from `09cc7ac`, with the modern engine and a “彩蛋” selection label. Stages1–12 remain byte-for-byte unchanged. The canonical bitmap lives in `levels/preserved/lu-yuan-easter-egg.json`; campaign generation reads it instead of designing a replacement.
 
 This remains a frontend-only deployment. Backend files are copied unchanged and the API is not restarted. Old hashed assets, the blog and persistent quota state are preserved.
+
+## NOCTURNE release — 2026-09-07
+
+Release directory: `/opt/breakout-maker/releases/20260907-nocturne`.
+Previous release: `/opt/breakout-maker/releases/20260905-lu-yuan`.
+
+This is a frontend-only release of the centered lunar arena, mechanical paddle and smoothed pointer controls. Build with `VITE_BASE_PATH=/games/breakout/`, copy the previous release's server directory unchanged, and retain its hashed assets alongside the new bundle. Store the source commit, archive digest and previous release in `release.json` at the release root, outside `public/`.
+
+Activate by replacing `/opt/breakout-maker/current` atomically. The API process does not need to restart. Verify public HTML/assets and API health, then compare API PID, quota-file SHA256 and blog index/feed SHA256 with their predeploy values.
+
+To restore the previous frontend without restarting the API:
+
+```sh
+ln -sfn /opt/breakout-maker/releases/20260905-lu-yuan /opt/breakout-maker/current.rollback
+mv -Tf /opt/breakout-maker/current.rollback /opt/breakout-maker/current
+```

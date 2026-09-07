@@ -98,10 +98,10 @@ describe("original gameplay adapter", () => {
     });
     engine.move(-200);
     engine.update(C.FIXED_DT);
-    expect(engine.scene.paddle.x).toBe(50);
+    expect(engine.scene.paddle.x).toBe(45);
     engine.move(999);
     engine.update(C.FIXED_DT);
-    expect(engine.scene.paddle.x).toBe(325);
+    expect(engine.scene.paddle.x).toBe(330);
     const ball = engine.scene.balls[0];
     engine.launch();
     expect(ball.vx).toBeCloseTo(280 * Math.sin(C.LAUNCH_ANGLE));
@@ -115,6 +115,128 @@ describe("original gameplay adapter", () => {
     engine.update(20);
     expect(ball.y).toBeCloseTo(beforeGap + ball.vy * C.FIXED_DT * C.MAX_STEPS);
     engine.dispose();
+  });
+
+  it("serves, reflects and restarts at the comfortable near-edge paddle", () => {
+    const source = fixture();
+    const engine = new GameEngine(source, 0);
+    const paddle = engine.scene.paddle;
+    expect(source.paddleWidth).toBe(100);
+    expect(engine.level.paddleWidth).toBe(100);
+    expect(paddle.width).toBe(90);
+    expect(paddle.baseWidth).toBe(90);
+    expect(paddle.y).toBe(605);
+    expect(engine.scene.balls[0].y).toBe(591);
+    engine.launch();
+    const ball = engine.scene.balls[0];
+    ball.x = paddle.x;
+    ball.y = paddle.y - paddle.height / 2 - ball.radius - 1;
+    ball.vx = 0;
+    ball.vy = ball.speed;
+    engine.update(C.FIXED_DT);
+    expect(ball.vy).toBeLessThan(0);
+    expect(ball.y).toBeLessThan(paddle.y - paddle.height / 2);
+    loseBall(engine);
+    expect(engine.status).toBe("ready");
+    expect(engine.scene.balls[0].y).toBe(591);
+    paddle.setWide(7);
+    engine.restart();
+    expect(engine.scene.paddle.width).toBe(90);
+    expect(engine.scene.paddle.y).toBe(605);
+    expect(engine.scene.balls[0].y).toBe(591);
+    engine.dispose();
+  });
+
+  it("smooths pointer movement before collisions and keeps the served ball attached", () => {
+    const engine = new GameEngine(fixture(), 0);
+    const paddle = engine.scene.paddle;
+    const origin = paddle.x;
+    const target = 320;
+    engine.movePointer(target);
+    expect(paddle.x).toBe(origin);
+    engine.update(C.FIXED_DT / 2);
+    expect(paddle.x).toBe(origin);
+    engine.update(C.FIXED_DT / 2);
+    expect(paddle.x).toBeGreaterThan(origin);
+    expect(paddle.x).toBeLessThan(target);
+    expect(engine.scene.balls[0].x).toBe(paddle.x);
+    expect(paddle.getBounds().left).toBe(paddle.x - paddle.width / 2);
+    for (let step = 0; step < 5; step++) {
+      const previous = paddle.x;
+      engine.update(C.FIXED_DT);
+      expect(paddle.x).toBeGreaterThan(previous);
+      expect(paddle.x).toBeLessThanOrEqual(target);
+      expect(engine.scene.balls[0].x).toBe(paddle.x);
+    }
+    // At 100 ms the travel is effectively settled, with no overshoot.
+    expect(Math.abs(target - paddle.x)).toBeLessThan((target - origin) * 0.02);
+    engine.move(80);
+    engine.update(C.FIXED_DT);
+    engine.launch();
+    const ball = engine.scene.balls[0];
+    // This ball misses the old and target positions, but must hit the
+    // intermediate paddle position shown for this simulation frame.
+    ball.x = 200;
+    ball.y = paddle.y - paddle.height / 2 - ball.radius - 1;
+    ball.vx = 0;
+    ball.vy = ball.speed;
+    engine.movePointer(320);
+    engine.update(C.FIXED_DT);
+    expect(ball.vy).toBeLessThan(0);
+    expect(paddle.x).toBeLessThan(240);
+    expect(paddle.x).toBeGreaterThan(160);
+    expect(paddle._targetX).toBe(paddle.x);
+    engine.dispose();
+  });
+
+  it("clamps pointer targets without overshoot and lets direct controls take over", () => {
+    const engine = new GameEngine(fixture(), 0);
+    const paddle = engine.scene.paddle;
+    engine.movePointer(-1000);
+    let previous = paddle.x;
+    for (let step = 0; step < 20; step++) {
+      engine.update(C.FIXED_DT);
+      expect(paddle.x).toBeLessThanOrEqual(previous);
+      expect(paddle.x).toBeGreaterThanOrEqual(45);
+      previous = paddle.x;
+    }
+    expect(paddle.x).toBe(45);
+    engine.movePointer(1000);
+    engine.update(C.FIXED_DT);
+    expect(paddle.x).toBeGreaterThan(45);
+    engine.move(125);
+    engine.update(C.FIXED_DT);
+    expect(paddle.x).toBe(125);
+    engine.update(C.FIXED_DT);
+    expect(paddle.x).toBe(125);
+    engine.movePointer(NaN);
+    engine.movePointer(Infinity);
+    engine.update(C.FIXED_DT);
+    expect(paddle.x).toBe(125);
+    engine.dispose();
+  });
+
+  it("discards pending pointer travel on pause, restart and disposal", () => {
+    const engine = new GameEngine(fixture(), 0);
+    engine.movePointer(320);
+    engine.update(C.FIXED_DT);
+    engine.pause();
+    const pausedX = engine.scene.paddle.x;
+    engine.movePointer(40);
+    engine.update(1);
+    engine.resume();
+    engine.update(C.FIXED_DT);
+    expect(engine.scene.paddle.x).toBe(pausedX);
+    engine.movePointer(40);
+    engine.restart();
+    engine.update(C.FIXED_DT);
+    expect(engine.scene.paddle.x).toBe(C.SCREEN_W / 2);
+    const paddle = engine.scene.paddle;
+    engine.movePointer(320);
+    engine.dispose();
+    engine.movePointer(40);
+    engine.update(1);
+    expect(paddle.x).toBe(C.SCREEN_W / 2);
   });
 
   it("freezes a paused game, resumes the prior launch state, and restarts cleanly", () => {
@@ -231,7 +353,7 @@ describe("original gameplay adapter", () => {
       { type: "fireball", timer: expect.closeTo(4) },
     ]);
     catchDrop(PowerUpType.WIDE_PADDLE);
-    expect(engine.scene.paddle.width).toBe(125);
+    expect(engine.scene.paddle.width).toBe(112.5);
     engine.scene.lives = 2;
     catchDrop(PowerUpType.EXTRA_LIFE);
     catchDrop(PowerUpType.EXTRA_LIFE);
@@ -246,7 +368,7 @@ describe("original gameplay adapter", () => {
       engine.update(C.FIXED_DT);
     }
     expect(engine.scene.balls.every((ball) => !ball.isFireball)).toBe(true);
-    expect(engine.scene.paddle.width).toBe(100);
+    expect(engine.scene.paddle.width).toBe(90);
     expect(engine.getSnapshot().activePowerUps).toEqual([]);
     engine.dispose();
   });

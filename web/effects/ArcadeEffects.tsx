@@ -32,7 +32,7 @@ export function ArcadeBloom({ enabled }: { enabled: boolean }) {
       scene,
       camera,
       undefined,
-      new THREE.Color("#000000"),
+      new THREE.Color().setRGB(0.00018, 0.00028, 0.00065),
       1,
     );
     const bloom = new UnrealBloomPass(

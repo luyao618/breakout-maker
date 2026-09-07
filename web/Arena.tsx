@@ -2,26 +2,31 @@ import {
   Component,
   Suspense,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
   type ReactNode,
 } from "react";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import {
-  Canvas,
-  useFrame,
-  useThree,
-  type ThreeEvent,
-} from "@react-three/fiber";
-import { Environment, Lightformer } from "@react-three/drei";
+  Environment,
+  Lightformer,
+  OrthographicCamera,
+  PerspectiveCamera,
+} from "@react-three/drei";
 import * as THREE from "three";
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
 import type { GameEngine } from "./game/engine";
 import type { BrickKind } from "./game/types";
 import { drawBrickMark } from "./game/brick-art";
+import ArenaInput from "./components/ArenaInput";
+import { getSlopeCameraFrame } from "./game/camera";
+import { createBallTexture } from "./game/ball-texture";
+import LunarCourt, { LunarLighting } from "./components/LunarCourt";
+import LunarPaddle from "./components/LunarPaddle";
 import {
   ArcadeBloom,
-  ReactorField,
   ImpactEffects,
   PowerAuras,
 } from "./effects/ArcadeEffects";
@@ -106,17 +111,29 @@ const POWER_GLYPHS: Record<string, string> = {
 };
 const xWorld = (x: number) => (x - 187.5) / 40;
 const yWorld = (y: number) => (333.5 - y) / 40;
+const brickDepth = (width: number, hp: number) =>
+  Math.min(0.56, Math.max(0.095, width * 0.72)) +
+  (width > 0.22 ? Math.min(hp - 1, 3) * 0.025 : 0);
 
-/** An orthographic camera keeps the original collision plane readable at every size. */
-function CameraRig({
-  variant,
-  engine,
-  reducedMotion,
-}: Pick<ArenaProps, "variant" | "engine" | "reducedMotion">) {
-  const { camera, size } = useThree();
-  useEffect(() => {
-    const cam = camera as THREE.OrthographicCamera;
-    if (variant === "showcase") {
+/** The play camera frames a single physical table; the lobby has its own sculpture. */
+function CameraRig({ variant }: Pick<ArenaProps, "variant">) {
+  const { size } = useThree();
+  const perspective = useRef<THREE.PerspectiveCamera>(null);
+  const orthographic = useRef<THREE.OrthographicCamera>(null);
+  const slope = variant === "play";
+  const frame = useMemo(
+    () => getSlopeCameraFrame(size.width, size.height),
+    [size.width, size.height],
+  );
+  useLayoutEffect(() => {
+    const cam = slope ? perspective.current : orthographic.current;
+    if (!cam) return;
+    if (slope) {
+      cam.up.set(...frame.up);
+      cam.position.set(...frame.position);
+      cam.lookAt(...frame.target);
+    } else if (variant === "showcase") {
+      cam.up.set(0, 1, 0);
       cam.position.set(9, -12, 20);
       cam.lookAt(0, 0.4, 0);
       cam.zoom = Math.min(size.width / 13.2, size.height / 12.2);
@@ -126,32 +143,42 @@ function CameraRig({
       cam.zoom = Math.min(size.width / 10.3, size.height / 15.7);
     }
     cam.updateProjectionMatrix();
-  }, [camera, size, variant]);
-  useFrame(() => {
-    if (variant !== "play" || !engine) return;
-    let impulse = 0;
-    if (!reducedMotion)
-      for (const event of engine.feedback) {
-        const age = engine.elapsed - event.time;
-        if (age >= 0 && age < 0.35 && ["pulse", "brick"].includes(event.kind)) {
-          impulse +=
-            (event.kind === "pulse" ? 0.065 : 0.006) *
-            Math.pow(1 - age / 0.35, 2);
-        }
-      }
-    camera.position.x =
-      Math.sin(engine.elapsed * 91) * Math.min(0.075, impulse);
-    camera.position.y =
-      -4.8 + Math.cos(engine.elapsed * 73) * Math.min(0.035, impulse);
-    camera.lookAt(0, -1, 0);
-  });
-  return null;
+    cam.updateMatrixWorld();
+  }, [size, variant, slope, frame]);
+  return slope ? (
+    <PerspectiveCamera
+      ref={perspective}
+      makeDefault
+      manual
+      aspect={size.width / Math.max(1, size.height)}
+      fov={frame.fov}
+      near={frame.near}
+      far={frame.far}
+    />
+  ) : (
+    <OrthographicCamera
+      ref={orthographic}
+      makeDefault
+      manual
+      left={-size.width / 2}
+      right={size.width / 2}
+      top={size.height / 2}
+      bottom={-size.height / 2}
+      near={0.1}
+      far={150}
+    />
+  );
 }
 
 function StudioLighting({ quality }: Pick<ArenaProps, "quality">) {
   return (
     <>
       <ambientLight intensity={0.52} color="#c3c3ef" />
+      <directionalLight
+        position={[4, -10, 8]}
+        intensity={0.8}
+        color="#d8e8ff"
+      />
       <directionalLight
         position={[-7, 8, 12]}
         intensity={2.0}
@@ -269,19 +296,19 @@ function TechnicalGrid({
       points.push(
         x,
         -height / 2 + centerY,
-        -0.16,
+        -0.115,
         x,
         height / 2 + centerY,
-        -0.16,
+        -0.115,
       );
     for (let y = -height / 2; y <= height / 2; y += 0.5)
       points.push(
         -width / 2,
         y + centerY,
-        -0.16,
+        -0.115,
         width / 2,
         y + centerY,
-        -0.16,
+        -0.115,
       );
     return new THREE.BufferGeometry().setAttribute(
       "position",
@@ -294,7 +321,7 @@ function TechnicalGrid({
       <lineBasicMaterial
         color="#9597bd"
         transparent
-        opacity={0.09}
+        opacity={0.065}
         depthWrite={false}
       />
     </lineSegments>
@@ -331,6 +358,42 @@ function Chassis({ showcase }: { showcase: boolean }) {
   );
   return (
     <group>
+      {!showcase && (
+        <>
+          <Beveled
+            size={[width + 0.5, height + 0.35, 0.65]}
+            position={[0, cy, -0.66]}
+            color="#46516c"
+            metalness={0.72}
+            roughness={0.38}
+            radius={0.16}
+          />
+          <Beveled
+            size={[width + 0.31, height + 0.2, 0.045]}
+            position={[0, cy, -0.36]}
+            color={COLORS.cyan}
+            metalness={0.35}
+            roughness={0.3}
+            emission={0.35}
+            radius={0.02}
+          />
+          {[-1, 1].map((side) => (
+            <Beveled
+              key={side}
+              size={[0.3, height - 0.08, 0.32]}
+              position={[side * (width / 2 + 0.08), cy, 0.015]}
+              color="#515d79"
+              metalness={0.7}
+              roughness={0.25}
+              radius={0.07}
+            />
+          ))}
+          <mesh position={[0, cy, -0.13]} receiveShadow>
+            <planeGeometry args={[width - 0.2, height - 0.2]} />
+            <shadowMaterial transparent opacity={0.36} depthWrite={false} />
+          </mesh>
+        </>
+      )}
       <Beveled
         size={[width + 0.27, height + 0.27, 0.24]}
         position={[0, cy, -0.4]}
@@ -761,7 +824,20 @@ function Showcase({ reducedMotion }: Pick<ArenaProps, "reducedMotion">) {
   );
 }
 
-function brickColor(brick: BrickView): string {
+function brickColor(brick: BrickView, studioPalette = false): string {
+  if (studioPalette) {
+    if (brick.kind === "armor") return "#a8bbd6";
+    if (brick.kind === "reactor") return "#edbd82";
+    if (brick.kind === "accelerator") return "#83d2bb";
+    const ceramic: Record<string, string> = {
+      "#79b0f3": "#71b2fa",
+      "#aa8cf3": "#a78cea",
+      "#61dce9": "#74d6dc",
+      "#ee8bc1": "#dc9ed3",
+    };
+    if (typeof brick.color === "string" && ceramic[brick.color])
+      return ceramic[brick.color];
+  }
   // Uploaded image pixels retain their exact color; old gradient presets use the new material palette.
   if (typeof brick.color === "string") return brick.color;
   if (
@@ -809,7 +885,7 @@ function BrickMarkLayer({
             continue;
           const rect = field.getBrickRect(brick.row, brick.col);
           const width = rect.w / 40;
-          const depth = Math.min(0.35, Math.max(0.07, width * 0.3));
+          const depth = brickDepth(width, brick.maxHp);
           scratch.position.set(
             xWorld(rect.x + rect.w / 2),
             yWorld(rect.y + rect.h * 0.46),
@@ -897,6 +973,44 @@ function DropLabelLayer({
   );
 }
 
+/** Soft contacts keep the ball's floor position legible at the far end of the table. */
+function BallContactShadows({ engine }: { engine: GameEngine | null }) {
+  const shadow = useRef<THREE.InstancedMesh>(null);
+  const scratch = useMemo(() => new THREE.Object3D(), []);
+  useFrame(() => {
+    if (!shadow.current) return;
+    const balls = engine?.scene.balls ?? [];
+    shadow.current.count = Math.min(balls.length, MAX_BALLS);
+    balls.slice(0, MAX_BALLS).forEach((ball, index) => {
+      scratch.position.set(xWorld(ball.x), yWorld(ball.y), -0.105);
+      scratch.scale.setScalar((ball.radius / 40) * 2.8);
+      scratch.updateMatrix();
+      shadow.current!.setMatrixAt(index, scratch.matrix);
+    });
+    shadow.current.instanceMatrix.needsUpdate = true;
+  });
+  return (
+    <instancedMesh
+      ref={shadow}
+      args={[undefined, undefined, MAX_BALLS]}
+      count={0}
+      frustumCulled={false}
+    >
+      <planeGeometry args={[1, 1]} />
+      <shaderMaterial
+        transparent
+        depthWrite={false}
+        vertexShader={`varying vec2 vUv;
+          void main() { vUv = uv;
+            gl_Position = projectionMatrix * modelViewMatrix * instanceMatrix * vec4(position, 1.0); }`}
+        fragmentShader={`varying vec2 vUv;
+          void main() { float d = length(vUv - 0.5) * 2.0;
+            gl_FragColor = vec4(0.015, 0.025, 0.06, (1.0 - smoothstep(0.15, 1.0, d)) * 0.7); }`}
+      />
+    </instancedMesh>
+  );
+}
+
 function Playfield({
   engine,
   reducedMotion,
@@ -912,10 +1026,29 @@ function Playfield({
   const trails = useRef<THREE.InstancedMesh>(null);
   const particles = useRef<THREE.InstancedMesh>(null);
   const drops = useRef<THREE.InstancedMesh>(null);
-  const paddle = useRef<THREE.Group>(null);
-  const paddleMaterial = useRef<THREE.MeshStandardMaterial>(null);
+  const ballTexture = useMemo(createBallTexture, []);
+  useEffect(() => () => ballTexture.dispose(), [ballTexture]);
+  const rolling = useMemo(
+    () =>
+      new WeakMap<
+        object,
+        {
+          x: number;
+          y: number;
+          orientation: THREE.Quaternion;
+        }
+      >(),
+    [],
+  );
+  const rollStep = useMemo(
+    () => ({
+      axis: new THREE.Vector3(),
+      rotation: new THREE.Quaternion(),
+    }),
+    [],
+  );
   const bodyGeometry = useMemo(
-    () => new RoundedBoxGeometry(1, 1, 1, 1, 0.08),
+    () => new RoundedBoxGeometry(1, 1, 1, 3, 0.065),
     [],
   );
   const scratch = useMemo(
@@ -962,7 +1095,11 @@ function Playfield({
               y: yWorld(rect.y + rect.h / 2),
               w: rect.w / 40,
               h: rect.h / 40,
-              color: brickColor(brick),
+              color: brickColor(
+                brick,
+                (engine?.levelIndex ?? -1) >= 0 &&
+                  (engine?.levelIndex ?? -1) < 12,
+              ),
               hp: -1,
             };
           });
@@ -972,7 +1109,7 @@ function Playfield({
       let colorChanged = false;
       scratch.entries.forEach((entry, index) => {
         const b = entry.brick;
-        const depth = Math.min(0.35, Math.max(0.07, entry.w * 0.3));
+        const depth = brickDepth(entry.w, b.maxHp);
         const shake =
           !reducedMotion && b.shakeTimer > 0
             ? Math.sin(clock.elapsedTime * 160) *
@@ -1009,7 +1146,7 @@ function Playfield({
           if (cores.current)
             cores.current.setColorAt(
               index,
-              scratch.color.clone().multiplyScalar(2.8),
+              scratch.color.clone().lerp(scratch.white, 0.65),
             );
           entry.hp = b.hp;
           colorChanged = true;
@@ -1024,23 +1161,41 @@ function Playfield({
       if (colorChanged && bricks.current.instanceColor)
         bricks.current.instanceColor.needsUpdate = true;
     }
-    if (paddle.current && scene.paddle) {
-      const p = scene.paddle;
-      paddle.current.position.set(xWorld(p.x), yWorld(p.y), 0.12);
-      paddle.current.scale.set(p.width / 40, p.height / 40, 1);
-      if (paddleMaterial.current) {
-        paddleMaterial.current.color.set(p.isWide ? COLORS.cyan : COLORS.peach);
-        paddleMaterial.current.emissive.set(
-          p.isWide ? COLORS.cyan : COLORS.peach,
-        );
-      }
-    }
     if (balls.current && trails.current) {
       balls.current.count = Math.min(scene.balls.length, ballCapacity);
       let trailCount = 0;
       scene.balls.slice(0, ballCapacity).forEach((ball, index) => {
-        obj.position.set(xWorld(ball.x), yWorld(ball.y), 0.18);
-        obj.rotation.set(0, 0, 0);
+        let roll = rolling.get(ball);
+        if (!roll) {
+          roll = { x: ball.x, y: ball.y, orientation: new THREE.Quaternion() };
+          rolling.set(ball, roll);
+        }
+        const dx = ball.x - roll.x;
+        const dy = ball.y - roll.y;
+        const distance = Math.hypot(dx, dy);
+        // Integrate travel around the floor tangent, including direction changes.
+        // Repositioning a waiting ball or a test/respawn teleport does not spin it.
+        if (
+          !reducedMotion &&
+          engine?.status === "playing" &&
+          distance > 0 &&
+          distance < 60
+        ) {
+          rollStep.axis.set(dy, dx, 0).normalize();
+          rollStep.rotation.setFromAxisAngle(
+            rollStep.axis,
+            distance / ball.radius,
+          );
+          roll.orientation.premultiply(rollStep.rotation).normalize();
+        }
+        roll.x = ball.x;
+        roll.y = ball.y;
+        obj.position.set(
+          xWorld(ball.x),
+          yWorld(ball.y),
+          ball.radius / 40 - 0.1,
+        );
+        obj.quaternion.copy(roll.orientation);
         obj.scale.setScalar(ball.radius / 40);
         obj.updateMatrix();
         balls.current!.setMatrixAt(index, obj.matrix);
@@ -1048,11 +1203,13 @@ function Playfield({
         balls.current!.setColorAt(index, scratch.color);
         if (!reducedMotion)
           ball.trail.forEach((point, trailIndex) => {
+            if (trailIndex < ball.trail.length - 3) return;
             if (trailCount >= ballCapacity * 5) return;
-            obj.position.set(xWorld(point.x), yWorld(point.y), 0.14);
-            obj.scale.setScalar(
-              ((ball.radius / 40) * (trailIndex + 1)) / (ball.trail.length + 1),
-            );
+            obj.position.set(xWorld(point.x), yWorld(point.y), -0.101);
+            const traceRadius =
+              ((ball.radius / 40) * (trailIndex + 1)) / (ball.trail.length + 1);
+            obj.rotation.set(0, 0, 0);
+            obj.scale.set(traceRadius * 0.8, traceRadius * 0.8, 0.004);
             obj.updateMatrix();
             trails.current!.setMatrixAt(trailCount, obj.matrix);
             trails.current!.setColorAt(trailCount, scratch.color);
@@ -1117,16 +1274,12 @@ function Playfield({
         drops.current.instanceColor.needsUpdate = true;
     }
   });
-  const move = (event: ThreeEvent<PointerEvent>) => {
-    event.stopPropagation();
-    onMove?.(Math.max(0, Math.min(375, event.point.x * 40 + 187.5)));
-  };
   return (
     <group>
-      <Chassis showcase={false} />
+      <LunarCourt engine={engine} reducedMotion={reducedMotion} />
+      <BallContactShadows engine={engine} />
       {engine && (
         <>
-          <ReactorField engine={engine} reducedMotion={reducedMotion} />
           <ImpactEffects engine={engine} reducedMotion={reducedMotion} />
           <PowerAuras engine={engine} reducedMotion={reducedMotion} />
         </>
@@ -1149,62 +1302,37 @@ function Playfield({
         frustumCulled={false}
       >
         <meshPhysicalMaterial
-          color="#9ba2c8"
-          metalness={0.42}
-          roughness={0.13}
+          color="#ffffff"
+          metalness={0.3}
+          roughness={0.18}
           clearcoat={1}
-          clearcoatRoughness={0.08}
-          iridescence={0.45}
-          emissive="#365987"
-          emissiveIntensity={0.17}
-          envMapIntensity={1.3}
+          clearcoatRoughness={0.12}
+          iridescence={0.2}
+          emissive="#233869"
+          emissiveIntensity={0.13}
+          envMapIntensity={1.1}
         />
       </instancedMesh>
       {(["armor", "reactor", "accelerator"] as const).map((kind) => (
         <BrickMarkLayer key={kind} engine={engine} kind={kind} />
       ))}
-      <group ref={paddle}>
-        <mesh geometry={bodyGeometry} scale={[1, 1, 0.27]} castShadow>
-          <meshStandardMaterial
-            ref={paddleMaterial}
-            color={COLORS.peach}
-            metalness={0.72}
-            roughness={0.2}
-            emissive={COLORS.peach}
-            emissiveIntensity={0.45}
-          />
-        </mesh>
-        <mesh position={[0, 0.11, 0.144]}>
-          <boxGeometry args={[0.65, 0.11, 0.005]} />
-          <meshBasicMaterial color="#fff8ed" />
-        </mesh>
-        {[-1, 1].map((side) => (
-          <mesh
-            key={side}
-            geometry={bodyGeometry}
-            position={[side * 0.405, 0, 0]}
-            scale={[0.08, 1.07, 0.28]}
-          >
-            <meshStandardMaterial
-              color="#57516c"
-              metalness={0.84}
-              roughness={0.21}
-            />
-          </mesh>
-        ))}
-      </group>
+      <LunarPaddle engine={engine} reducedMotion={reducedMotion} />
       <instancedMesh
         ref={balls}
         args={[undefined, undefined, ballCapacity]}
         count={0}
+        castShadow
         frustumCulled={false}
       >
-        <sphereGeometry args={[1, 16, 12]} />
-        <meshStandardMaterial
-          roughness={0.08}
-          metalness={0.05}
-          emissive="#ffeddb"
-          emissiveIntensity={1.35}
+        <sphereGeometry args={[1, 24, 16]} />
+        <meshPhysicalMaterial
+          map={ballTexture}
+          roughness={0.12}
+          metalness={0.28}
+          clearcoat={1}
+          emissive="#b8eaff"
+          emissiveIntensity={1.4}
+          envMapIntensity={1.8}
         />
       </instancedMesh>
       <instancedMesh
@@ -1214,7 +1342,7 @@ function Playfield({
         frustumCulled={false}
       >
         <sphereGeometry args={[1, 8, 6]} />
-        <meshBasicMaterial transparent opacity={0.21} depthWrite={false} />
+        <meshBasicMaterial transparent opacity={0.14} depthWrite={false} />
       </instancedMesh>
       <instancedMesh
         ref={particles}
@@ -1248,34 +1376,7 @@ function Playfield({
           capacity={dropCapacity}
         />
       ))}
-      <mesh
-        position={[0, -1, 0]}
-        onPointerMove={move}
-        onPointerDown={(event) => {
-          move(event);
-          (
-            event.target as unknown as {
-              setPointerCapture: (id: number) => void;
-            }
-          ).setPointerCapture(event.pointerId);
-          onLaunch?.();
-        }}
-        onPointerUp={(event) => {
-          (
-            event.target as unknown as {
-              releasePointerCapture: (id: number) => void;
-            }
-          ).releasePointerCapture(event.pointerId);
-        }}
-      >
-        <planeGeometry args={[30, 35]} />
-        <meshBasicMaterial
-          transparent
-          opacity={0}
-          depthWrite={false}
-          colorWrite={false}
-        />
-      </mesh>
+      <ArenaInput engine={engine} onMove={onMove} onLaunch={onLaunch} />
     </group>
   );
 }
@@ -1527,7 +1628,7 @@ export default function Arena(props: ArenaProps) {
   return (
     <WebGLErrorBoundary fallback={fallback}>
       <Canvas
-        orthographic
+        orthographic={variant === "showcase"}
         camera={{ position: [0, 0, 30], zoom: 40, near: 0.1, far: 150 }}
         dpr={quality === "high" ? [1, 1.75] : 1}
         shadows={quality === "high"}
@@ -1541,7 +1642,8 @@ export default function Arena(props: ArenaProps) {
         onCreated={({ gl }) => {
           gl.setClearColor("#090b16", 0);
           gl.toneMapping = THREE.ACESFilmicToneMapping;
-          gl.toneMappingExposure = 1.15;
+          gl.toneMappingExposure = variant === "play" ? 1 : 1.15;
+          gl.shadowMap.type = THREE.PCFSoftShadowMap;
           onReady?.();
         }}
         style={{
@@ -1551,15 +1653,13 @@ export default function Arena(props: ArenaProps) {
           display: "block",
         }}
       >
-        <CameraRig
-          variant={variant}
-          engine={engine}
-          reducedMotion={reducedMotion}
-        />
-        <StudioLighting quality={quality} />
-        <ArcadeBloom
-          enabled={variant === "play" && quality === "high" && !reducedMotion}
-        />
+        <CameraRig variant={variant} />
+        {variant === "play" ? (
+          <LunarLighting quality={quality} />
+        ) : (
+          <StudioLighting quality={quality} />
+        )}
+        <ArcadeBloom enabled={variant === "play" && quality === "high"} />
         {variant === "showcase" ? (
           <Showcase reducedMotion={reducedMotion} />
         ) : (
