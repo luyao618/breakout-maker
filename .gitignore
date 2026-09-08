@@ -8,3 +8,6 @@ web/game/legacy.js
 dist-live/
 
 server/data/
+
+# Local recording and editing workspace
+/output/promo/

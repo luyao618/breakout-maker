@@ -2,7 +2,7 @@
 
 **Breakout Maker — a dimensional edition.**
 
-[在线体验 · Play now](https://luyao.blog/games/breakout/) · [服务器部署与回滚](deploy/COHOST.md) · [历史版本归档](archive/README.md)
+[在线体验 · Play now](https://luyao.blog/games/breakout/) · [新旧版对比视频 · Video](media/promo/README.md) · [服务器部署与回滚](deploy/COHOST.md) · [历史版本归档](archive/README.md)
 
 [简体中文](#简体中文) | [English](#english)
 
