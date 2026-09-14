@@ -1,220 +1,247 @@
-# ASTRAL FORGE · 造砖厂
+# Breakout Maker · 造砖厂
 
-**Breakout Maker — a dimensional edition.**
+**NOCTURNE · 星夜引擎 — a lunar arcade for playing and making brick-breaker levels.**
 
-[在线体验 · Play now](https://luyao.blog/games/breakout/) · [新旧版对比视频 · Video](media/promo/README.md) · [服务器部署与回滚](deploy/COHOST.md) · [历史版本归档](archive/README.md)
+[在线体验 · Play now](https://luyao.blog/games/breakout/) · [对比视频 · Video](media/promo/README.md) · [部署与回滚 · Deployment](deploy/COHOST.md) · [历史版本 · Archive](archive/README.md)
 
 [简体中文](#简体中文) | [English](#english)
 
-![Astral Forge desktop](screenshots/astral-desktop.png)
+![NOCTURNE 桌面实机画面 · Desktop gameplay](screenshots/nocturne-desktop.png)
 
 ## 简体中文
 
-### 超新星街机版
+### 当前版本
 
-- **NOCTURNE · 星夜引擎**：回到深蓝星云、月光与晶体的世界。球场左右对称，镜头固定，无侧转或碰撞晃动；适度透视、分层金属护栏和局部泛光保留清晰的立体感。
-- **机械挡板**：切削外壳、金属倒角、端部模块、通风槽、紧固件与凹入式能量核心组成完整模型。满能量时核心转为暖金色；加宽时转为薄荷色。现代版使用关卡原宽度的 90%、16 像素高度，外观与真实碰撞保持一致。
-- **稳定操作**：鼠标和触屏目标在物理模拟中平滑跟随，约 75 毫秒完成 95% 位移；键盘仍直接控制。挡板没有额外摆动，碰撞、发球和道具使用同一位置。
+在月光与星云中的立体球场里打砖块，也可以把自己的图片或一句描述变成关卡。当前维护版本是 **NOCTURNE**：React 19、TypeScript、Three.js 与 React Three Fiber 构建界面和 3D 场景，共享游戏引擎负责平面碰撞、计分和道具。
 
-![NOCTURNE 星夜引擎](screenshots/nocturne-desktop.png)
+- **星夜球场**：居中对称的固定透视镜头、深蓝晶体场地、月球与金属护栏；游玩时镜头不随碰撞晃动。
+- **机械挡板**：分层金属外壳与发光能量核心，鼠标和触屏平滑跟随，键盘直接控制。显示位置与碰撞位置一致。
+- **13 关全部开放**：前 12 关围绕入口、装甲、反应芯和加速砖设计；第 13 关保留原始「鹿原加油 / 必胜」文字彩蛋。关卡详情见 [星图说明](levels/README.md)。
+- **清晰的游玩界面**：拾取、连击和道具倒计时显示在顶部，技能与音画控制放在底部。支持手机竖屏、细腻 / 流畅画质及减少动态效果偏好；WebGL 不可用时使用 Canvas 兼容画面。
+- **空间音效**：击球、碎砖、道具和技能拥有独立反馈；背景音乐默认关闭，可自行开启。暂停或切到后台会冻结游戏并停止声音。
 
-![全部开放的新星图关卡](screenshots/tactical-level-selection.png)
+<img src="screenshots/nocturne-mobile.png" alt="NOCTURNE 手机竖屏实机画面" width="320" />
 
-- **全新星图关卡**：前12关围绕入口与弱点重做，涵盖星环、双子反应堆、矩阵、涡旋、迷宫与分形圣殿；第13关保留原始「鹿原加油 / 必胜」文字砖阵，作为送给鹿原的彩蛋。全部关卡从开始即可任选，旧存档不会锁关。
-- **手机清晰视野**：拾取提示、连击和道具倒计时统一显示在页面最上方的导航栏，所有屏幕都不再在球场中显示文字弹层或拾取爆发光圈。
+### 三种模式
 
-![战术版本手机实机画面](screenshots/tactical-mobile-play.png)
+| 模式 | 玩法 |
+| --- | --- |
+| 关卡模式 | 任意选择 13 个内置关卡，清除砖块后继续下一关 |
+| 图片模式 | 上传 JPG、PNG、WebP 或 GIF（最多 10 MB），预览砖阵后开玩；图片仅在浏览器本地处理 |
+| 创造模式 | 输入 1–140 字的图案描述，由服务端模板或 AI 生图生成可玩的砖阵；需要启动 AI 服务 |
 
-- **主动技能**：击碎砖块积蓄能量，满格后按 **E**（手机点击底部按钮）释放超新星，朝挡板上方最近的外层砖冲击，最多直接命中 5 块、每块 1 点伤害；反应堆弱点会额外爆破近邻。技能不再附赠火球，冲击不会回充能量。
-- **掉落节奏**：自然击碎有 7% 概率掉落，连续 18 次未掉落触发保底（仍受 5 秒冷却与最多 2 个在场补给限制）；取消吸附，接球与抢补给需要取舍。
-- **视听反馈**：星云球场、发光晶体、冲击波、碎片、道具轨道光环、连击提示和空间音效；可选星际电台默认关闭。
-- **稳定运行**：多球上限 4，声音并发上限 48；暂停会冻结技能和道具计时并停止声音。
+### 操作与道具
 
+| 操作 | 鼠标 / 触屏 | 键盘 |
+| --- | --- | --- |
+| 移动挡板 | 在球场内移动鼠标或拖动手指 | `←` / `→` 或 `A` / `D` |
+| 发球 | 点击发球按钮或球场 | `Space` |
+| 暂停 / 继续 | 点击暂停或继续按钮 | `Esc` / `P`；暂停时也可按 `Space` 继续 |
+| 超新星 | 能量满格后点击底部技能按钮 | `E` |
 
-在星空中的立体球场里打砖块。新版以 React 19、Three.js 和 React Three Fiber 重建界面与 3D 渲染，把梦幻星尘、发光砖块与工业仪器般的操作面板融为一体。
+自然击碎砖块和命中装甲积蓄能量。**超新星**朝挡板上方的外层砖阵释放，最多直接命中 5 块砖、各造成 1 点伤害；直接击破反应芯还会伤害周围八格，冲击不连锁。技能伤害不回充能量，也不附赠火球。
 
-原有玩法继续保留：13 个内置关卡、图片转砖块、AI 创造关卡，以及连击计分、生命和五种道具；全部关卡从一开始即可自由选择。3D 场景呈现原有平面打砖块规则；球、挡板、碰撞和计分复用原游戏逻辑。
+| 道具 | 当前效果 |
+| --- | --- |
+| 分裂 / 齐射 | 各增加两颗普通球，全场最多 4 球 |
+| 火球 | 强化一颗球，持续 4 秒或 6 次碰砖；装甲仍会反弹火球 |
+| 加宽 | 挡板加宽 25%，持续 7 秒 |
+| 生命修复 | 每局最多补回一次失去的生命，不超过初始生命数 |
+
+自然击碎砖块有 7% 概率掉落补给，连续 18 次未掉落触发保底，仍受 5 秒冷却和最多 2 个在场补给限制。连击计分倍率最高 4 倍；加速砖使撞击它的球逐步加速，最高为基础速度的 130%。
 
 ### 本地运行
 
-需要 **Node.js 22.12 或更新的 22.x 版本**。
+推荐 **Node.js 22.12 或更新的 22.x 版本**。
 
 ```bash
-npm install
+npm ci
 npm run dev
 ```
 
-打开 [http://localhost:5173](http://localhost:5173)。内置关卡和图片模式无需 AI 服务；上传的图片在浏览器中转换为砖块。
+打开 [http://localhost:5173](http://localhost:5173)。内置关卡和图片模式无需 AI 服务。
 
 ```bash
-npm run build      # 类型检查并生成 dist/
-npm run preview    # 预览生产构建，默认 http://localhost:4173
-npm test           # 原有回归测试 + Vitest 测试
-npm run test:legacy
+npm run build       # 生成共享模块、类型检查并构建 dist/
+npm run preview     # 预览构建，默认 http://localhost:4173
+npm test            # 共享逻辑回归测试 + 现代版 Vitest 测试
+npm run test:legacy  # 仅运行共享逻辑的旧测试集
+npm run format:check
 ```
 
-`predev` 和 `build` 会自动执行 `web/game/build-legacy.cjs`，把 `src/` 的共享游戏逻辑与 `levels/` 的关卡数据组合成前端可导入的模块。不要手动修改生成的 `web/game/legacy.js`。
+`dev`、`build` 和 `test` 会自动生成 `web/game/legacy.js`。修改共享规则请编辑 `src/`；关卡编辑见 [levels/README.md](levels/README.md)。修改这些输入后需重新运行命令，不要直接修改生成文件。
 
-### 三种模式与操作
+### AI 服务与体验额度（可选）
 
-- **关卡模式**：自由选择任意关卡，控制挡板反弹小球，清除砖块并推进到下一关。
-- **图片模式**：选择本地图片，以原有中值切割配色和砖块映射算法生成关卡。
-- **创造模式**：输入图案描述，调用 AI 服务生成关卡；常见图案可以命中服务端模板。
-- **控制挡板**：在球场内移动鼠标或拖动手指，也可使用方向键或 `A` / `D`。
-- **发球与暂停**：点击球场或按空格发球，`Esc` / `P` 暂停或继续，也可使用界面按钮；球掉落后消耗生命并重新发球。
-- **道具**：分裂与齐射各增加两球；火球仅强化一球，限 4 秒或 6 次碰砖；加宽 25% 持续 7 秒；每局最多修复一次生命，不超过初始生命。连击得分倍率最高 4 倍。
-
-### AI 服务配置（可选）
-
-在第二个终端中启动原有 Express 服务：
+在第二个终端运行：
 
 ```bash
 cd server
-npm install
+npm ci
 cp .env.example .env
-# 编辑 .env，填入 API 配置
+# 编辑 .env，配置 IMAGE_API_KEY 或 LLM_API_KEY
 npm run dev
 ```
 
-| 环境变量 | 用途 |
-| --- | --- |
-| `LLM_API_KEY` | 服务启动必填；同时作为默认图像生成 API 密钥 |
-| `IMAGE_API_KEY` | 可选的独立图像生成 API 密钥 |
-| `IMAGE_API_URL` | 图像生成接口，默认 `https://api.siliconflow.cn/v1/images/generations` |
-| `IMAGE_MODEL` | 图像模型，默认 `Qwen/Qwen-Image` |
-| `PORT` | 服务端口，默认 `3001` |
+默认使用硅基流动 `Kwai-Kolors/Kolors`，API 监听 `3001`；Vite 开发服务器代理 `/api` 请求。完整环境变量、API 和存储说明见 [server/README.md](server/README.md)。
 
-开发服务器会把 `/api` 请求转发到 [http://localhost:3001](http://localhost:3001)。生产环境需要将 `/api` 路由到 AI 服务，或使用下方 Docker 镜像在同一服务上提供前端与 API。`npm run preview` 主要用于检查构建后的前端。
+共享生成每个 IP **累计 3 次**，刷新或服务重启不会重置。请求被接受后即计次，模板命中和上游生成失败也计次；在额度预留前被拒绝的无效或繁忙请求不计次。
 
-### 生产构建与 Docker
+可以随时切换为自己的硅基流动 API Key，选择 Kolors 或 Qwen-Image，且不消耗共享次数。个人密钥保存在当前弹窗内存中，随生成请求经后端用于调用模型，不写入浏览器持久存储或服务端日志；关闭弹窗后不再保留。个人密钥失败时不会改用共享密钥。
 
-`dist/` 可以部署到静态站点托管服务。Dockerfile 使用 Node.js 22 分别构建前端和后端，将完整的 `dist/` 复制到 Express 已有的 `public/` 静态目录。
+### 部署
+
+`dist/` 可部署到静态托管服务，启用创造模式时需代理 API。子路径部署需同时配置资源路径与 API 路由，例如：
+
+```bash
+VITE_BASE_PATH=/games/breakout/ npm run build -- --outDir dist-live
+```
+
+当前线上采用 **Nginx 静态资源 + 独立 Express API + 版本化发布目录**。发布、验证与回滚步骤见 [deploy/COHOST.md](deploy/COHOST.md)。
+
+Docker 可在同一服务上提供前端和 API。先配置 `server/.env`，并挂载持久卷保存体验次数：
 
 ```bash
 docker build -t breakout-maker .
-docker run --rm --env-file server/.env -p 3001:3001 breakout-maker
+docker run --rm --env-file server/.env \
+  -e QUOTA_STORE_PATH=/app/server/data/trial-quota.json \
+  -v breakout-maker-data:/app/server/data \
+  -p 3001:3001 breakout-maker
 ```
 
-Docker 运行原有 AI 服务，因此也需要配置 `LLM_API_KEY`。浏览器访问 [http://localhost:3001](http://localhost:3001)。仓库已有的 `docker-compose.yml` 和 `deploy/` 仍提供原部署入口。
+访问 [http://localhost:3001](http://localhost:3001)。仓库中的 Compose 与旧部署脚本属于另一套独立部署方案；与线上共站环境的区别见部署文档。
 
-### 项目结构
+### 项目结构与版本关系
 
 ```text
-web/                       React 界面、Three.js 场景与游戏适配层
-  game/build-legacy.cjs    共享原有游戏逻辑的生成脚本
-src/                       原有物理、实体、计分、音效与图片转换逻辑
-levels/                    13 个战术关卡 JSON
+web/                       React 界面、Three.js 场景、现代游戏适配层
+  components/LunarCourt.tsx 星夜球场
+  components/LunarPaddle.tsx 机械挡板模型
+  game/engine.ts           技能、掉落、输入平滑与运行时适配
+  game/build-legacy.cjs    共享逻辑模块生成脚本
+src/                       共享物理、实体、计分、道具与图片转换
+levels/                    12 个战术关卡 + 1 个受保护的个人彩蛋
+server/                    Express + TypeScript 生图与额度 API
+test/                      共享逻辑测试与现代版回归测试
 public/                    前端静态资源
-server/                    Express + TypeScript AI 关卡服务
-test/                      原有游戏回归测试
-vite.config.ts             开发服务、API 代理与生产打包配置
-dist/                      新版生产构建产物（npm run build）
-build.js                   原版 Canvas 游戏构建脚本
+deploy/                    部署配置和操作说明
+media/promo/               已发布的版本对比视频
+archive/                   历史版本源码索引
 ```
 
-原版单文件 Canvas 预览仍可独立生成：
+设计说明见 [.impeccable.md](.impeccable.md)、[视觉规范](web/design-notes.md) 和 [玩法体验规范](web/arcade-direction.md)。
 
-```bash
-node build.js
-open preview.html
-```
-
-`preview.html` 是旧版界面；新版请使用 `npm run dev` 或 `npm run build`。
+`node build.js` 仍可生成旧界面的 `preview.html`，但会使用当前共享代码和关卡。需要重现历史 Canvas 2D 版本时，请使用 [归档标签](archive/README.md)。`src/` 和 `levels/` 都是当前版本的构建输入。
 
 ## English
 
-### Supernova arcade edition
+### Current edition
 
-**NOCTURNE** returns to a midnight nebula with a shaded moon, luminous crystals and layered metal rails. The centered camera has no yaw, roll or impact shake. A detailed mechanical paddle combines chamfered armour, machined end modules and a recessed energy core that changes with power state. Pointer movement settles by 95% in about 75 milliseconds on the simulation clock, so its model and collider stay aligned; keyboard control remains direct. The modern paddle uses 90% of its authored width and a height of 16 game pixels. Compact controls leave the field unobstructed.
+Play brick-breaker on a three-dimensional court among moonlight and nebulae, or turn an image or a short description into a level. **NOCTURNE** is the current maintained edition, built with React 19, TypeScript, Three.js and React Three Fiber. A shared engine handles planar collisions, scoring and powers.
 
-Destroy bricks to charge **Supernova**, then aim with the paddle and press **E** or tap the mobile skill button. It damages up to five exposed bricks by one HP each; a destroyed reactor splashes the eight neighboring cells without cascading. Armor reflects fireballs; accelerator bricks raise the striking ball’s speed up to 130%. Split and multishot add two ordinary balls with a four-ball cap. Fire strengthens one ball for four seconds or six contacts; wide paddle lasts seven seconds; one life repair is allowed per run. Drops have a five-second cooldown, two-drop limit and 18-kill pity. All 13 stages remain open. Pause freezes effect timers and silences audio.
+- **Lunar arena:** a centered, fixed perspective camera, crystalline court, moon and metal rails, with no impact-driven camera shake.
+- **Mechanical paddle:** layered metal and a luminous core, smooth mouse/touch movement and direct keyboard control. Rendering and collision use the same position.
+- **All 13 stages open:** twelve tactical layouts with entrances, armor, reactors and accelerators, plus the preserved “鹿原加油 / 必胜” dedication. See the [campaign guide](levels/README.md).
+- **Clear play space:** pickup messages, combos and timers stay above the court; skill and audiovisual controls sit below it. Portrait layouts, high/low quality, reduced-motion support and a Canvas fallback keep the game usable across devices.
+- **Spatial audio:** distinct ball, brick, pickup and skill sounds. Music is off by default. Pausing or leaving the active window freezes play and silences audio.
 
+### Modes
 
-A brick-breaker set on a three-dimensional court in a field of stars. This edition rebuilds the interface and rendering with React 19, Three.js, and React Three Fiber, pairing luminous bricks and atmospheric particles with precise instrument-style controls.
+| Mode | Experience |
+| --- | --- |
+| Campaign | Choose any of 13 stages and clear the bricks to continue |
+| Image | Convert a JPG, PNG, WebP or GIF up to 10 MB into a playable brick preview, entirely in the browser |
+| Create | Describe a pattern in 1–140 characters; the server uses a template or AI image generation to create a level |
 
-The original game remains intact: 13 built-in levels, image-to-brick conversion, AI-generated levels, combos, lives, level progression, and five power-ups. The 3D scene visualizes the original planar brick-breaking rules; ball movement, paddle behavior, collisions, and scoring reuse the existing game logic.
+### Controls and powers
+
+| Action | Mouse / touch | Keyboard |
+| --- | --- | --- |
+| Move paddle | Move or drag across the court | `←` / `→` or `A` / `D` |
+| Launch | Click the launch button or court | `Space` |
+| Pause / resume | Use the pause or resume button | `Esc` / `P`; `Space` also resumes |
+| Supernova | Tap the charged skill button below the court | `E` |
+
+Natural brick kills and armor hits charge **Supernova**. It targets exposed bricks above the paddle, directly damaging up to five by one HP each. Destroying a reactor directly damages its eight neighboring cells without cascading. Skill damage neither recharges energy nor grants a fireball.
+
+| Power | Current effect |
+| --- | --- |
+| Split / multishot | Each adds two ordinary balls, up to four on the field |
+| Fireball | Strengthens one ball for four seconds or six brick contacts; armor still reflects it |
+| Wide paddle | Adds 25% width for seven seconds |
+| Life repair | Restores one lost life per run, capped at the starting life count |
+
+Natural kills have a 7% drop chance and an 18-kill pity threshold, subject to a five-second cooldown and two active drops. Combo scoring caps at 4×. Accelerator bricks increase the striking ball's speed up to 130% of its base speed.
 
 ### Run locally
 
-Requires **Node.js 22.12 or a newer 22.x release**.
+Recommended runtime: **Node.js 22.12 or a newer 22.x release**.
 
 ```bash
-npm install
+npm ci
 npm run dev
 ```
 
-Open [http://localhost:5173](http://localhost:5173). Built-in levels and image mode work without the AI server. Uploaded images are converted to bricks locally in the browser.
+Open [http://localhost:5173](http://localhost:5173). Campaign and image mode work without the AI server.
 
 ```bash
-npm run build      # Type-check and build dist/
-npm run preview    # Preview the build, normally at http://localhost:4173
-npm test           # Original regression suite and Vitest tests
-npm run test:legacy
+npm run build       # Generate shared module, type-check and build dist/
+npm run preview     # Preview the build at http://localhost:4173
+npm test            # Shared regression suite and modern Vitest tests
+npm run test:legacy  # Shared legacy test suite only
+npm run format:check
 ```
 
-`predev` and `build` automatically run `web/game/build-legacy.cjs`. It packages the shared logic in `src/` and the level data in `levels/` into an importable module. Do not edit the generated `web/game/legacy.js` directly.
+`dev`, `build` and `test` generate `web/game/legacy.js`. Edit `src/` for shared gameplay and follow [levels/README.md](levels/README.md) for campaign changes, then rerun the command. Do not edit the generated module.
 
-### Modes and controls
+### Optional AI server and trial allowance
 
-- **Level mode:** select any level freely, bounce the ball with your paddle, and clear the bricks to progress.
-- **Image mode:** choose a local image and convert it into a level using the original median-cut palette and brick-mapping algorithms.
-- **Create mode:** describe a pattern and request a level from the AI server; common patterns can use server-side templates.
-- **Move:** move your mouse or drag a finger across the court, or use the arrow keys / `A` and `D`.
-- **Launch and pause:** click the court or press Space to launch; use `Esc` / `P` or the interface controls to pause and resume. Losing the ball costs a life and lets you serve again.
-- **Power-ups:** split ball, multi-shot, piercing fireball, wider paddle, and extra life. Consecutive hits increase the combo multiplier.
-
-### Optional AI server
-
-Start the existing Express service in a second terminal:
+Start a second terminal:
 
 ```bash
 cd server
-npm install
+npm ci
 cp .env.example .env
-# Edit .env with your API configuration
+# Configure IMAGE_API_KEY or LLM_API_KEY in .env
 npm run dev
 ```
 
-| Environment variable | Purpose |
-| --- | --- |
-| `LLM_API_KEY` | Required by the server at startup; also the default image-generation API key |
-| `IMAGE_API_KEY` | Optional separate image-generation API key |
-| `IMAGE_API_URL` | Image endpoint; defaults to `https://api.siliconflow.cn/v1/images/generations` |
-| `IMAGE_MODEL` | Image model; defaults to `Qwen/Qwen-Image` |
-| `PORT` | Server port; defaults to `3001` |
+The default provider is SiliconFlow with `Kwai-Kolors/Kolors`, listening on port `3001`. Vite proxies development `/api` requests. See [server/README.md](server/README.md) for environment variables, endpoints and storage.
 
-Vite forwards development `/api` requests to [http://localhost:3001](http://localhost:3001). In production, route `/api` to the AI server or use the Docker image below to serve both the frontend and API together. `npm run preview` is primarily for inspecting the built frontend.
+Shared generation allows **three lifetime attempts per IP**, persisted across refreshes and service restarts. Accepted requests consume an attempt, including template hits and upstream failures. Invalid or busy requests rejected before quota reservation do not count.
 
-### Production and Docker
+Visitors can use a personal SiliconFlow API key at any time and select Kolors or Qwen-Image without consuming shared attempts. The key stays in the current dialog's memory and travels through the backend with the generation request to call the provider. It is not saved in browser storage or server logs, and closing the dialog discards it. Failed personal-key requests never fall back to the shared key.
 
-Deploy `dist/` to a static host, or build the Docker image. The Dockerfile uses Node.js 22 to build the frontend and server separately, then places the complete Vite output in the existing Express `public/` directory.
+### Deployment
+
+Deploy `dist/` to a static host and proxy the API to enable Create mode. Subpath hosting requires matching asset and API routes, for example:
+
+```bash
+VITE_BASE_PATH=/games/breakout/ npm run build -- --outDir dist-live
+```
+
+The live installation uses **Nginx for static files, a separate Express API and versioned releases**. Follow [deploy/COHOST.md](deploy/COHOST.md) for deployment, checks and rollback.
+
+Docker can serve both the frontend and API. Configure `server/.env` first and persist quota data in a named volume:
 
 ```bash
 docker build -t breakout-maker .
-docker run --rm --env-file server/.env -p 3001:3001 breakout-maker
+docker run --rm --env-file server/.env \
+  -e QUOTA_STORE_PATH=/app/server/data/trial-quota.json \
+  -v breakout-maker-data:/app/server/data \
+  -p 3001:3001 breakout-maker
 ```
 
-The Docker image runs the existing AI server, so `LLM_API_KEY` must be configured. Open [http://localhost:3001](http://localhost:3001). The existing `docker-compose.yml` and `deploy/` scripts remain available for the original deployment setup.
+Open [http://localhost:3001](http://localhost:3001). The existing Compose file and older deployment scripts describe a separate installation layout; see the deployment guide before using them.
 
-### Architecture and legacy preview
+### Architecture and history
 
-`web/` contains the React interface, Three.js scene, and game adapter. `src/` remains the shared source for gameplay, physics, scoring, sound, and image conversion. `levels/` contains the 13 original levels, `server/` provides the Express AI API, and `test/` contains the original regression suite. Vite builds the new frontend into `dist/`.
+`web/` owns React UI, the Three.js arena, procedural audio and the modern adapter. `src/` supplies shared physics, entities, scoring, powers and image conversion. `levels/` contains twelve tactical stages and the protected dedication; `server/` provides generation and quota APIs; `test/` covers shared logic and the modern edition. Deployment instructions live in `deploy/`, and the comparison video is in `media/promo/`.
 
-The original standalone Canvas edition is still available:
+Current design guidance lives in [.impeccable.md](.impeccable.md), the [visual contract](web/design-notes.md) and the [arcade experience notes](web/arcade-direction.md).
 
-```bash
-node build.js
-open preview.html
-```
-
-`preview.html` contains the legacy interface. Use `npm run dev` or `npm run build` for the new edition.
+`node build.js` can still generate the legacy-interface `preview.html`, using today's shared source and levels. To reproduce the historical Canvas 2D release, use an [archive tag](archive/README.md). Both `src/` and `levels/` remain active build inputs.
 
 ## License
 
 MIT
-
-### 创造模式的体验额度
-
-共享生图使用硅基流动 `Kwai-Kolors/Kolors`（[官网价格](https://siliconflow.cn/pricing)在 2026-09-05 标注为免费）。每个 IP 累计可尝试 3 次，次数在服务器持久保存；发起生成即计次，生成失败也计次，参数错误和服务繁忙不计次。图片上传与已有游戏关卡不受影响。
-
-体验用完后，在创造工坊填写自己的硅基流动 API Key，可选择 Kolors 或 Qwen-Image 继续生成。个人密钥仅存在于当前弹窗内存中，不写入浏览器持久存储或服务器日志，关闭弹窗即清除；个人请求不使用共享密钥。

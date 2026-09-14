@@ -1,6 +1,8 @@
 # Campaign balance calibration
 
-Run `node tools/balance-sim.cjs --out /tmp/balance.json --seeds 3`. The tool runs all 13 stages with real gameplay and controls only. `--tiers ideal --stages 1,7,13` selects a smaller feasibility pass. `--source /absolute/path/engine.ts` runs a preserved module and its relative dependencies.
+These tables record the 2026-09-05 tactical redesign and dedication restoration. They predate NOCTURNE's runtime paddle changes (90% authored width, height 16, center y=605), so they are historical measurements rather than benchmarks for the current release. Current level data and runtime geometry are documented in [levels/README.md](../levels/README.md); rerun the tool to measure the current source.
+
+Run `node tools/balance-sim.cjs --out /tmp/balance.json --seeds 3`. The tool runs all 13 stages with real gameplay and controls only. `--tiers ideal --stages 1,7,13 --seconds 1200` selects a smaller feasibility pass with enough time for the preserved dedication; the default cutoff is 600 simulated seconds. `--source /absolute/path/engine.ts` runs a preserved module and its relative dependencies.
 
 These are synthetic control sensitivity models, **not measured human players or predicted player win rates**. All models predict wall reflections; delayed observations become stale after brick bounces. They use independently seeded control errors, finite hand movement, and automatic skill activation. Casual models do not deliberately aim toward bricks. The ideal model has no latency/error/travel limit and is a separate feasibility check.
 
@@ -66,6 +68,6 @@ Physics was also corrected: brick sweep tests now use the movement actually adva
 
 ## Preserved dedication
 
-The table above records the tactical release before the stage13 dedication was restored. The original 鹿原加油 / 必胜 bitmap is now preserved separately (778 bricks, speed300, paddle100, lives5), so those stage13 metrics do not describe the current dedication. Stages1–12 and all shared mechanics remain unchanged.
+The table above records the tactical release before the stage13 dedication was restored. That restoration preserved the original 鹿原加油 / 必胜 bitmap separately (778 bricks, speed300, authored paddle100, lives5), so the table's stage13 metrics do not describe the dedication. Stages1–12 and shared mechanics were unchanged by that restoration; subsequent NOCTURNE runtime tuning is outside these measurements.
 
 The restored dedication cleared with all three ideal-controller seeds in 492.9–662.4 simulated seconds (mean603.7), with no life loss. These are feasibility timings, not measured player sessions. Its high-resolution original lettering and HP naturally make it longer than the smaller tactical stages. The campaign test permits20 simulated minutes for this preserved stage, retaining the existing10-minute bounds for stages1–12.
