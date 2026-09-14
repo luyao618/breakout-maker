@@ -2,7 +2,7 @@
   "name": "breakout-maker",
   "version": "2.0.0",
   "private": true,
-  "description": "Astral Forge \u2014 a dimensional edition of Breakout Maker",
+  "description": "NOCTURNE — a lunar brick-breaker with image and AI level creation",
   "scripts": {
     "predev": "node web/game/build-legacy.cjs",
     "dev": "vite --host 0.0.0.0",

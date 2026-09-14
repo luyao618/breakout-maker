@@ -1,6 +1,10 @@
 # 历史版本归档
 
-当前维护版本位于 `main`：React / Three.js 星界工坊，包含战术关卡、顶部通知、持久生图额度，以及第13关「鹿原加油 / 必胜」彩蛋。合并前已上线的游戏源码快照为 `b1dc419`。
+当前维护版本位于 `main`：**NOCTURNE · 星夜引擎**，使用 React / Three.js 呈现居中固定的星夜球场、机械挡板与平滑输入，保留战术关卡、顶部通知、持久生图额度和第13关「鹿原加油 / 必胜」彩蛋。当前玩法与运行方式见 [项目 README](../README.md)。
+
+NOCTURNE 于 2026-09-07 通过 [PR #12](https://github.com/luyao618/breakout-maker/pull/12) 合并，游戏源码快照为 [`4e6e0aa`](https://github.com/luyao618/breakout-maker/tree/4e6e0aa52c076f0e9d3876faa273203af29d650f)。之后的 [PR #13](https://github.com/luyao618/breakout-maker/pull/13) 增加了 [版本对比视频](../media/promo/README.md)。发布目录记录见 [COHOST.md](../deploy/COHOST.md)。
+
+## NOCTURNE 之前的归档
 
 旧版本以签名 Git 标签保存完整源码和历史，不复制或移动仍被当前游戏依赖的目录。
 
@@ -22,5 +26,7 @@ git switch --detach archive/legacy-20260905
 ```
 
 查看完后用 `git switch main` 返回当前版本。标签是历史源码快照，服务器仍使用当前已验证的部署；版本化部署与回滚说明见 [COHOST.md](../deploy/COHOST.md)。
+
+在当前 `main` 上运行 `node build.js` 生成的是使用当前共享代码和关卡的旧界面预览，不能重现上述历史版本。需要对比旧规则、旧关卡或旧画面时，请在对应标签的独立工作区中构建。
 
 `src/` 仍是现代版游戏的共享运行逻辑，`levels/` 仍是构建输入，不能作为旧版文件移走。第13关原始彩蛋资源独立保存在 `levels/preserved/lu-yuan-easter-egg.json`，后续关卡重做必须保留。
